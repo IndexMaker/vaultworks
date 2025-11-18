@@ -104,6 +104,7 @@ pub struct Daxos {
     owner: StorageAddress,
     devil: StorageAddress,
     market: StorageAddress,
+    vendor: StorageAddress,
     vaults: StorageMap<U128, StorageAddress>,
 }
 
@@ -112,6 +113,14 @@ impl Daxos {
         let current_owner = self.owner.get();
         if !current_owner.is_zero() && address != current_owner {
             Err(b"Mut be owner")?;
+        }
+        Ok(())
+    }
+    
+    fn check_vendor(&self, address: Address) -> Result<(), Vec<u8>> {
+        let current_vendor = self.vendor.get();
+        if !current_vendor.is_zero() && address != current_vendor {
+            Err(b"Mut be vendor")?;
         }
         Ok(())
     }
@@ -160,11 +169,13 @@ impl Daxos {
         owner: Address,
         devil: Address,
         market: Address,
+        vendor: Address,
     ) -> Result<(), Vec<u8>> {
         self.check_owner(self.vm().tx_origin())?;
         self.owner.set(owner);
         self.devil.set(devil);
         self.market.set(market);
+        self.vendor.set(vendor);
         // TODO: send to devil solve_quadratic()
         Ok(())
     }
@@ -214,6 +225,7 @@ impl Daxos {
         _asset_prices: Vec<u8>,
         _asset_slopes: Vec<u8>,
     ) -> Result<(), Vec<u8>> {
+        self.check_vendor(self.vm().tx_origin())?;
         let [asset_names_id, asset_prices_id, asset_slopes_id, asset_liquidity_id] = [0; 4];
         let [market_asset_names_id, market_asset_prices_id, market_asset_slopes_id, market_asset_liquidity_id] =
             [0; 4];
@@ -274,6 +286,7 @@ impl Daxos {
         _asset_names: Vec<u8>,
         _asset_margin: Vec<u8>,
     ) -> Result<(), Vec<u8>> {
+        self.check_vendor(self.vm().tx_origin())?;
         // TODO: get those from Market
         let [asset_names_id, asset_margin_id, market_asset_names_id, margin_id] = [0; 4];
 
@@ -314,6 +327,7 @@ impl Daxos {
         _asset_quantities_short: Vec<u8>,
         _asset_quantities_long: Vec<u8>,
     ) -> Result<(), Vec<u8>> {
+        self.check_vendor(self.vm().tx_origin())?;
         let market_address = self.market.get();
         let submit = IMarket::submitSupplyCall {};
         self.vm()
@@ -356,7 +370,7 @@ impl Daxos {
         index: U128,
         collateral_amount: u128,
     ) -> Result<(), Vec<u8>> {
-        let user = self.vm().msg_sender();
+        let user = self.vm().tx_origin();
         let vault_access = self.vaults.getter(index);
         let vault_address = vault_access.get();
         if vault_address.is_zero() {
