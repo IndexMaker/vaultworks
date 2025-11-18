@@ -16,6 +16,13 @@ pub enum ErrorCode {
     NotAligned,
     MathUnderflow,
     MathOverflow,
+    SubroutineError(alloc::boxed::Box<ProgramError>),
+}
+
+pub struct ProgramError {
+    pub error_code: ErrorCode,
+    pub program_counter: usize,
+    pub stack_depth: usize,
 }
 
 #[cfg(test)]
@@ -31,7 +38,19 @@ impl Debug for ErrorCode {
             Self::NotAligned => write!(f, "NotAligned"),
             Self::MathUnderflow => write!(f, "MathUnderflow"),
             Self::MathOverflow => write!(f, "MathOverflow"),
+            Self::SubroutineError(inner) => write!(f, "SubroutineError({:?})", *inner),
         }
+    }
+}
+
+#[cfg(test)]
+impl Debug for ProgramError {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        f.debug_struct("ProgramError")
+            .field("error_code", &self.error_code)
+            .field("program_counter", &self.program_counter)
+            .field("stack_depth", &self.stack_depth)
+            .finish()
     }
 }
 
@@ -149,6 +168,10 @@ impl Stack {
             stack: Vec::new(),
             registry,
         }
+    }
+
+    fn depth(&self) -> usize {
+        self.stack.len()
     }
 
     fn push(&mut self, operand: Operand) {
@@ -867,7 +890,11 @@ where
         Self { vio }
     }
 
-    pub fn execute(&mut self, code_bytes: Vec<u8>, num_registers: usize) -> Result<(), ErrorCode> {
+    pub fn execute(
+        &mut self,
+        code_bytes: Vec<u8>,
+        num_registers: usize,
+    ) -> Result<(), ProgramError> {
         let code = Labels::from_vec(code_bytes).data;
         let mut stack = Stack::new(num_registers);
         self.execute_with_stack(code, &mut stack)
@@ -877,293 +904,304 @@ where
         &mut self,
         code: Vec<u128>,
         stack: &mut Stack,
-    ) -> Result<(), ErrorCode> {
+    ) -> Result<(), ProgramError> {
         log_msg!("\nvvv EXECUTE PROGRAM vvv");
         log_stack!(&stack);
 
         let mut pc = 0;
-        while pc < code.len() {
-            let op_code = code[pc];
-            log_msg!("PC = {:4}, OpCode = {:4}", pc, op_code);
-            pc += 1;
-            match op_code {
-                OP_LDL => {
-                    let id = code[pc];
-                    pc += 1;
-                    let v = self.vio.load_labels(id)?;
-                    stack.push(Operand::Labels(v));
-                }
-                OP_LDV => {
-                    let id = code[pc];
-                    pc += 1;
-                    let v = self.vio.load_vector(id)?;
-                    stack.push(Operand::Vector(v));
-                }
-                OP_STL => {
-                    let id = code[pc];
-                    pc += 1;
-                    match stack.pop()? {
-                        Operand::Labels(v) => {
-                            self.vio.store_labels(id, v)?;
-                        }
-                        _ => {
-                            Err(ErrorCode::InvalidOperand)?;
-                        }
+        let mut run = || -> Result<(), ErrorCode> {
+            while pc < code.len() {
+                let op_code = code[pc];
+                log_msg!("PC = {:4}, OpCode = {:4}", pc, op_code);
+                pc += 1;
+                match op_code {
+                    OP_LDL => {
+                        let id = code[pc];
+                        pc += 1;
+                        let v = self.vio.load_labels(id)?;
+                        stack.push(Operand::Labels(v));
                     }
-                }
-                OP_STV => {
-                    let id = code[pc];
-                    pc += 1;
-                    match stack.pop()? {
-                        Operand::Vector(v) => {
-                            self.vio.store_vector(id, v)?;
-                        }
-                        _ => {
-                            Err(ErrorCode::InvalidOperand)?;
-                        }
+                    OP_LDV => {
+                        let id = code[pc];
+                        pc += 1;
+                        let v = self.vio.load_vector(id)?;
+                        stack.push(Operand::Vector(v));
                     }
-                }
-                OP_LDD => {
-                    let pos = code[pc] as usize;
-                    pc += 1;
-                    stack.ldd(pos)?;
-                }
-                OP_LDR => {
-                    let reg = code[pc] as usize;
-                    pc += 1;
-                    stack.ldr(reg)?;
-                }
-                OP_LDM => {
-                    let reg = code[pc] as usize;
-                    pc += 1;
-                    stack.ldm(reg)?;
-                }
-                OP_STR => {
-                    let reg = code[pc] as usize;
-                    pc += 1;
-                    stack.op_str(reg)?;
-                }
-                OP_PKV => {
-                    let count = code[pc] as usize;
-                    pc += 1;
-                    stack.pkv(count)?;
-                }
-                OP_PKL => {
-                    let count = code[pc] as usize;
-                    pc += 1;
-                    stack.pkl(count)?;
-                }
-                OP_UNPK => {
-                    stack.unpk()?;
-                }
-                OP_T => {
-                    let count = code[pc] as usize;
-                    pc += 1;
-                    stack.transpose(count)?;
-                }
-                OP_ADD => {
-                    let pos = code[pc] as usize;
-                    pc += 1;
-                    stack.add(pos)?;
-                }
-                OP_SUB => {
-                    let pos = code[pc] as usize;
-                    pc += 1;
-                    stack.sub(pos)?;
-                }
-                OP_SSB => {
-                    let pos = code[pc] as usize;
-                    pc += 1;
-                    stack.ssb(pos)?;
-                }
-                OP_MUL => {
-                    let pos = code[pc] as usize;
-                    pc += 1;
-                    stack.mul(pos)?;
-                }
-                OP_DIV => {
-                    let pos = code[pc] as usize;
-                    pc += 1;
-                    stack.div(pos)?;
-                }
-                OP_SQRT => {
-                    stack.sqrt()?;
-                }
-                OP_VSUM => {
-                    stack.vsum()?;
-                }
-                OP_MIN => {
-                    let pos = code[pc] as usize;
-                    pc += 1;
-                    stack.min(pos)?;
-                }
-                OP_MAX => {
-                    let pos = code[pc] as usize;
-                    pc += 1;
-                    stack.max(pos)?;
-                }
-                OP_LUNION => {
-                    let pos = code[pc] as usize;
-                    pc += 1;
-                    stack.lunion(pos)?;
-                }
-                OP_ZEROS => {
-                    let pos = code[pc] as usize;
-                    pc += 1;
-                    stack.zeros(pos)?;
-                }
-                OP_ONES => {
-                    let pos = code[pc] as usize;
-                    pc += 1;
-                    stack.ones(pos)?;
-                }
-                OP_IMMS => {
-                    let val = code[pc];
-                    pc += 1;
-                    stack.imms(val)?;
-                }
-                OP_IMML => {
-                    let val = code[pc];
-                    pc += 1;
-                    stack.imml(val)?;
-                }
-                OP_VMIN => {
-                    stack.vmin()?;
-                }
-                OP_VMAX => {
-                    stack.vmax()?;
-                }
-                OP_VPUSH => {
-                    let val = code[pc];
-                    pc += 1;
-                    stack.vpush(val)?;
-                }
-                OP_LPUSH => {
-                    let val = code[pc];
-                    pc += 1;
-                    stack.lpush(val)?;
-                }
-                OP_VPOP => {
-                    stack.vpop()?;
-                }
-                OP_LPOP => {
-                    stack.lpop()?;
-                }
-                OP_POPN => {
-                    let count = code[pc] as usize;
-                    pc += 1;
-                    stack.op_popn(count)?;
-                }
-                OP_SWAP => {
-                    let pos = code[pc] as usize;
-                    pc += 1;
-                    stack.swap(pos)?;
-                }
-                OP_JUPD => {
-                    let pos_1 = code[pc] as usize;
-                    pc += 1;
-                    let pos_2 = code[pc] as usize;
-                    pc += 1;
-                    let pos_3 = code[pc] as usize;
-                    pc += 1;
-                    stack.jupd(pos_1, pos_2, pos_3)?;
-                }
-                OP_JADD => {
-                    let pos_1 = code[pc] as usize;
-                    pc += 1;
-                    let pos_2 = code[pc] as usize;
-                    pc += 1;
-                    let pos_3 = code[pc] as usize;
-                    pc += 1;
-                    stack.jadd(pos_1, pos_2, pos_3)?;
-                }
-                OP_JFLT => {
-                    let pos_1 = code[pc] as usize;
-                    pc += 1;
-                    let pos_2 = code[pc] as usize;
-                    pc += 1;
-                    stack.jflt(pos_1, pos_2)?;
-                }
-                OP_B => {
-                    // B <program_id> <num_inputs> <num_outputs> <num_registers>
-                    let code_address = code[pc];
-                    pc += 1;
-                    let num_inputs = code[pc] as usize;
-                    pc += 1;
-                    let num_outputs = code[pc] as usize;
-                    pc += 1;
-                    let num_regs = code[pc] as usize;
-                    pc += 1;
-                    let mut st = Stack::new(num_regs);
-                    let mut prg = Program::new(self.vio);
-                    let cod = prg.vio.load_labels(code_address)?;
-                    let frm = stack
-                        .stack
-                        .len()
-                        .checked_sub(num_inputs)
-                        .ok_or_else(|| ErrorCode::StackUnderflow)?;
-                    st.stack.extend(stack.stack.drain(frm..));
-                    let res = prg.execute_with_stack(cod.data, &mut st);
-                    if let Err(err) = res {
-                        log_msg!("\n\nError occurred in procedure:");
-                        log_stack!(&st);
-                        log_msg!("^^^ Stack of the procedure\n\n");
-                        return Err(err);
-                    }
-                    let frm = st
-                        .stack
-                        .len()
-                        .checked_sub(num_outputs)
-                        .ok_or_else(|| ErrorCode::StackUnderflow)?;
-                    stack.stack.extend(st.stack.drain(frm..));
-                }
-                OP_FOLD => {
-                    // FOLD <program_id> <num_inputs> <num_outputs> <num_registers>
-                    let code_address = code[pc];
-                    pc += 1;
-                    let num_inputs = code[pc] as usize;
-                    pc += 1;
-                    let num_outputs = code[pc] as usize;
-                    pc += 1;
-                    let num_regs = code[pc] as usize;
-                    pc += 1;
-                    let mut st = Stack::new(num_regs);
-                    let mut prg = Program::new(self.vio);
-                    let cod = prg.vio.load_labels(code_address)?;
-                    let source = stack.stack.pop().ok_or_else(|| ErrorCode::StackUnderflow)?;
-                    let frm = stack
-                        .stack
-                        .len()
-                        .checked_sub(num_inputs)
-                        .ok_or_else(|| ErrorCode::StackUnderflow)?;
-                    st.stack.extend(stack.stack.drain(frm..));
-                    match source {
-                        Operand::Labels(s) => {
-                            for item in s.data {
-                                st.stack.push(Operand::Label(item));
-                                prg.execute_with_stack(cod.data.clone(), &mut st)?;
+                    OP_STL => {
+                        let id = code[pc];
+                        pc += 1;
+                        match stack.pop()? {
+                            Operand::Labels(v) => {
+                                self.vio.store_labels(id, v)?;
+                            }
+                            _ => {
+                                Err(ErrorCode::InvalidOperand)?;
                             }
                         }
-                        Operand::Vector(s) => {
-                            for item in s.data {
-                                st.stack.push(Operand::Scalar(item));
-                                prg.execute_with_stack(cod.data.clone(), &mut st)?;
+                    }
+                    OP_STV => {
+                        let id = code[pc];
+                        pc += 1;
+                        match stack.pop()? {
+                            Operand::Vector(v) => {
+                                self.vio.store_vector(id, v)?;
+                            }
+                            _ => {
+                                Err(ErrorCode::InvalidOperand)?;
                             }
                         }
-                        _ => Err(ErrorCode::InvalidOperand)?,
                     }
-                    let frm = st
-                        .stack
-                        .len()
-                        .checked_sub(num_outputs)
-                        .ok_or_else(|| ErrorCode::StackUnderflow)?;
-                    stack.stack.extend(st.stack.drain(frm..));
-                }
-                _ => {
-                    Err(ErrorCode::InvalidInstruction)?;
+                    OP_LDD => {
+                        let pos = code[pc] as usize;
+                        pc += 1;
+                        stack.ldd(pos)?;
+                    }
+                    OP_LDR => {
+                        let reg = code[pc] as usize;
+                        pc += 1;
+                        stack.ldr(reg)?;
+                    }
+                    OP_LDM => {
+                        let reg = code[pc] as usize;
+                        pc += 1;
+                        stack.ldm(reg)?;
+                    }
+                    OP_STR => {
+                        let reg = code[pc] as usize;
+                        pc += 1;
+                        stack.op_str(reg)?;
+                    }
+                    OP_PKV => {
+                        let count = code[pc] as usize;
+                        pc += 1;
+                        stack.pkv(count)?;
+                    }
+                    OP_PKL => {
+                        let count = code[pc] as usize;
+                        pc += 1;
+                        stack.pkl(count)?;
+                    }
+                    OP_UNPK => {
+                        stack.unpk()?;
+                    }
+                    OP_T => {
+                        let count = code[pc] as usize;
+                        pc += 1;
+                        stack.transpose(count)?;
+                    }
+                    OP_ADD => {
+                        let pos = code[pc] as usize;
+                        pc += 1;
+                        stack.add(pos)?;
+                    }
+                    OP_SUB => {
+                        let pos = code[pc] as usize;
+                        pc += 1;
+                        stack.sub(pos)?;
+                    }
+                    OP_SSB => {
+                        let pos = code[pc] as usize;
+                        pc += 1;
+                        stack.ssb(pos)?;
+                    }
+                    OP_MUL => {
+                        let pos = code[pc] as usize;
+                        pc += 1;
+                        stack.mul(pos)?;
+                    }
+                    OP_DIV => {
+                        let pos = code[pc] as usize;
+                        pc += 1;
+                        stack.div(pos)?;
+                    }
+                    OP_SQRT => {
+                        stack.sqrt()?;
+                    }
+                    OP_VSUM => {
+                        stack.vsum()?;
+                    }
+                    OP_MIN => {
+                        let pos = code[pc] as usize;
+                        pc += 1;
+                        stack.min(pos)?;
+                    }
+                    OP_MAX => {
+                        let pos = code[pc] as usize;
+                        pc += 1;
+                        stack.max(pos)?;
+                    }
+                    OP_LUNION => {
+                        let pos = code[pc] as usize;
+                        pc += 1;
+                        stack.lunion(pos)?;
+                    }
+                    OP_ZEROS => {
+                        let pos = code[pc] as usize;
+                        pc += 1;
+                        stack.zeros(pos)?;
+                    }
+                    OP_ONES => {
+                        let pos = code[pc] as usize;
+                        pc += 1;
+                        stack.ones(pos)?;
+                    }
+                    OP_IMMS => {
+                        let val = code[pc];
+                        pc += 1;
+                        stack.imms(val)?;
+                    }
+                    OP_IMML => {
+                        let val = code[pc];
+                        pc += 1;
+                        stack.imml(val)?;
+                    }
+                    OP_VMIN => {
+                        stack.vmin()?;
+                    }
+                    OP_VMAX => {
+                        stack.vmax()?;
+                    }
+                    OP_VPUSH => {
+                        let val = code[pc];
+                        pc += 1;
+                        stack.vpush(val)?;
+                    }
+                    OP_LPUSH => {
+                        let val = code[pc];
+                        pc += 1;
+                        stack.lpush(val)?;
+                    }
+                    OP_VPOP => {
+                        stack.vpop()?;
+                    }
+                    OP_LPOP => {
+                        stack.lpop()?;
+                    }
+                    OP_POPN => {
+                        let count = code[pc] as usize;
+                        pc += 1;
+                        stack.op_popn(count)?;
+                    }
+                    OP_SWAP => {
+                        let pos = code[pc] as usize;
+                        pc += 1;
+                        stack.swap(pos)?;
+                    }
+                    OP_JUPD => {
+                        let pos_1 = code[pc] as usize;
+                        pc += 1;
+                        let pos_2 = code[pc] as usize;
+                        pc += 1;
+                        let pos_3 = code[pc] as usize;
+                        pc += 1;
+                        stack.jupd(pos_1, pos_2, pos_3)?;
+                    }
+                    OP_JADD => {
+                        let pos_1 = code[pc] as usize;
+                        pc += 1;
+                        let pos_2 = code[pc] as usize;
+                        pc += 1;
+                        let pos_3 = code[pc] as usize;
+                        pc += 1;
+                        stack.jadd(pos_1, pos_2, pos_3)?;
+                    }
+                    OP_JFLT => {
+                        let pos_1 = code[pc] as usize;
+                        pc += 1;
+                        let pos_2 = code[pc] as usize;
+                        pc += 1;
+                        stack.jflt(pos_1, pos_2)?;
+                    }
+                    OP_B => {
+                        // B <program_id> <num_inputs> <num_outputs> <num_registers>
+                        let code_address = code[pc];
+                        pc += 1;
+                        let num_inputs = code[pc] as usize;
+                        pc += 1;
+                        let num_outputs = code[pc] as usize;
+                        pc += 1;
+                        let num_regs = code[pc] as usize;
+                        pc += 1;
+                        let mut st = Stack::new(num_regs);
+                        let mut prg = Program::new(self.vio);
+                        let cod = prg.vio.load_labels(code_address)?;
+                        let frm = stack
+                            .stack
+                            .len()
+                            .checked_sub(num_inputs)
+                            .ok_or_else(|| ErrorCode::StackUnderflow)?;
+                        st.stack.extend(stack.stack.drain(frm..));
+                        let res = prg.execute_with_stack(cod.data, &mut st);
+                        if let Err(err) = res {
+                            log_msg!("\n\nError occurred in procedure:");
+                            log_stack!(&st);
+                            log_msg!("^^^ Stack of the procedure\n\n");
+                            return Err(ErrorCode::SubroutineError(err.into()));
+                        }
+                        let frm = st
+                            .stack
+                            .len()
+                            .checked_sub(num_outputs)
+                            .ok_or_else(|| ErrorCode::StackUnderflow)?;
+                        stack.stack.extend(st.stack.drain(frm..));
+                    }
+                    OP_FOLD => {
+                        // FOLD <program_id> <num_inputs> <num_outputs> <num_registers>
+                        let code_address = code[pc];
+                        pc += 1;
+                        let num_inputs = code[pc] as usize;
+                        pc += 1;
+                        let num_outputs = code[pc] as usize;
+                        pc += 1;
+                        let num_regs = code[pc] as usize;
+                        pc += 1;
+                        let mut st = Stack::new(num_regs);
+                        let mut prg = Program::new(self.vio);
+                        let cod = prg.vio.load_labels(code_address)?;
+                        let source = stack.stack.pop().ok_or_else(|| ErrorCode::StackUnderflow)?;
+                        let frm = stack
+                            .stack
+                            .len()
+                            .checked_sub(num_inputs)
+                            .ok_or_else(|| ErrorCode::StackUnderflow)?;
+                        st.stack.extend(stack.stack.drain(frm..));
+                        match source {
+                            Operand::Labels(s) => {
+                                for item in s.data {
+                                    st.stack.push(Operand::Label(item));
+                                    prg.execute_with_stack(cod.data.clone(), &mut st)
+                                        .map_err(|ec| ErrorCode::SubroutineError(ec.into()))?;
+                                }
+                            }
+                            Operand::Vector(s) => {
+                                for item in s.data {
+                                    st.stack.push(Operand::Scalar(item));
+                                    prg.execute_with_stack(cod.data.clone(), &mut st)
+                                        .map_err(|ec| ErrorCode::SubroutineError(ec.into()))?;
+                                }
+                            }
+                            _ => Err(ErrorCode::InvalidOperand)?,
+                        }
+                        let frm = st
+                            .stack
+                            .len()
+                            .checked_sub(num_outputs)
+                            .ok_or_else(|| ErrorCode::StackUnderflow)?;
+                        stack.stack.extend(st.stack.drain(frm..));
+                    }
+                    _ => {
+                        Err(ErrorCode::InvalidInstruction)?;
+                    }
                 }
             }
-        }
+            Ok(())
+        };
+
+        run().map_err(|ec| ProgramError {
+            error_code: ec,
+            program_counter: pc,
+            stack_depth: stack.depth(),
+        })?;
 
         log_stack!(&stack);
         log_msg!("\n^^^ PROGRAM ENDED ^^^");

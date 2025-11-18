@@ -9,11 +9,12 @@ use alloc::vec::Vec;
 
 use alloy_primitives::{Address, U128};
 use alloy_sol_types::{sol, SolCall};
+use amount_macros::amount;
 use deli::labels::Labels;
 use icore::vil::{execute_buy_order::execute_buy_order, update_supply::update_supply};
 use stylus_sdk::{
     prelude::*,
-    storage::{StorageAddress, StorageMap},
+    storage::{StorageAddress, StorageMap, StorageSigned, StorageString},
 };
 
 sol! {
@@ -101,6 +102,7 @@ pub struct Daxos {
     devil: StorageAddress,
     market: StorageAddress,
     vaults: StorageMap<U128, StorageAddress>,
+    name: StorageString,
 }
 
 impl Daxos {
@@ -135,6 +137,11 @@ impl Daxos {
         self.owner.set(owner);
         self.devil.set(devil);
         self.market.set(market);
+        // TODO: send to devil solve_quadratic()
+        Ok(())
+    }
+
+    pub fn deploy_vault(&mut self, name: Vec<u8>) -> Result<(), Vec<u8>> {
         Ok(())
     }
 
@@ -190,10 +197,14 @@ impl Daxos {
         let delta_long_id = 106;
         let delta_short_id = 107;
         let solve_quadratic_id = 10;
+        let collateral_added = amount!(0);
+        let collateral_removed = amount!(0);
 
         // TODO: get those from Vault and Market
         let update = execute_buy_order(
             index_order_id,
+            collateral_added.to_u128_raw(),
+            collateral_removed.to_u128_raw(),
             executed_index_quantities_id,
             executed_asset_quantities_id,
             asset_names_id,
@@ -213,7 +224,11 @@ impl Daxos {
         Ok(())
     }
 
-    pub fn submit_supply(&mut self) -> Result<(), Vec<u8>> {
+    pub fn submit_inventory(
+        &mut self,
+        _inventory_long: Vec<u8>,
+        _inventory_short: Vec<u8>,
+    ) -> Result<(), Vec<u8>> {
         let market_address = self.market.get();
         let submit = IMarket::submitSupplyCall {};
         self.vm()

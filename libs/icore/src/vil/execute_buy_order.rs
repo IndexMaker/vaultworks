@@ -4,6 +4,8 @@ use devil_macros::devil;
 /// 
 pub fn execute_buy_order(
     order_id: u128,
+    collateral_added: u128,
+    collateral_removed: u128,
     executed_index_quantities_id: u128,
     executed_asset_quantities_id: u128,
     asset_names_id: u128,
@@ -19,6 +21,10 @@ pub fn execute_buy_order(
     solve_quadratic_id: u128,
 ) -> Vec<u128> {
     devil! {
+        // ====================================
+        // * * * (TRY) COMPUTE NEW VALUES * * *
+        // ====================================
+
         // Load Weights
         LDV         asset_weights_id            // Stack: [AssetWeights]
         STR         _Weights                    // Stack: []
@@ -28,7 +34,15 @@ pub fn execute_buy_order(
         UNPK                                    // Stack: [Collateral, Spent, Minted]
         STR         _Minted                     // Stack: [Collateral, Spent]
         STR         _Spent                      // Stack: [Collateral]
-        STR         _Collateral                 // Stack: []
+
+        // Compute Collateral += (Collateral Added - Collateral Removed)
+        IMMS        collateral_added            // Stack: [Collateral, C.Added]
+        ADD         1                           // Stack: [Collateral_old, Collateral_new = (Collateral_old + C.Added)]
+        IMMS        collateral_removed          // Stack: [Collateral_old, Collateral_new, C.Removed]
+        SWAP        1                           // Stack: [Collateral_old, C.Removed, Collateral_new]
+        SUB         1                           // Stack: [Collateral_old, C.Removed, (Collateral_new - C.Removed)]
+        STR         _Collateral                 // Stack: [Collateral_old, C.Removed]
+        POPN        2                           // Stack: []
 
         // Compute Index Quantity
         LDV         index_quote_id              // Stack: [Quote = (Capacity, Price, Slope)]
@@ -113,6 +127,11 @@ pub fn execute_buy_order(
         SSB         1                           // Stack [AssetNames, MarketAssetNames, DeltaShort, RL = (DeltaLong s- DeltaShort)]
         STR         _DeltaLong                  // Stack [AssetNames, MarketAssetNames, DeltaShort]
         POPN        3                           // Stack []
+
+
+        // =============================
+        // * * * COMMIT NEW VALUES * * *
+        // =============================
 
         // Store Demand
         LDM         _DemandLong

@@ -1354,14 +1354,18 @@ version = "0.1.0"
 dependencies = [
  "alloy-primitives",
  "alloy-sol-types",
+ "amount-macros",
  "deli",
+ "devil-macros",
  "dotenv",
  "ethers",
  "eyre",
  "hex",
  "icore",
+ "labels-macros",
  "stylus-sdk",
  "tokio",
+ "vector-macros",
 ]
 
 [[package]]
