@@ -197,14 +197,12 @@ impl Daxos {
         let delta_long_id = 106;
         let delta_short_id = 107;
         let solve_quadratic_id = 10;
-        let collateral_added = amount!(0);
-        let collateral_removed = amount!(0);
 
         // TODO: get those from Vault and Market
         let update = execute_buy_order(
             index_order_id,
-            collateral_added.to_u128_raw(),
-            collateral_removed.to_u128_raw(),
+            collateral_amount,
+            0,
             executed_index_quantities_id,
             executed_asset_quantities_id,
             asset_names_id,
@@ -224,21 +222,26 @@ impl Daxos {
         Ok(())
     }
 
-    pub fn submit_inventory(
+    pub fn submit_supply(
         &mut self,
-        _inventory_long: Vec<u8>,
-        _inventory_short: Vec<u8>,
+        _asset_names: Vec<u8>,
+        _asset_quantities_short: Vec<u8>,
+        _asset_quantities_long: Vec<u8>,
     ) -> Result<(), Vec<u8>> {
         let market_address = self.market.get();
         let submit = IMarket::submitSupplyCall {};
         self.vm()
             .call(&self, market_address, &submit.abi_encode())?;
 
-        let [market_asset_names_id, supply_long_id, supply_short_id, demand_long_id, demand_short_id, delta_long_id, delta_short_id] =
-            [0; 7];
+        let [asset_names_id, asset_quantities_short_id, asset_quantities_long_id] = [0; 3];
+        let [market_asset_names_id, supply_long_id, supply_short_id] = [0; 3];
+        let [demand_long_id, demand_short_id, delta_long_id, delta_short_id] = [0; 4];
 
         // TODO: get those from Market
         let update = update_supply(
+            asset_names_id,
+            asset_quantities_short_id,
+            asset_quantities_long_id,
             market_asset_names_id,
             supply_long_id,
             supply_short_id,
@@ -249,6 +252,16 @@ impl Daxos {
         );
         let num_registry = 16;
         self.send_to_devil(update, num_registry)?;
+        Ok(())
+    }
+
+    pub fn submit_market_data(
+        &mut self,
+        _asset_names: Vec<u8>,
+        _asset_liquidity: Vec<u8>,
+        _asset_prices: Vec<u8>,
+        _asset_slopes: Vec<u8>,
+    ) -> Result<(), Vec<u8>> {
         Ok(())
     }
 }
