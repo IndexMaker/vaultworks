@@ -19,18 +19,18 @@ pub fn update_supply(
         // * * * (TRY) COMPUTE NEW VALUES * * *
         // ====================================
 
-        // Match Market: Update Demand and Delta
-        LDL         asset_names_id              // Stack [MAN = AssetNames]
+        // Update Supply & Delta
+        LDL         asset_names_id              // Stack [AN = AssetNames]
         LDL         market_asset_names_id       // Stack [AN = AssetNames, MAN = MarketAssetNames]
 
-        // Compute SupplyShort <- AssetQuantitiesShort
+        // Compute SupplyShort j= AssetQuantitiesShort
         LDV         asset_quantities_short_id   // Stack [AN, MAN, AQS]
         LDV         supply_short_id             // Stack [AN, MAN, AQS, SS = SupplyShort]
         JUPD        1   2   3                   // Stack [AN, MAN, AQS, SS_updated]
         STR         _SupplyShort                // Stack [AN, MAN, AQS]
         POPN        1                           // Stack [AN, MAN]
 
-        // Compute SupplyLong <- AssetQuantitiesLong
+        // Compute SupplyLong j= AssetQuantitiesLong
         LDV         asset_quantities_long_id    // Stack [AN, MAN, AQL]
         LDV         supply_long_id              // Stack [AN, MAN, AQL, SL = SupplyLong]
         JUPD        1   2   3                   // Stack [AN, MAN, AQL, SL_updated]

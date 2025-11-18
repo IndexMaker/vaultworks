@@ -11,7 +11,10 @@ use alloy_primitives::{Address, U128};
 use alloy_sol_types::{sol, SolCall};
 use amount_macros::amount;
 use deli::labels::Labels;
-use icore::vil::{execute_buy_order::execute_buy_order, update_supply::update_supply};
+use icore::vil::{
+    execute_buy_order::execute_buy_order, update_market_data::update_market_data,
+    update_supply::update_supply,
+};
 use stylus_sdk::{
     prelude::*,
     storage::{StorageAddress, StorageMap, StorageSigned, StorageString},
@@ -262,6 +265,22 @@ impl Daxos {
         _asset_prices: Vec<u8>,
         _asset_slopes: Vec<u8>,
     ) -> Result<(), Vec<u8>> {
+        let [asset_names_id, asset_prices_id, asset_slopes_id, asset_liquidity_id] = [0; 4];
+        let [market_asset_names_id, market_asset_prices_id, market_asset_slopes_id, market_asset_liquidity_id] =
+            [0; 4];
+
+        let update = update_market_data(
+            asset_names_id,
+            asset_prices_id,
+            asset_slopes_id,
+            asset_liquidity_id,
+            market_asset_names_id,
+            market_asset_prices_id,
+            market_asset_slopes_id,
+            market_asset_liquidity_id,
+        );
+        let num_registry = 16;
+        self.send_to_devil(update, num_registry)?;
         Ok(())
     }
 }
