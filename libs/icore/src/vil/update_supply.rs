@@ -57,6 +57,9 @@ pub fn update_supply(
         POPN        1                           // Stack [AssetNames, MarketAssetNames, DeltaLong, DeltaShort]
 
         // Delta Long - Delta Short
+        //
+        // Note that here we normalise Delta so that value is either on Short or Long side.
+        //
         LDD         0                           // Stack [AssetNames, MarketAssetNames, DeltaLong, DeltaShort, DeltaShort]
         SSB         2                           // Stack [AssetNames, MarketAssetNames, DeltaLong, DeltaShort, RS = (DeltaShort s- DeltaLong)]
         STR         _DeltaShort                 // Stack [AssetNames, MarketAssetNames, DeltaLong, DeltaShort]
@@ -70,7 +73,7 @@ pub fn update_supply(
         // * * * COMMIT NEW VALUES * * *
         // =============================
 
-        // Store Demand
+        // Store Supply
         LDM         _SupplyLong
         LDM         _SupplyShort
         STV         supply_short_id

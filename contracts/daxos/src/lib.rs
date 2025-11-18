@@ -154,7 +154,8 @@ impl Daxos {
 #[public]
 impl Daxos {
     /// Setup Daxos to use specific DeVIL and Market contracts
-    pub fn setup(
+    #[constructor]
+    pub fn constructor(
         &mut self,
         owner: Address,
         devil: Address,
@@ -165,6 +166,71 @@ impl Daxos {
         self.devil.set(devil);
         self.market.set(market);
         // TODO: send to devil solve_quadratic()
+        Ok(())
+    }
+
+    /// Submit full list of all available assets
+    ///
+    /// Full list of assets must be submitted prior any Index or Market
+    /// operation. List can also be updated later using submit_assets call.
+    ///
+    /// Note that the new list must be a superset of current list or call will
+    /// fail. Delisting assets is not possible. To support delisting we would
+    /// need to have a process in place to first reduce delta for the delisted
+    /// assets to zero, and then check they are zero using JFLT, VMAX, and SUB
+    /// operations, i.e. JFLT delisted assets, VMAX to find any non-zero value,
+    /// and SUB to fail if non-zero value is found.
+    ///
+    pub fn submit_assets(&mut self, market_asset_names: Vec<u8>) -> Result<(), Vec<u8>> {
+        self.check_owner(self.vm().tx_origin())?;
+        // TODO:
+        // - Update market asset names
+        // - Extend supply, demand, and delta vectors
+        // - Extend prices, slopes, liquidity vectors
+        //
+        Ok(())
+    }
+
+    /// Submit Market Data
+    ///
+    /// Vendor submits Market Data using Price, Slope, Liquidity model, which is
+    /// a format optimised for on-chain computation.
+    ///
+    /// - Price     : Micro-Price
+    /// - Slope     : Price delta within N-levels (Bid + Ask)
+    /// - Liquidity : Total quantitiy on N-levels (Bid + Ask)
+    ///
+    /// Vendor is responsible for modeling these parameters is suitable way
+    /// using live Market Data.
+    ///
+    /// Note that it is the Vendor deciding what prices and exposure they are
+    /// willing to accept, i.e. they can adjust prices, slopes and liquidity to
+    /// take into account their risk factors.
+    ///
+    pub fn submit_market_data(
+        &mut self,
+        _asset_names: Vec<u8>,
+        _asset_liquidity: Vec<u8>,
+        _asset_prices: Vec<u8>,
+        _asset_slopes: Vec<u8>,
+    ) -> Result<(), Vec<u8>> {
+        let [asset_names_id, asset_prices_id, asset_slopes_id, asset_liquidity_id] = [0; 4];
+        let [market_asset_names_id, market_asset_prices_id, market_asset_slopes_id, market_asset_liquidity_id] =
+            [0; 4];
+
+        // Compile VIL program, which we will send to DeVIL for execution.
+        let update = update_market_data(
+            asset_names_id,
+            asset_prices_id,
+            asset_slopes_id,
+            asset_liquidity_id,
+            market_asset_names_id,
+            market_asset_prices_id,
+            market_asset_slopes_id,
+            market_asset_liquidity_id,
+        );
+        let num_registry = 16;
+        self.send_to_devil(update, num_registry)?;
         Ok(())
     }
 
@@ -191,6 +257,93 @@ impl Daxos {
     ///
     pub fn submit_vote(&mut self, index: U128, vote: Vec<u8>) -> Result<(), Vec<u8>> {
         // Should call Vault smart-contract method to vote on the Index.
+        Ok(())
+    }
+
+    /// Submit Margin
+    ///
+    /// Vendor submits Margin, which limits how much of each asset we can
+    /// allocate to new Index orders.
+    ///
+    /// Asset Capacity = MIN(Market Liquidity, Margin - MAX(Demand Short, Demand Long))
+    ///
+    /// Index Capacity = VMIN(Asset Capacity / Asset Weight)
+    ///
+    pub fn submit_margin(
+        &mut self,
+        _asset_names: Vec<u8>,
+        _asset_margin: Vec<u8>,
+    ) -> Result<(), Vec<u8>> {
+        // TODO: get those from Market
+        let [asset_names_id, asset_margin_id, market_asset_names_id, margin_id] = [0; 4];
+
+        // Compile VIL program, which we will send to DeVIL for execution.
+        //
+        // The program:
+        // - updates maring by overwriting with supplied values
+        //
+        let update = update_margin(
+            asset_names_id,
+            asset_margin_id,
+            market_asset_names_id,
+            margin_id,
+        );
+        let num_registry = 16;
+        self.send_to_devil(update, num_registry)?;
+        Ok(())
+    }
+
+    /// Submit supply
+    ///
+    /// Vendor submits new supply of assets. This new supply is an absolute
+    /// quantity of assets and not delta.  However the supply is a sub-set of
+    /// all assets stored in supply vector, so that Vendor does not need to send
+    /// whole supply all the time, and only quantities of assets that have
+    /// changed, e.g. as a result of fill. Vendor would accumulate fills over
+    /// time period so that it doesn't call submit_supply() too often to save on
+    /// gas, and in that time period Vendor would accumulate several fills for
+    /// various assets, and absolute quantities of those assets after applying
+    /// those fills would be submitted.
+    ///
+    /// Note that it is Vendor deciding how much of their internal inventory
+    /// they are exposing to our transactions.
+    ///
+    pub fn submit_supply(
+        &mut self,
+        _asset_names: Vec<u8>,
+        _asset_quantities_short: Vec<u8>,
+        _asset_quantities_long: Vec<u8>,
+    ) -> Result<(), Vec<u8>> {
+        let market_address = self.market.get();
+        let submit = IMarket::submitSupplyCall {};
+        self.vm()
+            .call(&self, market_address, &submit.abi_encode())?;
+
+        // TODO: get those from Market
+        let [asset_names_id, asset_quantities_short_id, asset_quantities_long_id] = [0; 3];
+        let [market_asset_names_id, supply_long_id, supply_short_id] = [0; 3];
+        let [demand_long_id, demand_short_id, delta_long_id, delta_short_id] = [0; 4];
+
+        // Compile VIL program, which we will send to DeVIL for execution.
+        //
+        // The program:
+        // - updates supply long and short by overwriting with supplied values
+        // - computes delta long and short
+        //
+        let update = update_supply(
+            asset_names_id,
+            asset_quantities_short_id,
+            asset_quantities_long_id,
+            market_asset_names_id,
+            supply_long_id,
+            supply_short_id,
+            demand_long_id,
+            demand_short_id,
+            delta_long_id,
+            delta_short_id,
+        );
+        let num_registry = 16;
+        self.send_to_devil(update, num_registry)?;
         Ok(())
     }
 
@@ -291,136 +444,6 @@ impl Daxos {
         // - collateral remaining and spent
         // - mint token if fully executed
 
-        Ok(())
-    }
-
-    /// Submit supply
-    ///
-    /// Vendor submits new supply of assets. This new supply is an absolute
-    /// quantity of assets and not delta.  However the supply is a sub-set of
-    /// all assets stored in supply vector, so that Vendor does not need to send
-    /// whole supply all the time, and only quantities of assets that have
-    /// changed, e.g. as a result of fill. Vendor would accumulate fills over
-    /// time period so that it doesn't call submit_supply() too often to save on
-    /// gas, and in that time period Vendor would accumulate several fills for
-    /// various assets, and absolute quantities of those assets after applying
-    /// those fills would be submitted.
-    ///
-    /// Note that it is Vendor deciding how much of their internal inventory
-    /// they are exposing to our transactions.
-    ///
-    pub fn submit_supply(
-        &mut self,
-        _asset_names: Vec<u8>,
-        _asset_quantities_short: Vec<u8>,
-        _asset_quantities_long: Vec<u8>,
-    ) -> Result<(), Vec<u8>> {
-        let market_address = self.market.get();
-        let submit = IMarket::submitSupplyCall {};
-        self.vm()
-            .call(&self, market_address, &submit.abi_encode())?;
-
-        // TODO: get those from Market
-        let [asset_names_id, asset_quantities_short_id, asset_quantities_long_id] = [0; 3];
-        let [market_asset_names_id, supply_long_id, supply_short_id] = [0; 3];
-        let [demand_long_id, demand_short_id, delta_long_id, delta_short_id] = [0; 4];
-
-        // Compile VIL program, which we will send to DeVIL for execution.
-        //
-        // The program:
-        // - updates supply long and short by overwriting with supplied values
-        // - computes delta long and short
-        //
-        let update = update_supply(
-            asset_names_id,
-            asset_quantities_short_id,
-            asset_quantities_long_id,
-            market_asset_names_id,
-            supply_long_id,
-            supply_short_id,
-            demand_long_id,
-            demand_short_id,
-            delta_long_id,
-            delta_short_id,
-        );
-        let num_registry = 16;
-        self.send_to_devil(update, num_registry)?;
-        Ok(())
-    }
-
-    /// Submit Market Data
-    ///
-    /// Vendor submits Market Data using Price, Slope, Liquidity model, which is
-    /// a format optimised for on-chain computation.
-    ///
-    /// - Price     : Micro-Price
-    /// - Slope     : Price delta within N-levels (Bid + Ask)
-    /// - Liquidity : Total quantitiy on N-levels (Bid + Ask)
-    ///
-    /// Vendor is responsible for modeling these parameters is suitable way
-    /// using live Market Data.
-    ///
-    /// Note that it is the Vendor deciding what prices and exposure they are
-    /// willing to accept, i.e. they can adjust prices, slopes and liquidity to
-    /// take into account their risk factors.
-    ///
-    pub fn submit_market_data(
-        &mut self,
-        _asset_names: Vec<u8>,
-        _asset_liquidity: Vec<u8>,
-        _asset_prices: Vec<u8>,
-        _asset_slopes: Vec<u8>,
-    ) -> Result<(), Vec<u8>> {
-        let [asset_names_id, asset_prices_id, asset_slopes_id, asset_liquidity_id] = [0; 4];
-        let [market_asset_names_id, market_asset_prices_id, market_asset_slopes_id, market_asset_liquidity_id] =
-            [0; 4];
-
-        // Compile VIL program, which we will send to DeVIL for execution.
-        let update = update_market_data(
-            asset_names_id,
-            asset_prices_id,
-            asset_slopes_id,
-            asset_liquidity_id,
-            market_asset_names_id,
-            market_asset_prices_id,
-            market_asset_slopes_id,
-            market_asset_liquidity_id,
-        );
-        let num_registry = 16;
-        self.send_to_devil(update, num_registry)?;
-        Ok(())
-    }
-
-    /// Submit Margin
-    /// 
-    /// Vendor submits Margin, which limits how much of each asset we can
-    /// allocate to new Index orders.
-    /// 
-    /// Asset Capacity = MIN(Market Liquidity, Margin - MAX(Demand Short, Demand Long))
-    /// 
-    /// Index Capacity = VMIN(Asset Capacity / Asset Weight)
-    /// 
-    pub fn submit_margin(
-        &mut self,
-        _asset_names: Vec<u8>,
-        _asset_margin: Vec<u8>,
-    ) -> Result<(), Vec<u8>> {
-        // TODO: get those from Market
-        let [asset_names_id, asset_margin_id, market_asset_names_id, margin_id] = [0; 4];
-
-        // Compile VIL program, which we will send to DeVIL for execution.
-        //
-        // The program:
-        // - updates maring by overwriting with supplied values
-        //
-        let update = update_margin(
-            asset_names_id,
-            asset_margin_id,
-            market_asset_names_id,
-            margin_id,
-        );
-        let num_registry = 16;
-        self.send_to_devil(update, num_registry)?;
         Ok(())
     }
 }

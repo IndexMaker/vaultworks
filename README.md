@@ -5,7 +5,7 @@
 This is ***Decentralised Index Maker (DeIndex)*** project.
 
 *Daxos is a demigod from Theros. Here he's our hero, who goes to Market to meet
-wih the Vendor, to buy and sell items. Then he goes on a journey to explore the
+with the Vendor, to buy and sell items. Then he goes on a journey to explore the
 tresure hidden in the Vaults. On his way he deals with Devil, to whom he
 delegates the hardest tasks.*
 
