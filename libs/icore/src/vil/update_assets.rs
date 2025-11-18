@@ -1,6 +1,6 @@
 use devil_macros::devil;
 
-/// Update Margin
+/// Update assets and extend all market vectors
 /// 
 pub fn update_assets(
     new_market_asset_names_id: u128,
