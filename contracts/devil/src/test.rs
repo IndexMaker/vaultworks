@@ -165,6 +165,7 @@ mod test_scenarios {
         let demand_short_id = 105;
         let delta_long_id = 106;
         let delta_short_id = 107;
+        let margin_id = 108;
         let solve_quadratic_id = 10;
 
         let collateral_added = amount!(100.0);
@@ -203,6 +204,9 @@ mod test_scenarios {
         vio.store_vector(delta_long_id, amount_vec![0, 0, 0, 0, 0])
             .unwrap();
 
+        vio.store_vector(margin_id, amount_vec![0.2, 0.2, 0.2, 20.0, 0.2])
+            .unwrap();
+
         vio.store_labels(
             solve_quadratic_id,
             Labels {
@@ -227,6 +231,7 @@ mod test_scenarios {
             demand_short_id,
             delta_long_id,
             delta_short_id,
+            margin_id,
             solve_quadratic_id,
         );
 

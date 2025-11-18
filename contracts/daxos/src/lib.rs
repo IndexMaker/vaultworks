@@ -9,15 +9,14 @@ use alloc::vec::Vec;
 
 use alloy_primitives::{Address, U128};
 use alloy_sol_types::{sol, SolCall};
-use amount_macros::amount;
 use deli::labels::Labels;
 use icore::vil::{
     execute_buy_order::execute_buy_order, update_market_data::update_market_data,
-    update_supply::update_supply,
+    update_quote::update_quote, update_supply::update_supply,
 };
 use stylus_sdk::{
     prelude::*,
-    storage::{StorageAddress, StorageMap, StorageSigned, StorageString},
+    storage::{StorageAddress, StorageMap},
 };
 
 sol! {
@@ -105,7 +104,6 @@ pub struct Daxos {
     devil: StorageAddress,
     market: StorageAddress,
     vaults: StorageMap<U128, StorageAddress>,
-    name: StorageString,
 }
 
 impl Daxos {
@@ -126,30 +124,9 @@ impl Daxos {
             .call(&self, self.devil.get(), &devil_call.abi_encode())?;
         Ok(())
     }
-}
-
-#[public]
-impl Daxos {
-    pub fn setup(
-        &mut self,
-        owner: Address,
-        devil: Address,
-        market: Address,
-    ) -> Result<(), Vec<u8>> {
-        self.check_owner(self.vm().tx_origin())?;
-        self.owner.set(owner);
-        self.devil.set(devil);
-        self.market.set(market);
-        // TODO: send to devil solve_quadratic()
-        Ok(())
-    }
-
-    pub fn deploy_vault(&mut self, name: Vec<u8>) -> Result<(), Vec<u8>> {
-        Ok(())
-    }
 
     /// Issuer has deployed Vault contract and now we need to set it up
-    pub fn setup_vault(
+    fn setup_vault(
         &mut self,
         vault_id: U128,
         vault_address: Address, /* ... setup params ...*/
@@ -171,8 +148,59 @@ impl Daxos {
             .call(&self, vault_address, &vault_setup.abi_encode())?;
         Ok(())
     }
+}
 
-    pub fn submit_order(&mut self, index: U128, collateral_amount: u128) -> Result<(), Vec<u8>> {
+#[public]
+impl Daxos {
+    pub fn setup(
+        &mut self,
+        owner: Address,
+        devil: Address,
+        market: Address,
+    ) -> Result<(), Vec<u8>> {
+        self.check_owner(self.vm().tx_origin())?;
+        self.owner.set(owner);
+        self.devil.set(devil);
+        self.market.set(market);
+        // TODO: send to devil solve_quadratic()
+        Ok(())
+    }
+
+    /// Submit new Index
+    ///
+    /// Deploys Vault contract in inactive state. Needs to be voted to activate.
+    ///
+    pub fn submit_index(
+        &mut self,
+        index: U128,
+        asset_names: Vec<u8>,
+        asset_weights: Vec<u8>,
+        info: Vec<u8>,
+    ) -> Result<(), Vec<u8>> {
+        // Note: `info` contrains all the information about the Index in binary format.
+        // TODO: Find out what is the information and whether EVM format is more suitable.
+        self.setup_vault(index, Address::ZERO)?;
+        Ok(())
+    }
+
+    /// Submit a vote for an Index
+    ///
+    /// Once enough votes, Vault contract is activated.
+    ///
+    pub fn submit_vote(&mut self, index: U128, vote: Vec<u8>) -> Result<(), Vec<u8>> {
+        // Should call Vault smart-contract method to vote on the Index.
+        Ok(())
+    }
+
+    /// Submit BUY Index order
+    ///
+    /// Add collateral amount to user's order, and match for immediate execution.
+    ///
+    pub fn submit_buy_order(
+        &mut self,
+        index: U128,
+        collateral_amount: u128,
+    ) -> Result<(), Vec<u8>> {
         let user = self.vm().msg_sender();
         let vault_access = self.vaults.getter(index);
         let vault_address = vault_access.get();
@@ -199,9 +227,38 @@ impl Daxos {
         let demand_short_id = 105;
         let delta_long_id = 106;
         let delta_short_id = 107;
+        let margin_id = 999;
         let solve_quadratic_id = 10;
 
-        // TODO: get those from Vault and Market
+        // Compile VIL program, which we will send to DeVIL for execution
+        //
+        // The program:
+        //  - updates index's quote, i.e. capacity, price, slope
+        //
+        // Note it could be a stored procedure as program is constant for each Vault.
+        //
+        let [asset_prices_id, asset_slopes_id, asset_liquidity_id] = [0; 3];
+        let update = update_quote(
+            asset_names_id,
+            weights_id,
+            quote_id,
+            market_asset_names_id,
+            asset_prices_id,
+            asset_slopes_id,
+            asset_liquidity_id,
+        );
+        let num_registry = 16;
+        self.send_to_devil(update, num_registry)?;
+
+        // Compile VIL program, which we will send to DeVIL for execution.
+        //
+        // The program:
+        //  - updates user's order with new collateral
+        //  - executes portion of the order that fits within Index capacity
+        //  - updates demand and delta vectors
+        //  - returns amount of collateral remaining and spent, and
+        //  - Index quantity executed and remaining
+        //
         let update = execute_buy_order(
             index_order_id,
             collateral_amount,
@@ -218,6 +275,7 @@ impl Daxos {
             demand_short_id,
             delta_long_id,
             delta_short_id,
+            margin_id,
             solve_quadratic_id,
         );
         let num_registry = 16;
@@ -225,6 +283,21 @@ impl Daxos {
         Ok(())
     }
 
+    /// Submit supply
+    ///
+    /// Vendor submits new supply of assets. This new supply is an absolute
+    /// quantity of assets and not delta.  However the supply is a sub-set of
+    /// all assets stored in supply vector, so that Vendor does not need to send
+    /// whole supply all the time, and only quantities of assets that have
+    /// changed, e.g. as a result of fill. Vendor would accumulate fills over
+    /// time period so that it doesn't call submit_supply() too often to save on
+    /// gas, and in that time period Vendor would accumulate several fills for
+    /// various assets, and absolute quantities of those assets after applying
+    /// those fills would be submitted.
+    ///
+    /// Note that it is Vendor deciding how much of their internal inventory
+    /// they are exposing to our transactions.
+    ///
     pub fn submit_supply(
         &mut self,
         _asset_names: Vec<u8>,
@@ -258,6 +331,22 @@ impl Daxos {
         Ok(())
     }
 
+    /// Submit Market Data
+    ///
+    /// Vendor submits Market Data using Price, Slope, Liquidity model, which is
+    /// a format optimised for on-chain computation.
+    ///
+    /// - Price     : Micro-Price
+    /// - Slope     : Price delta within N-levels (Bid + Ask)
+    /// - Liquidity : Total quantitiy on N-levels (Bid + Ask)
+    ///
+    /// Vendor is responsible for modeling these parameters is suitable way
+    /// using live Market Data.
+    ///
+    /// Note that it is the Vendor deciding what prices and exposure they are
+    /// willing to accept, i.e. they can adjust prices, slopes and liquidity to
+    /// take into account their risk factors.
+    ///
     pub fn submit_market_data(
         &mut self,
         _asset_names: Vec<u8>,

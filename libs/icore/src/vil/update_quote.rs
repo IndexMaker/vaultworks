@@ -10,6 +10,9 @@ pub fn update_quote(
     asset_prices_id: u128,
     asset_slopes_id: u128,
     asset_liquidity_id: u128,
+    delta_long_id: u128,
+    delta_short_id: u128,
+    margin_id: u128,
 ) -> Vec<u128> {
     devil! {
         // ====================================

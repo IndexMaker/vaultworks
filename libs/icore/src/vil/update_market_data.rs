@@ -1,6 +1,6 @@
 use devil_macros::devil;
 
-/// Update Market (Supply, Delta)
+/// Update Market Data
 ///
 pub fn update_market_data(
     asset_names_id: u128,

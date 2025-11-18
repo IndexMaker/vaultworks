@@ -18,6 +18,7 @@ pub fn execute_buy_order(
     demand_short_id: u128,
     delta_long_id: u128,
     delta_short_id: u128,
+    margin_id: u128,
     solve_quadratic_id: u128,
 ) -> Vec<u128> {
     devil! {
@@ -43,6 +44,16 @@ pub fn execute_buy_order(
         SUB         1                           // Stack: [Collateral_old, C.Removed, (Collateral_new - C.Removed)]
         STR         _Collateral                 // Stack: [Collateral_old, C.Removed]
         POPN        2                           // Stack: []
+
+        // Store updated Order = (Collateral, Spent, Minted)
+        //
+        // Note that if we fail Margin Test we still want to keep user's order updated.
+        //
+        LDR         _Collateral
+        LDR         _Spent
+        LDR         _Minted
+        PKV         3
+        STV         order_id
 
         // Compute Index Quantity
         LDV         index_quote_id              // Stack: [Quote = (Capacity, Price, Slope)]
@@ -127,6 +138,16 @@ pub fn execute_buy_order(
         SSB         1                           // Stack [AssetNames, MarketAssetNames, DeltaShort, RL = (DeltaLong s- DeltaShort)]
         STR         _DeltaLong                  // Stack [AssetNames, MarketAssetNames, DeltaShort]
         POPN        3                           // Stack []
+
+        // Test Margin >= MAX(Delta Short, Delta Long)
+        LDV         margin_id                   // Stack [Margin]
+        LDR         _DeltaShort                 // Stack [Margin, DeltaShort]
+        LDR         _DemandLong                 // Stack [Margin, DeltaShort, DeltaLong]
+        MAX         1                           // Stack [Margin, DeltaShort, Max_Delta = MAX(DeltaShort, DeltaLong)]
+        SWAP        2                           // Stack [Max_Delta, DeltaShort, Margin]
+        SUB         2                           // Stack [Max_Delta, DeltaShort, MarginRemaining = Margin - Max_Delta]
+
+        // (!) --- RAISE ERROR if Margin < Max_Delta THEN => NO COMMIT (REVERT)
 
 
         // =============================
