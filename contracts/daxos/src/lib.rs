@@ -11,9 +11,9 @@ use alloy_primitives::{Address, U128};
 use alloy_sol_types::{sol, SolCall};
 use deli::labels::Labels;
 use icore::vil::{
-    execute_buy_order::execute_buy_order, update_margin::update_margin,
-    update_market_data::update_market_data, update_quote::update_quote,
-    update_supply::update_supply,
+    execute_buy_order::execute_buy_order, update_assets::update_assets,
+    update_margin::update_margin, update_market_data::update_market_data,
+    update_quote::update_quote, update_supply::update_supply,
 };
 use stylus_sdk::{
     prelude::*,
@@ -116,7 +116,7 @@ impl Daxos {
         }
         Ok(())
     }
-    
+
     fn check_vendor(&self, address: Address) -> Result<(), Vec<u8>> {
         let current_vendor = self.vendor.get();
         if !current_vendor.is_zero() && address != current_vendor {
@@ -187,18 +187,41 @@ impl Daxos {
     ///
     /// Note that the new list must be a superset of current list or call will
     /// fail. Delisting assets is not possible. To support delisting we would
-    /// need to have a process in place to first reduce delta for the delisted
-    /// assets to zero, and then check they are zero using JFLT, VMAX, and SUB
-    /// operations, i.e. JFLT delisted assets, VMAX to find any non-zero value,
-    /// and SUB to fail if non-zero value is found.
+    /// need to have a process in place to first reduce supply and delta for the
+    /// delisted assets to zero, and then check they are zero using JFLT, VMAX,
+    /// and SUB operations, i.e. JFLT delisted assets, VMAX to find any non-zero
+    /// value, and SUB to fail if non-zero value is found.
     ///
     pub fn submit_assets(&mut self, market_asset_names: Vec<u8>) -> Result<(), Vec<u8>> {
-        self.check_owner(self.vm().tx_origin())?;
-        // TODO:
-        // - Update market asset names
-        // - Extend supply, demand, and delta vectors
-        // - Extend prices, slopes, liquidity vectors
+        self.check_vendor(self.vm().tx_origin())?;
+        let [new_market_asset_names_id, market_asset_names_id] = [0; 2];
+        let [market_asset_prices_id, market_asset_slopes_id, market_asset_liquidity_id] = [0; 3];
+        let [supply_long_id, supply_short_id, demand_long_id, demand_short_id, delta_long_id, delta_short_id, margin_id] =
+            [0; 7];
+
+        // Compile VIL program, which we will send to DeVIL for execution.
         //
+        // The program:
+        // - updates market asset names
+        // - extends supply, demand, and delta vectors
+        // - extends prices, slopes, liquidity vectors
+        //
+        let update = update_assets(
+            new_market_asset_names_id,
+            market_asset_names_id,
+            market_asset_prices_id,
+            market_asset_slopes_id,
+            market_asset_liquidity_id,
+            supply_long_id,
+            supply_short_id,
+            demand_long_id,
+            demand_short_id,
+            delta_long_id,
+            delta_short_id,
+            margin_id,
+        );
+        let num_registry = 16;
+        self.send_to_devil(update, num_registry)?;
         Ok(())
     }
 
@@ -211,7 +234,7 @@ impl Daxos {
     /// - Slope     : Price delta within N-levels (Bid + Ask)
     /// - Liquidity : Total quantitiy on N-levels (Bid + Ask)
     ///
-    /// Vendor is responsible for modeling these parameters is suitable way
+    /// Vendor is responsible for modeling these parameters in suitable way
     /// using live Market Data.
     ///
     /// Note that it is the Vendor deciding what prices and exposure they are
@@ -257,7 +280,7 @@ impl Daxos {
         asset_weights: Vec<u8>,
         info: Vec<u8>,
     ) -> Result<(), Vec<u8>> {
-        // Note: `info` contrains all the information about the Index in binary format.
+        // Note: `info` contains all the information about the Index in binary format.
         // TODO: Find out what is the information and whether EVM format is more suitable.
         self.setup_vault(index, Address::ZERO)?;
         Ok(())
@@ -293,7 +316,7 @@ impl Daxos {
         // Compile VIL program, which we will send to DeVIL for execution.
         //
         // The program:
-        // - updates maring by overwriting with supplied values
+        // - updates margin by overwriting with supplied values
         //
         let update = update_margin(
             asset_names_id,
