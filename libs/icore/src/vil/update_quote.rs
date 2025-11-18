@@ -42,12 +42,26 @@ pub fn update_quote(
         STR         _Slope                          //  [AssetNames, MarketAssetNames, AssetWeights^2]
         POPN        1                               //  [AssetNames, MarketAssetNames]
 
-        // Compute C = MIN(MarketAssetLiquidity / AssetWeights) 
+        // Compute C = MIN(AssetCapacity / AssetWeights) 
+        // &
+        // AssetCapacity = MIN(MarketAssetLiquidity, Margin - MAX(Delta Short, Delta Long))
         //
-        LDR         _AssetWeights                   //  [AssetNames, MarketAssetNames, AssetWeights]
-        LDV         asset_liquidity_id              //  [AssetNames, MarketAssetNames, AssetWeights, MarketAssetLiquidity]
-        JFLT        2   3                           //  [AssetNames, MarketAssetNames, AssetWeights, Flt_MarketAssetLiquidity]
-        DIV         1                               //  [AssetNames, MarketAssetNames, AssetWeights, C_vec = (Flt_MarketAssetLiquidity / AssetWeights)]
+        // Note that this will guarantee that order is capped to either market liquidity or remaining margin
+        //
+        LDV         delta_short_id                  //  [AssetNames, MarketAssetNames, DS = DeltaShort]
+        LDV         delta_long_id                   //  [AssetNames, MarketAssetNames, DS, DL = DeltaLong]
+        MAX         1                               //  [AssetNames, MarketAssetNames, DS, Max_D = MAX(DS, DL)]
+        LDV         margin_id                       //  [AssetNames, MarketAssetNames, DS, Max_D = MAX(DS, DL), Margin]
+        SSB         1                               //  [AssetNames, MarketAssetNames, DS, Max_D, RM = Margin s- Max_D]
+        SWAP        2                               //  [AssetNames, MarketAssetNames, RM, Max_D, DS]
+        POPN        2                               //  [AssetNames, MarketAssetNames, RM]
+        LDV         asset_liquidity_id              //  [AssetNames, MarketAssetNames, RM, MarketAssetLiquidity]
+        MIN         1                               //  [AssetNames, MarketAssetNames, RM, AC = MIN(MarketAssetLiquidity, RM)]
+        LDR         _AssetWeights                   //  [AssetNames, MarketAssetNames, RM, AC, AssetWeights]
+        SWAP        2                               //  [AssetNames, MarketAssetNames, AssetWeights, AC, RM]
+        POPN        1                               //  [AssetNames, MarketAssetNames, AssetWeights, AC]
+        JFLT        2   3                           //  [AssetNames, MarketAssetNames, AssetWeights, Flt_AC]
+        DIV         1                               //  [AssetNames, MarketAssetNames, AssetWeights, C_vec = (Flt_AC / AssetWeights)]
         VMIN                                        //  [AssetNames, MarketAssetNames, AssetWeights, C = MIN(C_vec)]
         STR         _Capacity                       //  [AssetNames, MarketAssetNames, AssetWeights]
         POPN        3                               //  []

@@ -11,8 +11,9 @@ use alloy_primitives::{Address, U128};
 use alloy_sol_types::{sol, SolCall};
 use deli::labels::Labels;
 use icore::vil::{
-    execute_buy_order::execute_buy_order, update_market_data::update_market_data,
-    update_quote::update_quote, update_supply::update_supply,
+    execute_buy_order::execute_buy_order, update_margin::update_margin,
+    update_market_data::update_market_data, update_quote::update_quote,
+    update_supply::update_supply,
 };
 use stylus_sdk::{
     prelude::*,
@@ -152,6 +153,7 @@ impl Daxos {
 
 #[public]
 impl Daxos {
+    /// Setup Daxos to use specific DeVIL and Market contracts
     pub fn setup(
         &mut self,
         owner: Address,
@@ -246,6 +248,9 @@ impl Daxos {
             asset_prices_id,
             asset_slopes_id,
             asset_liquidity_id,
+            delta_long_id,
+            delta_short_id,
+            margin_id,
         );
         let num_registry = 16;
         self.send_to_devil(update, num_registry)?;
@@ -280,6 +285,12 @@ impl Daxos {
         );
         let num_registry = 16;
         self.send_to_devil(update, num_registry)?;
+
+        // TODO: Fetch results
+        // - executed and remaining Index quantity
+        // - collateral remaining and spent
+        // - mint token if fully executed
+
         Ok(())
     }
 
@@ -309,11 +320,17 @@ impl Daxos {
         self.vm()
             .call(&self, market_address, &submit.abi_encode())?;
 
+        // TODO: get those from Market
         let [asset_names_id, asset_quantities_short_id, asset_quantities_long_id] = [0; 3];
         let [market_asset_names_id, supply_long_id, supply_short_id] = [0; 3];
         let [demand_long_id, demand_short_id, delta_long_id, delta_short_id] = [0; 4];
 
-        // TODO: get those from Market
+        // Compile VIL program, which we will send to DeVIL for execution.
+        //
+        // The program:
+        // - updates supply long and short by overwriting with supplied values
+        // - computes delta long and short
+        //
         let update = update_supply(
             asset_names_id,
             asset_quantities_short_id,
@@ -358,6 +375,7 @@ impl Daxos {
         let [market_asset_names_id, market_asset_prices_id, market_asset_slopes_id, market_asset_liquidity_id] =
             [0; 4];
 
+        // Compile VIL program, which we will send to DeVIL for execution.
         let update = update_market_data(
             asset_names_id,
             asset_prices_id,
@@ -367,6 +385,39 @@ impl Daxos {
             market_asset_prices_id,
             market_asset_slopes_id,
             market_asset_liquidity_id,
+        );
+        let num_registry = 16;
+        self.send_to_devil(update, num_registry)?;
+        Ok(())
+    }
+
+    /// Submit Margin
+    /// 
+    /// Vendor submits Margin, which limits how much of each asset we can
+    /// allocate to new Index orders.
+    /// 
+    /// Asset Capacity = MIN(Market Liquidity, Margin - MAX(Demand Short, Demand Long))
+    /// 
+    /// Index Capacity = VMIN(Asset Capacity / Asset Weight)
+    /// 
+    pub fn submit_margin(
+        &mut self,
+        _asset_names: Vec<u8>,
+        _asset_margin: Vec<u8>,
+    ) -> Result<(), Vec<u8>> {
+        // TODO: get those from Market
+        let [asset_names_id, asset_margin_id, market_asset_names_id, margin_id] = [0; 4];
+
+        // Compile VIL program, which we will send to DeVIL for execution.
+        //
+        // The program:
+        // - updates maring by overwriting with supplied values
+        //
+        let update = update_margin(
+            asset_names_id,
+            asset_margin_id,
+            market_asset_names_id,
+            margin_id,
         );
         let num_registry = 16;
         self.send_to_devil(update, num_registry)?;
