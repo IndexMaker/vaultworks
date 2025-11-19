@@ -300,7 +300,7 @@ impl Daxos {
     /// Vendor submits Margin, which limits how much of each asset we can
     /// allocate to new Index orders.
     ///
-    /// Asset Capacity = MIN(Market Liquidity, Margin - MAX(Demand Short, Demand Long))
+    /// Asset Capacity = MIN(Market Liquidity, Margin - MAX(Delta Short, Delta Long))
     ///
     /// Index Capacity = VMIN(Asset Capacity / Asset Weight)
     ///
