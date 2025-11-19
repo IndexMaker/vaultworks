@@ -50,6 +50,40 @@ pub fn update_quote(
         //
         // Note that this will guarantee that order is capped to either market liquidity or remaining margin
         //
+        // Possible Changes
+        // ----------------
+        // 1. Add InventoryCapacity
+        //
+        //      AvailableMargin = Margin - MAX(DeltaLong, DeltaShort)
+        //	
+        //      MarketCapacity = MIN(Liquidity, AvailableMargin)
+        // 
+        //      InventoryCapacity = MIN(SupplyLong, DeltaLong)
+        // 
+        //      Capacity = MAX(MarketCapacity, InventoryCapacity)
+        //
+        //  2. Consider whether we need DemandShort and SupplyShort
+        //
+        //      DeltaLong - DeltaShort = SupplyLong - DemandLong
+
+        //  for:
+        //      DemandShort = (0,...)
+        //      SupplyShort = (0,...)
+        //  
+        //  We would always have Demand and Supply Long never Short, only Delta can be Long and Short.
+        //  Demand could only be short if we were to allow short-selling Index, and then Supply could
+        //  be Short if we are to allow Vendor to go short. We keep Short side for Supply and Demand
+        //  for accounting correctness, but it should always be (0,...), and it might be more gas
+        //  efficient to skip that and only have Long sides for Supply and Demand.
+        //
+        //  TVL vs Supply & Demand
+        //  ----------------------
+        //  Both Supply & Demand constitute TVL tracking mechanism, however TVL can be seen as static
+        //  whereas Supply & Demand are dynamic. When Delta = (0,...), then TVL = Supply = Demand, and
+        //  when Supply != Demand, then TVL is blurred, because it means that both Vendor and users
+        //  are acting at the same time, and while Vendor tries to reduce Delta to (0,...), and users
+        //  move Delta away from (0,...).
+        //
         LDV         delta_short_id                  //  [AssetNames, MarketAssetNames, DS = DeltaShort]
         LDV         delta_long_id                   //  [AssetNames, MarketAssetNames, DS, DL = DeltaLong]
         MAX         1                               //  [AssetNames, MarketAssetNames, DS, Max_D = MAX(DS, DL)]
