@@ -23,22 +23,24 @@ pub fn update_quote(
         STR         _AssetWeights
 
         // Load AssetNames & MarketAssetNames
-        LDV         index_asset_names_id            //  [AssetNames]
-        LDV         market_asset_names_id           //  [AssetNames, MarketAssetNames]
+        LDL         index_asset_names_id            //  [AssetNames]
+        LDL         market_asset_names_id           //  [AssetNames, MarketAssetNames]
         
         // Compute P = MarketAssetPrices * AssetWeights
         LDV         asset_prices_id                 //  [AssetNames, MarketAssetNames, MarketAssetPrices]
         JFLT        1   2                           //  [AssetNames, MarketAssetNames, Flt_MarketAssetPrices]
         LDR         _AssetWeights                   //  [AssetNames, MarketAssetNames, Flt_MarketAssetPrices, AssetWeights]
         SWAP        1                               //  [AssetNames, MarketAssetNames, AssetWeights, Flt_MarketAssetPrices]
-        MUL         1                               //  [AssetNames, MarketAssetNames, AssetWeights, P = (AssetWeights * Flt_MarketAssetPrices)]
+        MUL         1                               //  [AssetNames, MarketAssetNames, AssetWeights, P_vec = (AssetWeights * Flt_MarketAssetPrices)]
+        VSUM                                        //  [AssetNames, MarketAssetNames, AssetWeights, P = SUM(P_vec[..])]
         STR         _Price                          //  [AssetNames, MarketAssetNames, AssetWeights]
         
         // Compute S = MarketAssetSlopes * AssetWeights^2
         MUL         0                               //  [AssetNames, MarketAssetNames, AssetWeights^2]
         LDV         asset_slopes_id                 //  [AssetNames, MarketAssetNames, AssetWeights^2, MarketAssetSlopes]
         JFLT        2   3                           //  [AssetNames, MarketAssetNames, AssetWeights^2, Flt_MarketAssetSlopes]
-        MUL         1                               //  [AssetNames, MarketAssetNames, AssetWeights^2, S = (Flt_MarketAssetSlopes * AssetWeights^2)]
+        MUL         1                               //  [AssetNames, MarketAssetNames, AssetWeights^2, S_vec = (Flt_MarketAssetSlopes * AssetWeights^2)]
+        VSUM                                        //  [AssetNames, MarketAssetNames, AssetWeights^2, S = SUM(S_vec[..])]
         STR         _Slope                          //  [AssetNames, MarketAssetNames, AssetWeights^2]
         POPN        1                               //  [AssetNames, MarketAssetNames]
 
@@ -71,7 +73,7 @@ pub fn update_quote(
         // =============================
 
         LDM         _Capacity                       //  [Capacity]
-        LDM         _Price                          //  [Capacity, Price
+        LDM         _Price                          //  [Capacity, Price]
         LDM         _Slope                          //  [Capacity, Price, Slope]
         PKV         3                               //  [(Capacity, Price, Slope)]
         STV         quote_id

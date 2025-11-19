@@ -7,4 +7,4 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 
 echo "PACKAGE_PATH = $PACKAGE_PATH"
 
-cd $PACKAGE_PATH && RUST_BACKTRACE=1 cargo test --features test-debug -- --show-output
+cd $PACKAGE_PATH && RUST_BACKTRACE=1 cargo test --features test-debug ${@:2} -- --show-output

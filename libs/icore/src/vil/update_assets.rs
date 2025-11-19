@@ -94,7 +94,7 @@ pub fn update_assets(
         // =============================
 
         LDM         _AssetNames
-        STV         market_asset_names_id
+        STL         market_asset_names_id
 
         LDM         _AssetPrices
         LDM         _AssetSlopes

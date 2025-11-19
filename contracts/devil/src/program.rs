@@ -782,7 +782,7 @@ impl Stack {
             // If both vectors use same labels, then no work needed
             return Ok(());
         }
-        if pos_labels_a < 2 || pos_labels_b < 2 {
+        if pos_labels_a < 1 || pos_labels_b < 1 {
             // [TOS - 1, TOS] are reserved for values
             Err(ErrorCode::InvalidOperand)?;
         }
@@ -854,7 +854,7 @@ pub(crate) fn log_stack_fun(stack: &Stack) {
     for _i in 0..stack.stack.len() {
         log_msg!(
             "[{}] {}",
-            _i,
+            stack.stack.len() - _i - 1,
             match &stack.stack[_i] {
                 Operand::None => format!("None"),
                 Operand::Labels(labels) => format!("Labels: {}", *labels),
@@ -868,6 +868,54 @@ pub(crate) fn log_stack_fun(stack: &Stack) {
     log_msg!("---");
 }
 
+#[cfg(test)]
+pub(crate) fn op_code_str_fun(op_code: u128) -> &'static str {
+    match op_code {
+        OP_LDL => "LDL",
+        OP_LDV => "LDV",
+        OP_STL => "STL",
+        OP_STV => "STV",
+        OP_LDD => "LDD",
+        OP_LDR => "LDR",
+        OP_LDM => "LDM",
+        OP_STR => "STR",
+        OP_PKV => "PKV",
+        OP_PKL => "PKL",
+        OP_UNPK => "UNPK",
+        OP_T => "T",
+        OP_ADD => "ADD",
+        OP_SUB => "SUB",
+        OP_SSB => "SSB",
+        OP_MUL => "MUL",
+        OP_DIV => "DIV",
+        OP_SQRT => "SQRT",
+        OP_VSUM => "VSUM",
+        OP_MIN => "MIN",
+        OP_MAX => "MAX",
+        OP_LUNION => "LUNION",
+        OP_ZEROS => "ZEROS",
+        OP_ONES => "ONES",
+        OP_IMMS => "IMMS",
+        OP_IMML => "IMML",
+        OP_VMIN => "VMIN",
+        OP_VMAX => "VMAX",
+        OP_VPUSH => "VPUSH",
+        OP_LPUSH => "LPUSH",
+        OP_VPOP => "VPOP",
+        OP_LPOP => "LPOP",
+        OP_POPN => "POPN",
+        OP_SWAP => "SWAP",
+        OP_JUPD => "JUPD",
+        OP_JADD => "JADD",
+        OP_JFLT => "JFLT",
+        OP_B => "B",
+        OP_FOLD => "FOLD",
+        _ => {
+            panic!("Unknown op-code");
+        }
+    }
+}
+
 #[cfg(not(test))]
 #[macro_export]
 macro_rules! log_stack {
@@ -879,6 +927,22 @@ macro_rules! log_stack {
 macro_rules! log_stack {
     ($arg:expr) => {
         $crate::program::log_stack_fun($arg);
+    };
+}
+
+#[cfg(not(test))]
+#[macro_export]
+macro_rules! op_code_str {
+    ($($t:tt)*) => {
+        ""
+    };
+}
+
+#[cfg(test)]
+#[macro_export]
+macro_rules! op_code_str {
+    ($arg:expr) => {
+        $crate::program::op_code_str_fun($arg)
     };
 }
 
@@ -912,7 +976,12 @@ where
         let mut run = || -> Result<(), ErrorCode> {
             while pc < code.len() {
                 let op_code = code[pc];
-                log_msg!("PC = {:4}, OpCode = {:4}", pc, op_code);
+                log_msg!(
+                    "PC = {:4}, OpCode = {} {}",
+                    pc,
+                    op_code,
+                    op_code_str!(op_code)
+                );
                 pc += 1;
                 match op_code {
                     OP_LDL => {

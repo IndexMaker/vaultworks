@@ -29,27 +29,60 @@ mod test_utils {
 
     impl VectorIO for TestVectorIO {
         fn load_labels(&self, id: u128) -> Result<Labels, ErrorCode> {
-            let v = self.labels.get(&id).ok_or_else(|| ErrorCode::NotFound)?;
+            let v = self.labels.get(&id).ok_or_else(|| {
+                log_msg!("Labels not found: {}", id);
+                ErrorCode::NotFound
+            })?;
+            log_msg!("Loaded labels {}: {}", id, v);
             Ok(Labels {
                 data: v.data.clone(),
             })
         }
 
         fn load_vector(&self, id: u128) -> Result<Vector, ErrorCode> {
-            let v = self.vectors.get(&id).ok_or_else(|| ErrorCode::NotFound)?;
+            let v = self.vectors.get(&id).ok_or_else(|| {
+                log_msg!("Vector not found: {}", id);
+                ErrorCode::NotFound
+            })?;
+            log_msg!("Loaded vector {}: {}", id, v);
             Ok(Vector {
                 data: v.data.clone(),
             })
         }
 
         fn store_labels(&mut self, id: u128, input: Labels) -> Result<(), ErrorCode> {
+            log_msg!("Storing labels {}: {:0.9}", id, input);
             self.labels.insert(id, input);
             Ok(())
         }
 
         fn store_vector(&mut self, id: u128, input: Vector) -> Result<(), ErrorCode> {
+            log_msg!("Storing vector {}: {:0.9}", id, input);
             self.vectors.insert(id, input);
             Ok(())
+        }
+    }
+
+    pub(super) struct TestProgram<'a> {
+        program: Program<'a, TestVectorIO>,
+    }
+
+    impl<'a> TestProgram<'a> {
+        pub(super) fn new(vio: &'a mut TestVectorIO) -> Self {
+            Self {
+                program: Program::new(vio),
+            }
+        }
+
+        pub(super) fn execute(&mut self, _message: &str, code: Vec<u128>) {
+            log_msg!("\nExecute: {}", _message);
+            let num_registers = 16;
+            let mut stack = Stack::new(num_registers);
+            let result = self.program.execute_with_stack(code, &mut stack);
+            if let Err(err) = result {
+                log_stack!(&stack);
+                panic!("Failed to execute test: {:?}", err);
+            }
         }
     }
 }
@@ -123,6 +156,11 @@ mod unit_tests {
 
 mod test_scenarios {
     use amount_macros::amount;
+    use icore::vil::{
+        update_assets::update_assets, update_margin::update_margin,
+        update_market_data::update_market_data, update_quote::update_quote,
+        update_supply::update_supply,
+    };
 
     use super::*;
 
@@ -299,5 +337,261 @@ mod test_scenarios {
             amount_vec![0.05999001995, 0.05, 0.0399001995, 9.95001995, 0.15].data
         );
         assert_eq!(delta_long.data, amount_vec![0, 0, 0, 0, 0].data);
+    }
+
+    #[test]
+    fn test_update_assets() {
+        let mut vio = test_utils::TestVectorIO::new();
+
+        let market_asset_names_id = 101;
+        let market_asset_prices_id = 102;
+        let market_asset_slopes_id = 103;
+        let market_asset_liquidity_id = 104;
+        let supply_long_id = 105;
+        let supply_short_id = 106;
+        let demand_long_id = 107;
+        let demand_short_id = 108;
+        let delta_long_id = 109;
+        let delta_short_id = 110;
+        let margin_id = 111;
+
+        vio.store_labels(market_asset_names_id, label_vec![])
+            .unwrap();
+        vio.store_vector(market_asset_prices_id, amount_vec![])
+            .unwrap();
+        vio.store_vector(market_asset_slopes_id, amount_vec![])
+            .unwrap();
+        vio.store_vector(market_asset_liquidity_id, amount_vec![])
+            .unwrap();
+        vio.store_vector(supply_long_id, amount_vec![]).unwrap();
+        vio.store_vector(supply_short_id, amount_vec![]).unwrap();
+        vio.store_vector(demand_long_id, amount_vec![]).unwrap();
+        vio.store_vector(demand_short_id, amount_vec![]).unwrap();
+        vio.store_vector(delta_long_id, amount_vec![]).unwrap();
+        vio.store_vector(delta_short_id, amount_vec![]).unwrap();
+        vio.store_vector(margin_id, amount_vec![]).unwrap();
+
+        let new_market_asset_names_id = 901;
+        vio.store_labels(
+            new_market_asset_names_id,
+            label_vec![101, 102, 103, 104, 105, 106],
+        )
+        .unwrap();
+
+        let asset_names_id = 902;
+        let asset_prices_id = 903;
+        let asset_slopes_id = 904;
+        let asset_liquidity_id = 905;
+        let asset_margin_id = 906;
+        let asset_quantities_short_id = 907;
+        let asset_quantities_long_id = 908;
+
+        let weights_id = 1001;
+        let quote_id = 1002;
+
+        vio.store_labels(asset_names_id, label_vec![101, 103, 104])
+            .unwrap();
+        vio.store_vector(asset_prices_id, amount_vec![500.0, 1000.0, 100.0])
+            .unwrap();
+        vio.store_vector(asset_slopes_id, amount_vec![5.0, 10.0, 1.0])
+            .unwrap();
+        vio.store_vector(asset_liquidity_id, amount_vec![20.0, 10.0, 100.0])
+            .unwrap();
+        vio.store_vector(asset_margin_id, amount_vec![10.0, 10.0, 50.0])
+            .unwrap();
+        vio.store_vector(asset_quantities_long_id, amount_vec![1.0, 0, 5.0])
+            .unwrap();
+        vio.store_vector(asset_quantities_short_id, amount_vec![0, 2.0, 0])
+            .unwrap();
+        vio.store_vector(weights_id, amount_vec![4.0, 8.0, 20.0])
+            .unwrap();
+        vio.store_vector(quote_id, amount_vec![0, 0, 0]).unwrap();
+
+        let mut program = test_utils::TestProgram::new(&mut vio);
+
+        program.execute(
+            "update assets",
+            update_assets(
+                new_market_asset_names_id,
+                market_asset_names_id,
+                market_asset_prices_id,
+                market_asset_slopes_id,
+                market_asset_liquidity_id,
+                supply_long_id,
+                supply_short_id,
+                demand_long_id,
+                demand_short_id,
+                delta_long_id,
+                delta_short_id,
+                margin_id,
+            ),
+        );
+
+        program.execute(
+            "update margin",
+            update_margin(
+                asset_names_id,
+                asset_margin_id,
+                market_asset_names_id,
+                margin_id,
+            ),
+        );
+
+        program.execute(
+            "update market data",
+            update_market_data(
+                asset_names_id,
+                asset_prices_id,
+                asset_slopes_id,
+                asset_liquidity_id,
+                market_asset_names_id,
+                market_asset_prices_id,
+                market_asset_slopes_id,
+                market_asset_liquidity_id,
+            ),
+        );
+
+        program.execute(
+            "update supply",
+            update_supply(
+                asset_names_id,
+                asset_quantities_short_id,
+                asset_quantities_long_id,
+                market_asset_names_id,
+                supply_long_id,
+                supply_short_id,
+                demand_long_id,
+                demand_short_id,
+                delta_long_id,
+                delta_short_id,
+            ),
+        );
+
+        program.execute(
+            "update quote",
+            update_quote(
+                asset_names_id,
+                weights_id,
+                quote_id,
+                market_asset_names_id,
+                market_asset_prices_id,
+                market_asset_slopes_id,
+                market_asset_liquidity_id,
+                delta_long_id,
+                delta_short_id,
+                margin_id,
+            ),
+        );
+
+        let new_margin = vio.load_vector(margin_id).unwrap();
+        assert_eq!(
+            new_margin.data,
+            amount_vec![
+                10.000000000000000000,
+                0.000000000000000000,
+                10.000000000000000000,
+                50.000000000000000000,
+                0.000000000000000000,
+                0.000000000000000000
+            ]
+            .data
+        );
+
+        let new_market_asset_prices = vio.load_vector(market_asset_prices_id).unwrap();
+        let new_market_asset_slopes = vio.load_vector(market_asset_slopes_id).unwrap();
+        let new_market_asset_liquidity = vio.load_vector(asset_liquidity_id).unwrap();
+        assert_eq!(
+            new_market_asset_prices.data,
+            amount_vec![
+                500.000000000000000000,
+                0.000000000000000000,
+                1000.000000000000000000,
+                100.000000000000000000,
+                0.000000000000000000,
+                0.000000000000000000
+            ]
+            .data
+        );
+        assert_eq!(
+            new_market_asset_slopes.data,
+            amount_vec![
+                5.000000000000000000,
+                0.000000000000000000,
+                10.000000000000000000,
+                1.000000000000000000,
+                0.000000000000000000,
+                0.000000000000000000
+            ]
+            .data
+        );
+        assert_eq!(
+            new_market_asset_liquidity.data,
+            amount_vec![
+                20.000000000000000000,
+                10.000000000000000000,
+                100.000000000000000000
+            ]
+            .data
+        );
+
+        let new_supply_long = vio.load_vector(supply_long_id).unwrap();
+        let new_supply_short = vio.load_vector(supply_short_id).unwrap();
+        assert_eq!(
+            new_supply_long.data,
+            amount_vec![
+                1.000000000,
+                0.000000000,
+                0.000000000,
+                5.000000000,
+                0.000000000,
+                0.000000000
+            ]
+            .data
+        );
+        assert_eq!(
+            new_supply_short.data,
+            amount_vec![
+                0.000000000,
+                0.000000000,
+                2.000000000,
+                0.000000000,
+                0.000000000,
+                0.000000000
+            ]
+            .data
+        );
+
+        let new_delta_long = vio.load_vector(delta_long_id).unwrap();
+        let new_delta_short = vio.load_vector(delta_short_id).unwrap();
+        assert_eq!(
+            new_delta_long.data,
+            amount_vec![
+                1.000000000,
+                0.000000000,
+                0.000000000,
+                5.000000000,
+                0.000000000,
+                0.000000000
+            ]
+            .data
+        );
+        assert_eq!(
+            new_delta_short.data,
+            amount_vec![
+                0.000000000,
+                0.000000000,
+                2.000000000,
+                0.000000000,
+                0.000000000,
+                0.000000000
+            ]
+            .data
+        );
+
+        let new_quote = vio.load_vector(quote_id).unwrap();
+        assert_eq!(
+            new_quote.data,
+            amount_vec![1.000000000, 12000.000000000, 1120.000000000].data
+        )
     }
 }
