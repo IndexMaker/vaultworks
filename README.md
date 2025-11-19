@@ -4,6 +4,25 @@
 
 This is ***Decentralised Index Maker (DeIndex)*** project.
 
+*Daxos is a demigod from Theros. Here he's our hero, who goes to Market to meet
+with the Vendor, to buy and sell items. Then he goes on a journey to explore the
+tresure hidden in the Vaults. On his way he deals with Devil, to whom he
+delegates the hardest tasks.*
+
+*DAX* is a well known Index listed on Frankfurt Stock Exchange. *DAX-os* is a
+play of words. *Daxos* is also a demigod in *Magic The Gathering* card game.
+
+In our decentralised architecture where *Vault* is smart-contract representing
+an Index, and *DeVIL* being acronym for *Decentralised Vector Intermediate
+Language*, we needed a hero that will go to that *Devil*. We also needed to
+express *Supply - Demand* relationship, and give a suitable name to *Authorised
+Provider* a.k.a. *AP*. Falling into RPG theme, a bit of Diablo like, we have
+chosen to use name *Vendor* for *AP*. Like in Diablo, hero needs to meet a
+vendor on the market, and what is the better name for smart-contract storing
+*Supply & Demand* if not *Market*. Thus in our very simple design we have:
+*Vaults, Market, Devil & Daxos*, and off-chain service we called *Vendor*.
+
+
 
 ## Architecture
 
