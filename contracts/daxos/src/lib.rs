@@ -384,6 +384,71 @@ impl Daxos {
         Ok(())
     }
 
+    /// Update Index Quote
+    /// 
+    /// Scan inventory assets, supply, delta, prices and liquidity and 
+    /// compute capacity, price and slope for an Index.
+    /// 
+    pub fn update_index_quote(
+        &mut self,
+        index: U128,
+    ) -> Result<(), Vec<u8>> {
+        self.check_vendor(self.vm().tx_origin())?;
+        let vault_access = self.vaults.getter(index);
+        let vault_address = vault_access.get();
+        if vault_address.is_zero() {
+            Err(b"Vault Not Found")?;
+        }
+
+        // TODO: We need to set these up. They are from Vault and Market.
+        let asset_names_id = 1001;
+        let weights_id = 1002;
+        let quote_id = 1003;
+        let market_asset_names_id = 101;
+        let delta_long_id = 106;
+        let delta_short_id = 107;
+        let margin_id = 999;
+
+        // Compile VIL program, which we will send to DeVIL for execution
+        //
+        // The program:
+        //  - updates index's quote, i.e. capacity, price, slope
+        //
+        // Note it could be a stored procedure as program is constant for each Vault.
+        //
+        let [asset_prices_id, asset_slopes_id, asset_liquidity_id] = [0; 3];
+        let update = update_quote(
+            asset_names_id,
+            weights_id,
+            quote_id,
+            market_asset_names_id,
+            asset_prices_id,
+            asset_slopes_id,
+            asset_liquidity_id,
+            delta_long_id,
+            delta_short_id,
+            margin_id,
+        );
+        let num_registry = 16;
+        self.send_to_devil(update, num_registry)?;
+        Ok(())
+    }
+
+    /// Update Quote for multiple Indexes
+    /// 
+    /// This allows to update multiple Index uotes at once.
+    /// 
+    pub fn update_multiple_index_quotes(
+        &mut self,
+        indexes: Vec<U128>,
+    ) -> Result<(), Vec<u8>> {
+        self.check_vendor(self.vm().tx_origin())?;
+        for index in indexes {
+            self.update_index_quote(index)?;
+        }
+        Ok(())
+    }
+
     /// Submit BUY Index order
     ///
     /// Add collateral amount to user's order, and match for immediate execution.
@@ -421,29 +486,6 @@ impl Daxos {
         let delta_short_id = 107;
         let margin_id = 999;
         let solve_quadratic_id = 10;
-
-        // Compile VIL program, which we will send to DeVIL for execution
-        //
-        // The program:
-        //  - updates index's quote, i.e. capacity, price, slope
-        //
-        // Note it could be a stored procedure as program is constant for each Vault.
-        //
-        let [asset_prices_id, asset_slopes_id, asset_liquidity_id] = [0; 3];
-        let update = update_quote(
-            asset_names_id,
-            weights_id,
-            quote_id,
-            market_asset_names_id,
-            asset_prices_id,
-            asset_slopes_id,
-            asset_liquidity_id,
-            delta_long_id,
-            delta_short_id,
-            margin_id,
-        );
-        let num_registry = 16;
-        self.send_to_devil(update, num_registry)?;
 
         // Compile VIL program, which we will send to DeVIL for execution.
         //

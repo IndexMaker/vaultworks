@@ -81,9 +81,6 @@ impl Devil {
         self.check_owner(self.vm().msg_sender())?;
         // Note it's cheaper in terms of KiB to limit public interface
         let mut vector = self.vectors.setter(id);
-        if !vector.is_empty() {
-            Err(b"Duplicate data")?;
-        }
         vector.set_bytes(data);
         Ok(())
     }
@@ -91,9 +88,6 @@ impl Devil {
     pub fn get(&self, id: U128) -> Result<Vec<u8>, Vec<u8>> {
         self.check_owner(self.vm().msg_sender())?;
         let vector = self.vectors.getter(id);
-        if !vector.is_empty() {
-            Err(b"No data")?;
-        }
         Ok(vector.get_bytes())
     }
 

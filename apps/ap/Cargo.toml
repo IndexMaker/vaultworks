@@ -13,12 +13,18 @@ alloy-sol-types = { workspace = true }
 clap = { workspace = true, features = ["derive"] }
 chrono = { workspace = true }
 deli = { workspace = true, features = [
-    "with-ethers",
+    "with-ethers", "vec-u128",
 ], default-features = false }
 eyre = { workspace = true }
 ethers = { workspace = true }
+futures = { workspace = true }
+itertools = { workspace = true }
 reqwest = { workspace = true }
 tokio = { workspace = true, features = ["full"] }
+amount-macros = { workspace = true }
+devil-macros = { workspace = true }
+labels-macros = { workspace = true }
+vector-macros = { workspace = true }
 
 [features]
 debug = ["deli/debug"]
