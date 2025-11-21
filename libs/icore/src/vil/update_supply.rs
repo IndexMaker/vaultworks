@@ -13,7 +13,7 @@ pub fn update_supply(
     demand_short_id: u128,
     delta_long_id: u128,
     delta_short_id: u128,
-) -> Vec<u128> {
+) -> Vec<u8> {
     devil! {
         // ====================================
         // * * * (TRY) COMPUTE NEW VALUES * * *

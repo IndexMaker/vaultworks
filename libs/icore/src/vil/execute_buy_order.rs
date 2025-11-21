@@ -20,7 +20,7 @@ pub fn execute_buy_order(
     delta_short_id: u128,
     margin_id: u128,
     solve_quadratic_id: u128,
-) -> Vec<u128> {
+) -> Vec<u8> {
     devil! {
         // ====================================
         // * * * (TRY) COMPUTE NEW VALUES * * *

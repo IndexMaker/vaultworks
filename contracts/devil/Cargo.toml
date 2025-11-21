@@ -32,7 +32,7 @@ test-debug = ["stylus-sdk/debug", "deli/debug", "deli/stylus-test"]
 mini-alloc = ["stylus-sdk/mini-alloc"]
 
 [[bin]]
-name = "dior"
+name = "devil"
 path = "src/main.rs"
 
 [lib]

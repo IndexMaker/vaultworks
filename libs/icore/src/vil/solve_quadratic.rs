@@ -2,7 +2,7 @@ use devil_macros::devil;
 
 /// Solve Index Quantity Equation: (S, P, C) -> Q = C / (P + S * Q)
 /// 
-pub fn solve_quadratic() -> Vec<u128> {
+pub fn solve_quadratic() -> Vec<u8> {
     devil! {
         // 1. Initial Load and Setup (assuming stack starts with [C_vec, P_vec, S_vec])
         STR     _C           // C_vec -> R3, POP C_vec
