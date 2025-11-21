@@ -11,7 +11,7 @@ use alloy_primitives::{Address, U128};
 use deli::{labels::Labels, vector::Vector};
 use stylus_sdk::{
     prelude::*,
-    storage::{StorageAddress, StorageBytes, StorageMap},
+    storage::{StorageAddress, StorageBool, StorageBytes, StorageMap},
 };
 
 use crate::program::{ErrorCode, Program, VectorIO};
@@ -26,6 +26,7 @@ pub mod test;
 pub struct Devil {
     owner: StorageAddress,
     vectors: StorageMap<U128, StorageBytes>,
+    presence: StorageMap<U128, StorageBool>,
 }
 
 impl Devil {
@@ -40,45 +41,52 @@ impl Devil {
 
 impl VectorIO for Devil {
     fn load_labels(&self, id: u128) -> Result<Labels, ErrorCode> {
-        let vector = self.vectors.getter(U128::from(id));
-        if vector.is_empty() {
+        let key = U128::from(id);
+        if !self.presence.get(key) {
             Err(ErrorCode::NotFound)?;
         }
+        let vector = self.vectors.getter(key);
         Ok(Labels::from_vec(vector.get_bytes()))
     }
 
     fn load_vector(&self, id: u128) -> Result<Vector, ErrorCode> {
-        let vector = self.vectors.getter(U128::from(id));
-        if vector.is_empty() {
+        let key = U128::from(id);
+        if !self.presence.get(key) {
             Err(ErrorCode::NotFound)?;
         }
+        let vector = self.vectors.getter(key);
         Ok(Vector::from_vec(vector.get_bytes()))
     }
 
     fn load_code(&self, id: u128) -> Result<Vec<u8>, ErrorCode> {
-        let vector = self.vectors.getter(U128::from(id));
-        if vector.is_empty() {
+        let key = U128::from(id);
+        if !self.presence.get(key) {
             Err(ErrorCode::NotFound)?;
         }
+        let vector = self.vectors.getter(key);
         Ok(vector.get_bytes())
     }
 
     fn store_labels(&mut self, id: u128, input: Labels) -> Result<(), ErrorCode> {
-        let mut vector = self.vectors.setter(U128::from(id));
+        let key = U128::from(id);
+        let mut vector = self.vectors.setter(key);
         vector.set_bytes(input.to_vec());
+        self.presence.setter(key).set(true);
         Ok(())
     }
 
     fn store_vector(&mut self, id: u128, input: Vector) -> Result<(), ErrorCode> {
-        let mut vector = self.vectors.setter(U128::from(id));
+        let key = U128::from(id);
+        let mut vector = self.vectors.setter(key);
         vector.set_bytes(input.to_vec());
+        self.presence.setter(key).set(true);
         Ok(())
     }
 }
 
 #[public]
 impl Devil {
-    pub fn setup(&mut self, owner: Address)  -> Result<(), Vec<u8>> {
+    pub fn setup(&mut self, owner: Address) -> Result<(), Vec<u8>> {
         // Note it's cheaper in terms of KiB to not use contructor
         self.check_owner(self.vm().msg_sender())?;
         self.owner.set(owner);
@@ -90,11 +98,15 @@ impl Devil {
         // Note it's cheaper in terms of KiB to limit public interface
         let mut vector = self.vectors.setter(id);
         vector.set_bytes(data);
+        self.presence.setter(id).set(true);
         Ok(())
     }
 
     pub fn get(&self, id: U128) -> Result<Vec<u8>, Vec<u8>> {
         self.check_owner(self.vm().msg_sender())?;
+        if !self.presence.get(id) {
+            Err(b"Not found")?;
+        }
         let vector = self.vectors.getter(id);
         Ok(vector.get_bytes())
     }
@@ -102,7 +114,9 @@ impl Devil {
     pub fn execute(&mut self, code: Vec<u8>, num_registry: u128) -> Result<(), Vec<u8>> {
         self.check_owner(self.vm().msg_sender())?;
         let mut program = Program::new(self);
-        program.execute(code, num_registry as usize).map_err(|err| format!("Program error: {}", err.program_counter))?;
+        program
+            .execute(code, num_registry as usize)
+            .map_err(|err| format!("Program error: {}", err.program_counter))?;
         Ok(())
     }
 }

@@ -4,7 +4,7 @@ use clap::Parser;
 use deli::log_msg;
 use ethers::types::Address;
 
-use decon::tx_sender::TxClient;
+use decon::{contracts::Devil, tx_sender::TxClient};
 
 mod scenario_1;
 mod scenario_2;
@@ -31,10 +31,22 @@ async fn main() -> eyre::Result<()> {
     let devil_address: Address = cli.devil_address.parse()?;
 
     let client = TxClient::try_new_from_url(&rpc_url, get_private_key).await?;
+    
+    let devil = Devil::new(devil_address, client.client());
 
-    // scenario_1::run_scenario(&client, devil_address).await?;
+    log_msg!("Setting up...");
+
+    devil
+        .setup(client.address())
+        .send()
+        .await
+        .expect("Failed to send setup")
+        .await
+        .expect("Failed to obtain setup receipt");
+
+    scenario_1::run_scenario(&client, devil_address).await?;
     scenario_2::run_scenario(&client, devil_address).await?;
-    // scenario_3::run_scenario(&client, devil_address).await?;
+    scenario_3::run_scenario(&client, devil_address).await?;
 
     log_msg!("Done.");
     Ok(())

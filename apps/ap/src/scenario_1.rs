@@ -17,16 +17,6 @@ pub async fn run_scenario(client: &TxClient, devil_address: Address) -> eyre::Re
     let asset_slopes = Vector::from_vec_u128(vec![amount!(0.0625).to_u128_raw(); 100]); //amount_vec![0.25, 0.0625];
     let asset_weights = Vector::from_vec_u128(vec![amount!(4.0).to_u128_raw(); 100]); //amount_vec![2.0, 4.0];
 
-    // log_msg!("Setting up...");
-
-    // devil
-    //     .setup(client.address())
-    //     .send()
-    //     .await
-    //     .expect("Failed to send setup")
-    //     .await
-    //     .expect("Failed to obtain setup receipt");
-
     log_msg!("Sending index parameters...");
 
     client
