@@ -1,11 +1,11 @@
 use proc_macro::TokenStream;
-use proc_macro2::{TokenStream as TokenStream2, Span, TokenTree};
+use proc_macro2::{Span, TokenStream as TokenStream2, TokenTree};
 use quote::{quote, ToTokens};
+use std::collections::HashMap;
 use syn::{
     parse::{Parse, ParseStream},
     Expr, Ident, Lit, Token,
 };
-use std::collections::HashMap;
 
 // --- 1. Argument Type Enum ---
 
@@ -26,17 +26,17 @@ lazy_static::lazy_static! {
     static ref ARG_TYPES: HashMap<&'static str, Vec<ArgType>> = {
         use ArgType::*;
         let mut m = HashMap::new();
-        
+
         // 1. Data Loading & Stack Access (10-14)
-        m.insert("LDL", vec![StorageId]);  
-        m.insert("LDV", vec![StorageId]);  
-        m.insert("LDD", vec![StackPos]);   
-        m.insert("LDR", vec![RegisterId]); 
-        m.insert("LDM", vec![RegisterId]); 
+        m.insert("LDL", vec![StorageId]);
+        m.insert("LDV", vec![StorageId]);
+        m.insert("LDD", vec![StackPos]);
+        m.insert("LDR", vec![RegisterId]);
+        m.insert("LDM", vec![RegisterId]);
 
         // 2. Data Storage & Register Access (20-23)
-        m.insert("STL", vec![StorageId]);  
-        m.insert("STV", vec![StorageId]);  
+        m.insert("STL", vec![StorageId]);
+        m.insert("STV", vec![StorageId]);
         m.insert("STR", vec![RegisterId]);
 
         // 3. Data Structure Manipulation (30-35)
@@ -52,25 +52,25 @@ lazy_static::lazy_static! {
         m.insert("LPUSH", vec![Label]);    // <immediate (label)>
         m.insert("LPOP", vec![]);
         m.insert("JUPD", vec![StackPos, StackPos, StackPos]);
-        m.insert("JADD", vec![StackPos, StackPos, StackPos]); 
+        m.insert("JADD", vec![StackPos, StackPos, StackPos]);
         m.insert("JFLT", vec![StackPos, StackPos]);
-        
+
         // 5. Arithmetic & Core Math (50-55)
-        m.insert("ADD", vec![StackPos]);   
+        m.insert("ADD", vec![StackPos]);
         m.insert("SUB", vec![StackPos]);
         m.insert("SSB", vec![StackPos]);
-        m.insert("MUL", vec![StackPos]);   
-        m.insert("DIV", vec![StackPos]);   
-        m.insert("SQRT", vec![]); 
+        m.insert("MUL", vec![StackPos]);
+        m.insert("DIV", vec![StackPos]);
+        m.insert("SQRT", vec![]);
 
         // 6. Logic & Comparison (60-61)
-        m.insert("MIN", vec![StackPos]);   
+        m.insert("MIN", vec![StackPos]);
         m.insert("MAX", vec![StackPos]);
 
         // 7. Vector Aggregation (70-72)
-        m.insert("VSUM", vec![]); 
-        m.insert("VMIN", vec![]); 
-        m.insert("VMAX", vec![]); 
+        m.insert("VSUM", vec![]);
+        m.insert("VMIN", vec![]);
+        m.insert("VMAX", vec![]);
 
         // 8. Immediate Values & Vector Creation (80-83)
         m.insert("IMMS", vec![Amount]);    // <immediate (scalar)>
@@ -83,7 +83,7 @@ lazy_static::lazy_static! {
         m.insert("SWAP", vec![StackPos]);  // <pos>
         m.insert("B", vec![StorageId, Size, Size, Size]); // <prg_id> <N> <M> <R>
         m.insert("FOLD", vec![StorageId, Size, Size, Size]); // <prg_id> <N> <M> <R>
-        
+
         m
     };
 }
@@ -112,11 +112,13 @@ struct InstructionList {
 impl Parse for InstructionList {
     fn parse(input: ParseStream) -> syn::Result<Self> {
         let mut instructions = Vec::new();
-        
+
         while !input.is_empty() {
             // Consume comments
             if input.peek(Token![/]) && input.peek2(Token![/]) {
-                while !input.is_empty() { let _: TokenTree = input.parse()?; }
+                while !input.is_empty() {
+                    let _: TokenTree = input.parse()?;
+                }
                 break;
             }
 
@@ -124,27 +126,37 @@ impl Parse for InstructionList {
             let mnemonic_str = mnemonic.to_string().to_uppercase();
 
             // 1. Look up expected argument types
-            let expected_types = ARG_TYPES.get(mnemonic_str.as_str())
+            let expected_types = ARG_TYPES
+                .get(mnemonic_str.as_str())
                 .ok_or_else(|| input.error(format!("Unknown VIL mnemonic: {}", mnemonic_str)))?;
-            
+
             let mut args = Vec::new();
 
             // 2. Consume exactly the expected arguments with validation
             for (i, expected_type) in expected_types.iter().enumerate() {
                 // Ignore commas
-                while input.peek(Token![,]) { let _: Token![,] = input.parse()?; }
-                
+                while input.peek(Token![,]) {
+                    let _: Token![,] = input.parse()?;
+                }
+
                 if input.is_empty() {
                     return Err(input.error(format!(
-                        "Missing argument {} of {} for instruction {}", 
-                        i + 1, expected_types.len(), mnemonic_str
+                        "Missing argument {} of {} for instruction {}",
+                        i + 1,
+                        expected_types.len(),
+                        mnemonic_str
                     )));
                 }
 
                 let (arg, is_register) = if input.peek(Lit) {
                     let lit: Lit = input.parse()?;
-                    (InstructionArg::Literal(Expr::Lit(syn::ExprLit { attrs: Vec::new(), lit })), false)
-
+                    (
+                        InstructionArg::Literal(Expr::Lit(syn::ExprLit {
+                            attrs: Vec::new(),
+                            lit,
+                        })),
+                        false,
+                    )
                 } else if input.peek(Ident) {
                     let ident: Ident = input.parse()?;
                     let ident_str = ident.to_string();
@@ -160,17 +172,19 @@ impl Parse for InstructionList {
                         i + 1, expected_types.len(), mnemonic_str
                     )));
                 };
-                
+
                 // 3. Type Validation Check
                 match expected_type {
                     ArgType::RegisterId if !is_register => {
                         return Err(input.error(format!(
-                            "Argument {} for {} must be a register (e.g., _name).", 
-                            i + 1, mnemonic_str
+                            "Argument {} for {} must be a register (e.g., _name).",
+                            i + 1,
+                            mnemonic_str
                         )));
                     }
                     ArgType::RegisterId if is_register => {} // OK
-                    _ if is_register => { // All other types (Amount, StackPos, StorageId, Label, Size) must NOT be a register
+                    _ if is_register => {
+                        // All other types (Amount, StackPos, StorageId, Label, Size) must NOT be a register
                         return Err(input.error(format!(
                             "Argument {} for {} cannot be a register (_name). Expected a literal or constant.", 
                             i + 1, mnemonic_str
@@ -181,15 +195,17 @@ impl Parse for InstructionList {
 
                 args.push(arg);
             }
-            
+
             instructions.push(Instruction { mnemonic, args });
-            
+
             // Consume remaining inline comments
             if input.peek(Token![/]) && input.peek2(Token![/]) {
-                while !input.is_empty() { let _: TokenTree = input.parse()?; }
+                while !input.is_empty() {
+                    let _: TokenTree = input.parse()?;
+                }
             }
         }
-        
+
         Ok(InstructionList { instructions })
     }
 }
@@ -207,48 +223,73 @@ pub fn devil(input: TokenStream) -> TokenStream {
 
     // --- Phase 2: Allocation and Generation ---
     for instruction in instruction_list.instructions {
-        let op_code = format!("OP_{}", instruction.mnemonic.to_string().to_uppercase());
-        let op_code_ident = Ident::new(&op_code, Span::call_site());
-        final_tokens.extend(quote! { deli::vis::#op_code_ident, });
+        let mnemonic_str = instruction.mnemonic.to_string().to_uppercase();
+        let expected_types = ARG_TYPES.get(mnemonic_str.as_str()).unwrap(); // Safe unwrap here
 
-        for arg in instruction.args {
-            let arg_tokens = match arg {
+        // 1. Generate Opcode (always u8)
+        let op_code = format!("OP_{}", mnemonic_str);
+        let op_code_ident = Ident::new(&op_code, Span::call_site());
+
+        // Convert Opcode to a single u8 byte and into a vector of length 1.
+        final_tokens.extend(quote! {
+            bytecode.push(deli::vis::#op_code_ident);
+        });
+
+        // 2. Generate Arguments (size dependent on ArgType)
+        for (i, arg) in instruction.args.into_iter().enumerate() {
+            let expected_type = &expected_types[i];
+
+            // Resolve the argument token stream first
+            let arg_value = match arg {
                 InstructionArg::Register(reg_name) => {
-                    // Dynamic Register Allocation
                     let reg_index = *reg_map.entry(reg_name).or_insert_with(|| {
                         let index = next_reg_index;
                         next_reg_index += 1;
                         index
                     });
-                    quote! { #reg_index as u128, }
+                    quote! { #reg_index }
                 }
                 InstructionArg::Literal(expr) => {
-                    let mnemonic_str = instruction.mnemonic.to_string().to_uppercase();
+                    // Special handling for Amount literals
                     if mnemonic_str == "IMMS" || mnemonic_str == "VPUSH" {
-                        // Special handling for Amount literals using `amount_macros::amount!`
                         let literal_token = expr.to_token_stream();
-                        quote! {  
-                            { amount_macros::amount!(#literal_token) }.to_u128_raw() as u128,
-                        }
+                        quote! { { amount_macros::amount!(#literal_token) }.to_u128_raw() }
                     } else {
-                        // Standard literal (e.g., StackPos, integer IDs)
-                        quote! { #expr as u128, }
+                        quote! { #expr }
                     }
                 }
                 InstructionArg::Constant(ident) => {
-                    // Non-register identifier (e.g., POS_OFFSET, VIO ID constant)
-                    quote! { #ident as u128, }
+                    quote! { #ident }
                 }
             };
-            final_tokens.extend(arg_tokens);
+
+            // Determine size and conversion method based on ArgType
+            let conversion_tokens = match expected_type {
+                ArgType::RegisterId | ArgType::StackPos | ArgType::Size => {
+                    // u8 types: Register ID, Stack Position, Size/Count
+                    quote! {
+                        bytecode.push(#arg_value as u8);
+                    }
+                }
+                ArgType::StorageId | ArgType::Amount | ArgType::Label => {
+                    // u128 types: Storage ID, Immediate Amount, Label ID
+                    quote! {
+                        deli::uint::write_u128(#arg_value, &mut bytecode);
+                    }
+                }
+            };
+
+            final_tokens.extend(conversion_tokens);
         }
     }
 
-    // Wrap the results in vec![]
+    // --- Final Output Wrapper ---
     let output = quote! {
-        vec![
-            #final_tokens
-        ]
+        {
+            let mut bytecode: Vec<u8> = Vec::new();
+            #final_tokens;
+            bytecode
+        }
     };
 
     output.into()

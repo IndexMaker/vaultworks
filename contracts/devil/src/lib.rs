@@ -55,6 +55,14 @@ impl VectorIO for Devil {
         Ok(Vector::from_vec(vector.get_bytes()))
     }
 
+    fn load_code(&self, id: u128) -> Result<Vec<u8>, ErrorCode> {
+        let vector = self.vectors.getter(U128::from(id));
+        if vector.is_empty() {
+            Err(ErrorCode::NotFound)?;
+        }
+        Ok(vector.get_bytes())
+    }
+
     fn store_labels(&mut self, id: u128, input: Labels) -> Result<(), ErrorCode> {
         let mut vector = self.vectors.setter(U128::from(id));
         vector.set_bytes(input.to_vec());
@@ -94,7 +102,7 @@ impl Devil {
     pub fn execute(&mut self, code: Vec<u8>, num_registry: u128) -> Result<(), Vec<u8>> {
         self.check_owner(self.vm().msg_sender())?;
         let mut program = Program::new(self);
-        program.execute(code, num_registry as usize).map_err(|_| b"Program error")?;
+        program.execute(code, num_registry as usize).map_err(|err| format!("Program error: {}", err.program_counter))?;
         Ok(())
     }
 }

@@ -4,7 +4,7 @@ use core::mem::swap;
 use core::fmt::Debug;
 
 use alloc::vec::Vec;
-use deli::{amount::Amount, labels::Labels, log_msg, vector::Vector, vis::*};
+use deli::{amount::Amount, labels::Labels, log_msg, uint::read_u128, vector::Vector, vis::*};
 
 pub enum ErrorCode {
     StackUnderflow,
@@ -57,6 +57,7 @@ impl Debug for ProgramError {
 pub trait VectorIO {
     fn load_labels(&self, id: u128) -> Result<Labels, ErrorCode>;
     fn load_vector(&self, id: u128) -> Result<Vector, ErrorCode>;
+    fn load_code(&self, id: u128) -> Result<Vec<u8>, ErrorCode>;
 
     fn store_labels(&mut self, id: u128, input: Labels) -> Result<(), ErrorCode>;
     fn store_vector(&mut self, id: u128, input: Vector) -> Result<(), ErrorCode>;
@@ -869,7 +870,7 @@ pub(crate) fn log_stack_fun(stack: &Stack) {
 }
 
 #[cfg(test)]
-pub(crate) fn op_code_str_fun(op_code: u128) -> &'static str {
+pub(crate) fn op_code_str_fun(op_code: u8) -> &'static str {
     match op_code {
         OP_LDL => "LDL",
         OP_LDV => "LDV",
@@ -954,19 +955,14 @@ where
         Self { vio }
     }
 
-    pub fn execute(
-        &mut self,
-        code_bytes: Vec<u8>,
-        num_registers: usize,
-    ) -> Result<(), ProgramError> {
-        let code = Labels::from_vec(code_bytes).data;
+    pub fn execute(&mut self, code: Vec<u8>, num_registers: usize) -> Result<(), ProgramError> {
         let mut stack = Stack::new(num_registers);
         self.execute_with_stack(code, &mut stack)
     }
 
     pub(crate) fn execute_with_stack(
         &mut self,
-        code: Vec<u128>,
+        code: Vec<u8>,
         stack: &mut Stack,
     ) -> Result<(), ProgramError> {
         log_msg!("\nvvv EXECUTE PROGRAM vvv");
@@ -985,20 +981,20 @@ where
                 pc += 1;
                 match op_code {
                     OP_LDL => {
-                        let id = code[pc];
-                        pc += 1;
+                        let id = read_u128(&code[pc..pc + 16]);
+                        pc += 16;
                         let v = self.vio.load_labels(id)?;
                         stack.push(Operand::Labels(v));
                     }
                     OP_LDV => {
-                        let id = code[pc];
-                        pc += 1;
+                        let id = read_u128(&code[pc..pc + 16]);
+                        pc += 16;
                         let v = self.vio.load_vector(id)?;
                         stack.push(Operand::Vector(v));
                     }
                     OP_STL => {
-                        let id = code[pc];
-                        pc += 1;
+                        let id = read_u128(&code[pc..pc + 16]);
+                        pc += 16;
                         match stack.pop()? {
                             Operand::Labels(v) => {
                                 self.vio.store_labels(id, v)?;
@@ -1009,8 +1005,8 @@ where
                         }
                     }
                     OP_STV => {
-                        let id = code[pc];
-                        pc += 1;
+                        let id = read_u128(&code[pc..pc + 16]);
+                        pc += 16;
                         match stack.pop()? {
                             Operand::Vector(v) => {
                                 self.vio.store_vector(id, v)?;
@@ -1115,13 +1111,13 @@ where
                         stack.ones(pos)?;
                     }
                     OP_IMMS => {
-                        let val = code[pc];
-                        pc += 1;
+                        let val = read_u128(&code[pc..pc + 16]);
+                        pc += 16;
                         stack.imms(val)?;
                     }
                     OP_IMML => {
-                        let val = code[pc];
-                        pc += 1;
+                        let val = read_u128(&code[pc..pc + 16]);
+                        pc += 16;
                         stack.imml(val)?;
                     }
                     OP_VMIN => {
@@ -1131,13 +1127,13 @@ where
                         stack.vmax()?;
                     }
                     OP_VPUSH => {
-                        let val = code[pc];
-                        pc += 1;
+                        let val = read_u128(&code[pc..pc + 16]);
+                        pc += 16;
                         stack.vpush(val)?;
                     }
                     OP_LPUSH => {
-                        let val = code[pc];
-                        pc += 1;
+                        let val = read_u128(&code[pc..pc + 16]);
+                        pc += 16;
                         stack.lpush(val)?;
                     }
                     OP_VPOP => {
@@ -1183,8 +1179,8 @@ where
                     }
                     OP_B => {
                         // B <program_id> <num_inputs> <num_outputs> <num_registers>
-                        let code_address = code[pc];
-                        pc += 1;
+                        let code_address = read_u128(&code[pc..pc + 16]);
+                        pc += 16;
                         let num_inputs = code[pc] as usize;
                         pc += 1;
                         let num_outputs = code[pc] as usize;
@@ -1193,14 +1189,14 @@ where
                         pc += 1;
                         let mut st = Stack::new(num_regs);
                         let mut prg = Program::new(self.vio);
-                        let cod = prg.vio.load_labels(code_address)?;
+                        let cod = prg.vio.load_code(code_address)?;
                         let frm = stack
                             .stack
                             .len()
                             .checked_sub(num_inputs)
                             .ok_or_else(|| ErrorCode::StackUnderflow)?;
                         st.stack.extend(stack.stack.drain(frm..));
-                        let res = prg.execute_with_stack(cod.data, &mut st);
+                        let res = prg.execute_with_stack(cod, &mut st);
                         if let Err(err) = res {
                             log_msg!("\n\nError occurred in procedure:");
                             log_stack!(&st);
@@ -1216,8 +1212,8 @@ where
                     }
                     OP_FOLD => {
                         // FOLD <program_id> <num_inputs> <num_outputs> <num_registers>
-                        let code_address = code[pc];
-                        pc += 1;
+                        let code_address = read_u128(&code[pc..pc + 16]);
+                        pc += 16;
                         let num_inputs = code[pc] as usize;
                         pc += 1;
                         let num_outputs = code[pc] as usize;
@@ -1226,7 +1222,7 @@ where
                         pc += 1;
                         let mut st = Stack::new(num_regs);
                         let mut prg = Program::new(self.vio);
-                        let cod = prg.vio.load_labels(code_address)?;
+                        let cod = prg.vio.load_code(code_address)?;
                         let source = stack.stack.pop().ok_or_else(|| ErrorCode::StackUnderflow)?;
                         let frm = stack
                             .stack
@@ -1238,14 +1234,14 @@ where
                             Operand::Labels(s) => {
                                 for item in s.data {
                                     st.stack.push(Operand::Label(item));
-                                    prg.execute_with_stack(cod.data.clone(), &mut st)
+                                    prg.execute_with_stack(cod.clone(), &mut st)
                                         .map_err(|ec| ErrorCode::SubroutineError(ec.into()))?;
                                 }
                             }
                             Operand::Vector(s) => {
                                 for item in s.data {
                                     st.stack.push(Operand::Scalar(item));
-                                    prg.execute_with_stack(cod.data.clone(), &mut st)
+                                    prg.execute_with_stack(cod.clone(), &mut st)
                                         .map_err(|ec| ErrorCode::SubroutineError(ec.into()))?;
                                 }
                             }

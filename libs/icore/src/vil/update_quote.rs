@@ -13,7 +13,7 @@ pub fn update_quote(
     delta_long_id: u128,
     delta_short_id: u128,
     margin_id: u128,
-) -> Vec<u128> {
+) -> Vec<u8> {
     devil! {
         // ====================================
         // * * * (TRY) COMPUTE NEW VALUES * * *

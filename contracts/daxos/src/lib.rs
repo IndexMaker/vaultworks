@@ -125,11 +125,8 @@ impl Daxos {
         Ok(())
     }
 
-    fn send_to_devil(&mut self, code: Vec<u128>, num_registry: u128) -> Result<(), Vec<u8>> {
-        let devil_call = IDevil::executeCall {
-            code: Labels { data: code }.to_vec(),
-            num_registry,
-        };
+    fn send_to_devil(&mut self, code: Vec<u8>, num_registry: u128) -> Result<(), Vec<u8>> {
+        let devil_call = IDevil::executeCall { code, num_registry };
         self.vm()
             .call(&self, self.devil.get(), &devil_call.abi_encode())?;
         Ok(())
@@ -385,14 +382,11 @@ impl Daxos {
     }
 
     /// Update Index Quote
-    /// 
-    /// Scan inventory assets, supply, delta, prices and liquidity and 
+    ///
+    /// Scan inventory assets, supply, delta, prices and liquidity and
     /// compute capacity, price and slope for an Index.
-    /// 
-    pub fn update_index_quote(
-        &mut self,
-        index: U128,
-    ) -> Result<(), Vec<u8>> {
+    ///
+    pub fn update_index_quote(&mut self, index: U128) -> Result<(), Vec<u8>> {
         self.check_vendor(self.vm().tx_origin())?;
         let vault_access = self.vaults.getter(index);
         let vault_address = vault_access.get();
@@ -435,13 +429,10 @@ impl Daxos {
     }
 
     /// Update Quote for multiple Indexes
-    /// 
+    ///
     /// This allows to update multiple Index uotes at once.
-    /// 
-    pub fn update_multiple_index_quotes(
-        &mut self,
-        indexes: Vec<U128>,
-    ) -> Result<(), Vec<u8>> {
+    ///
+    pub fn update_multiple_index_quotes(&mut self, indexes: Vec<U128>) -> Result<(), Vec<u8>> {
         self.check_vendor(self.vm().tx_origin())?;
         for index in indexes {
             self.update_index_quote(index)?;

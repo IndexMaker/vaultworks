@@ -20,6 +20,7 @@ deli = { workspace = true, features = [
 eyre = { workspace = true }
 ethers = { workspace = true }
 futures = { workspace = true }
+icore = { workspace = true }
 itertools = { workspace = true }
 reqwest = { workspace = true }
 tokio = { workspace = true, features = ["full"] }
@@ -29,4 +30,4 @@ labels-macros = { workspace = true }
 vector-macros = { workspace = true }
 
 [features]
-debug = ["deli/debug", "decon/debug"]
+debug = ["deli/debug", "decon/debug", "icore/debug"]

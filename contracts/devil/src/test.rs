@@ -16,6 +16,7 @@ mod test_utils {
     pub(super) struct TestVectorIO {
         labels: HashMap<u128, Labels>,
         vectors: HashMap<u128, Vector>,
+        codes: HashMap<u128, Vec<u8>>,
     }
 
     impl TestVectorIO {
@@ -23,7 +24,14 @@ mod test_utils {
             Self {
                 labels: HashMap::new(),
                 vectors: HashMap::new(),
+                codes: HashMap::new(),
             }
+        }
+
+        pub fn store_code(&mut self, id: u128, input: Vec<u8>) -> Result<(), ErrorCode> {
+            log_msg!("Storing code {}: {:?}", id, input);
+            self.codes.insert(id, input);
+            Ok(())
         }
     }
 
@@ -50,6 +58,15 @@ mod test_utils {
             })
         }
 
+        fn load_code(&self, id: u128) -> Result<Vec<u8>, ErrorCode> {
+            let v = self.codes.get(&id).ok_or_else(|| {
+                log_msg!("Code not found: {}", id);
+                ErrorCode::NotFound
+            })?;
+            log_msg!("Loaded code {}: {:?}", id, v);
+            Ok(v.clone())
+        }
+
         fn store_labels(&mut self, id: u128, input: Labels) -> Result<(), ErrorCode> {
             log_msg!("Storing labels {}: {:0.9}", id, input);
             self.labels.insert(id, input);
@@ -74,7 +91,7 @@ mod test_utils {
             }
         }
 
-        pub(super) fn execute(&mut self, _message: &str, code: Vec<u128>) {
+        pub(super) fn execute(&mut self, _message: &str, code: Vec<u8>) {
             log_msg!("\nExecute: {}", _message);
             let num_registers = 16;
             let mut stack = Stack::new(num_registers);
@@ -245,13 +262,8 @@ mod test_scenarios {
         vio.store_vector(margin_id, amount_vec![0.2, 0.2, 0.2, 20.0, 0.2])
             .unwrap();
 
-        vio.store_labels(
-            solve_quadratic_id,
-            Labels {
-                data: solve_quadratic(),
-            },
-        )
-        .unwrap();
+        vio.store_code(solve_quadratic_id, solve_quadratic())
+            .unwrap();
 
         let code = execute_buy_order(
             index_order_id,

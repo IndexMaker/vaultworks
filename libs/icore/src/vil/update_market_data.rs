@@ -11,7 +11,7 @@ pub fn update_market_data(
     market_asset_prices_id: u128,
     market_asset_slopes_id: u128,
     market_asset_liquidity_id: u128,
-) -> Vec<u128> {
+) -> Vec<u8> {
     devil! {
         // ====================================
         // * * * (TRY) COMPUTE NEW VALUES * * *
