@@ -3,15 +3,16 @@ use ethers::{
     abi::{Address, Detokenize},
     contract::FunctionCall,
     middleware::SignerMiddleware,
-    providers::{Http, Middleware, Provider},
+    providers::{Http, Middleware, PendingTransaction, Provider},
     signers::{LocalWallet, Signer},
-    types::U256,
+    types::{TransactionReceipt, U256},
 };
 use eyre::{Context, OptionExt};
 use futures::future::join_all;
 use itertools::Itertools;
 use std::borrow::Borrow;
 use std::sync::Arc;
+use std::{env, str::FromStr};
 
 pub struct TxSender {
     client: Arc<SignerMiddleware<Provider<Http>, LocalWallet>>,
@@ -82,7 +83,7 @@ impl TxSender {
 
     pub async fn end(self) -> eyre::Result<()> {
         log_msg!("sending transactions...");
-        let mut pending_txs = Vec::new();
+        let mut pending = TxPending::new();
 
         for signed_tx in self.signed_txs {
             let pending_tx = self
@@ -90,12 +91,35 @@ impl TxSender {
                 .send_raw_transaction(signed_tx)
                 .await
                 .context("Failed to send tx")?;
-            pending_txs.push(pending_tx);
+            pending.add_pending_tx(pending_tx);
         }
 
+        pending.get_receipts().await?;
+        Ok(())
+    }
+}
+
+pub struct TxPending<'a> {
+    pending_txs: Vec<PendingTransaction<'a, Http>>,
+}
+
+impl<'a> TxPending<'a> {
+    fn new() -> Self {
+        Self {
+            pending_txs: Vec::new(),
+        }
+    }
+
+    fn add_pending_tx(&mut self, pending_tx: PendingTransaction<'a, Http>) {
+        self.pending_txs.push(pending_tx);
+    }
+
+    pub async fn get_receipts(self) -> eyre::Result<Vec<Option<TransactionReceipt>>> {
         log_msg!("awaiting receipts...");
-        let (tx_receipts, send_errors): (Vec<_>, Vec<_>) =
-            join_all(pending_txs).await.into_iter().partition_result();
+        let (tx_receipts, send_errors): (Vec<_>, Vec<_>) = join_all(self.pending_txs)
+            .await
+            .into_iter()
+            .partition_result();
 
         if !send_errors.is_empty() {
             Err(eyre::eyre!(
@@ -104,11 +128,14 @@ impl TxSender {
             ))?;
         }
 
-        for _tx_receipt in tx_receipts {
-            log_msg!("Receipt: {:?}", _tx_receipt);
-        }
+        log_msg!(
+            "{}",
+            tx_receipts
+                .iter()
+                .map(|r| format!("Receipt: {:?}", r)).join("\n")
+        );
 
-        Ok(())
+        Ok(tx_receipts)
     }
 }
 
@@ -147,5 +174,47 @@ where
         }
         self.sender.end().await?;
         Ok(())
+    }
+}
+
+pub struct TxClient {
+    client: Arc<SignerMiddleware<Provider<Http>, LocalWallet>>,
+}
+
+impl TxClient {
+    pub async fn try_new_from_url(
+        rpc_url: &str,
+        get_private_key: impl Fn() -> String,
+    ) -> eyre::Result<Self> {
+        let this = Self {
+            client: {
+                let provider = Provider::<Http>::try_from(rpc_url)?;
+                let priv_key = get_private_key();
+                let wallet = LocalWallet::from_str(&priv_key)?;
+                let chain_id = provider.get_chainid().await?.as_u64();
+                Arc::new(SignerMiddleware::new(
+                    provider,
+                    wallet.clone().with_chain_id(chain_id),
+                ))
+            },
+        };
+        Ok(this)
+    }
+
+    pub fn client(&self) -> Arc<SignerMiddleware<Provider<Http>, LocalWallet>> {
+        self.client.clone()
+    }
+
+    pub fn address(&self) -> Address {
+        self.client.address()
+    }
+
+    pub fn begin_tx<B, M, D>(&self) -> TxSendBuilder<B, M, D>
+    where
+        B: Borrow<M>,
+        M: Middleware + 'static,
+        D: Detokenize,
+    {
+        TxSendBuilder::new(self.client())
     }
 }

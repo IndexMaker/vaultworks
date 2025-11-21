@@ -1,21 +1,12 @@
+use std::env;
+
 use amount_macros::amount;
 use clap::Parser;
 use deli::{labels::Labels, log_msg, vector::Vector};
 use devil_macros::devil;
-use ethers::{
-    middleware::SignerMiddleware,
-    prelude::abigen,
-    providers::{Http, Middleware, Provider},
-    signers::{LocalWallet, Signer},
-    types::Address,
-};
-use std::sync::Arc;
-use std::{env, str::FromStr};
-use vector_macros::amount_vec;
+use ethers::types::Address;
 
-use crate::tx_sender::TxSendBuilder;
-
-pub mod tx_sender;
+use decon::{contracts::Devil, tx_sender::TxClient};
 
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about = None)]
@@ -37,34 +28,15 @@ macro_rules! devil_bytes {
     }};
 }
 
-abigen!(
-    Devil,
-    r"[
-        function setup(address owner) external
-        function submit(uint128 id, uint8[] memory data) external
-        function get(uint128 id) external view returns (uint8[] memory)
-        function execute(uint8[] memory code, uint128 num_registry) external
-    ]"
-);
-
 #[tokio::main]
 async fn main() -> eyre::Result<()> {
     let cli = Cli::parse();
     let rpc_url = cli.rpc_url.unwrap_or("http://localhost:8547".to_owned());
     let devil_address: Address = cli.devil_address.parse()?;
 
-    let client = {
-        let provider = Provider::<Http>::try_from(rpc_url)?;
-        let priv_key = get_private_key();
-        let wallet = LocalWallet::from_str(&priv_key)?;
-        let chain_id = provider.get_chainid().await?.as_u64();
-        Arc::new(SignerMiddleware::new(
-            provider,
-            wallet.clone().with_chain_id(chain_id),
-        ))
-    };
+    let client = TxClient::try_new_from_url(&rpc_url, get_private_key).await?;
 
-    let devil = Devil::new(devil_address, client.clone());
+    let devil = Devil::new(devil_address, client.client());
 
     let asset_prices_id = 101;
     let asset_slopes_id = 102;
@@ -74,26 +46,28 @@ async fn main() -> eyre::Result<()> {
     let asset_slopes = Vector::from_vec_u128(vec![amount!(0.0625).to_u128_raw(); 100]); //amount_vec![0.25, 0.0625];
     let asset_weights = Vector::from_vec_u128(vec![amount!(4.0).to_u128_raw(); 100]); //amount_vec![2.0, 4.0];
 
-    // log_msg!("Setting up...");
+    log_msg!("Setting up...");
 
-    // devil
-    //     .setup(client.address())
-    //     .send()
-    //     .await
-    //     .expect("Failed to send setup")
-    //     .await
-    //     .expect("Failed to obtain setup receipt");
+    devil
+        .setup(client.address())
+        .send()
+        .await
+        .expect("Failed to send setup")
+        .await
+        .expect("Failed to obtain setup receipt");
 
     log_msg!("Sending index parameters...");
 
-    TxSendBuilder::new(client.clone())
+    client
+        .begin_tx()
         .add(devil.submit(asset_prices_id, asset_prices.to_vec()))
         .add(devil.submit(asset_slopes_id, asset_slopes.to_vec()))
         .add(devil.submit(asset_weights_id, asset_weights.to_vec()))
         .send()
         .await?;
 
-    TxSendBuilder::new(client.clone())
+    client
+        .begin_tx()
         .add(devil.execute(
             devil_bytes![
                 LDV asset_weights_id

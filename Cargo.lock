@@ -577,6 +577,7 @@ dependencies = [
  "amount-macros",
  "chrono",
  "clap",
+ "decon",
  "deli",
  "devil-macros",
  "ethers",
@@ -1370,6 +1371,27 @@ dependencies = [
  "icore",
  "labels-macros",
  "stylus-sdk",
+ "tokio",
+ "vector-macros",
+]
+
+[[package]]
+name = "decon"
+version = "0.1.0"
+dependencies = [
+ "alloy-primitives",
+ "alloy-sol-types",
+ "amount-macros",
+ "chrono",
+ "clap",
+ "deli",
+ "devil-macros",
+ "ethers",
+ "eyre",
+ "futures",
+ "itertools 0.14.0",
+ "labels-macros",
+ "reqwest 0.12.15",
  "tokio",
  "vector-macros",
 ]
