@@ -41,7 +41,7 @@ vendor on the market, and what is the better name for smart-contract storing
 - *Backend*        - Manages and stores database of ITP Indexes and provides additional metrics.
 - *Vendor*         - Authorized Provider supplying assets from CEX / DEX. Goes to *Market* to create *Supply*.
 - *Relayer*        - RPC Relayer for collateral routing.
-- *Quoter*         - Poking bot for updating Index prices.
+- *Keeper*         - Keeper service for updating Index prices.
 
 All of the above off-chain components interact exclusively with *Daxos*
 contract, except *Vault* contracts can be interacted via *IERC20* interface,

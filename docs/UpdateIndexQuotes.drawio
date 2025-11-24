@@ -59,7 +59,7 @@
         <mxCell id="LI26uThGqLtS4b5eKlUr-29" value="&lt;div&gt;Depending on feasibility (cost of gas, and amount of ink consumed) we may want to &quot;poke&quot; to update more than one index at the time.&lt;/div&gt;" style="shape=note;whiteSpace=wrap;html=1;backgroundOutline=1;darkOpacity=0.05;size=20;spacing=10;align=left;spacingTop=10;" parent="1" vertex="1">
           <mxGeometry x="710" y="95" width="240" height="120" as="geometry" />
         </mxCell>
-        <mxCell id="bLUPk5GK7L1vSgegqHAE-2" value="" style="group" vertex="1" connectable="0" parent="1">
+        <mxCell id="bLUPk5GK7L1vSgegqHAE-2" value="" style="group" parent="1" vertex="1" connectable="0">
           <mxGeometry x="460.62" y="110" width="99.38" height="120" as="geometry" />
         </mxCell>
         <mxCell id="at-eO359sfueZtB9V1y0-18" value="" style="ellipse;shape=umlControl;whiteSpace=wrap;html=1;labelBackgroundColor=none;fillColor=#dae8fc;strokeColor=#6c8ebf;" parent="bLUPk5GK7L1vSgegqHAE-2" vertex="1">
@@ -68,7 +68,7 @@
         <mxCell id="at-eO359sfueZtB9V1y0-19" value="" style="shape=umlActor;verticalLabelPosition=bottom;verticalAlign=top;html=1;outlineConnect=0;labelBackgroundColor=none;" parent="bLUPk5GK7L1vSgegqHAE-2" vertex="1">
           <mxGeometry x="29.370000000000005" y="30" width="20" height="40" as="geometry" />
         </mxCell>
-        <mxCell id="bLUPk5GK7L1vSgegqHAE-1" value="&lt;b&gt;Quoter&lt;/b&gt;" style="text;html=1;align=center;verticalAlign=middle;resizable=0;points=[];autosize=1;strokeColor=none;fillColor=none;" vertex="1" parent="bLUPk5GK7L1vSgegqHAE-2">
+        <mxCell id="bLUPk5GK7L1vSgegqHAE-1" value="&lt;b&gt;Keeper&lt;/b&gt;" style="text;html=1;align=center;verticalAlign=middle;resizable=0;points=[];autosize=1;strokeColor=none;fillColor=none;" parent="bLUPk5GK7L1vSgegqHAE-2" vertex="1">
           <mxGeometry x="39.379999999999995" y="90" width="60" height="30" as="geometry" />
         </mxCell>
       </root>
