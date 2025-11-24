@@ -107,7 +107,7 @@ to setup workspace is this specific manner.
 
 Scenario Runner app can be used to validate SBE and test performance of smart-contracts.
 
-#### 1. Deploy smart-contracts
+#### 1. Build & Deploy smart-contracts
 
 Set environment variable:
 ```
