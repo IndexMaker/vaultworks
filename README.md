@@ -22,6 +22,18 @@ vendor on the market, and what is the better name for smart-contract storing
 *Supply & Demand* if not *Market*. Thus in our very simple design we have:
 *Vaults, Market, Devil & Daxos*, and off-chain service we called *Vendor*.
 
+### Roles
+
+Our design is inspired by RPG & card games such as Diablo, and Magic The Gathering.
+
+| Member | Role & Focus | Summary |
+| --- | --- | --- |
+| Daxos (Hero) | Core Orchestrator/VIL Runner: Generates and directs the specialized VIL programs; coordinates execution and state updates. | The central, disciplined hero who commands the entire system's financial and computational flow. |
+| Devil (Machine) | Decentralized VIL Machine & Bookkeeper: Executes VIL programs; manages the books to track orders. | The powerful, optimized machine that performs the high-velocity, high-risk computation and tracks the system's financial state. |
+| Market (Place) | Rendezvous Point & State Register: Stores supply/demand vectors; acts as the data interface where Daxos commits executed orders for Vendor pickup. | The critical meeting place where on-chain execution data is posted for off-chain fulfillment.|
+| Vaults (Store) | Index Token Storage: Stores the Index contract definitions and orders. | The highly protected Archive containing the blueprints and structure of the system's indices. |
+| Keeper (Servant) | Settlement Off-Chain Agent: Monitors the Devil's books; pays gas to execute gross settlement VIL programs to close positions. | The vigilant maintenance service that ensures the Devil's ledger stays up to date. |
+| Vendor (Servant) | Off-Chain Fulfillment Service: Reads executed orders from the Market and initiates the final off-chain asset transfers. | The trusted logistics master who completes the physical delivery based on Daxos's on-chain instructions. |
 
 
 ## Architecture
@@ -83,17 +95,64 @@ for achieving high performance zero-copy, minimum blockchain load/store overhead
 of WASM space for implementing business logic in the client contracts, i.e. *Vault*, *Market*, and
 *Daxos*.
 
-### Smart-Contracts
-
-
-
-
 
 ## Development
 
 The development process is simple, but requires meticulous approach as the
 integration of the **off-chain** code with **on-chain** smart-contracts needed
 to setup workspace is this specific manner.
+
+
+### **Quick Start:** Scenario Runner
+
+Scenario Runner app can be used to validate SBE and test performance of smart-contracts.
+
+#### 1. Deploy smart-contracts
+
+Set environment variable:
+```
+export DEPLOY_PRIVATE_KEY="0x(put private key here...)"
+```
+
+Build smart-contract:
+```
+./scripts/check.sh devil
+```
+
+Deploy smart-contract:
+```
+./scripts/deploy.sh devil
+```
+
+#### 2. Run Scenario Runner
+
+Set environment variable:
+```
+export AP_PRIVATE_KEY="0x(put private key here...)"
+```
+
+Run Scenario Runner:
+```
+cargo run -p scenarios --features debug -- --devil-address 0x85d9a8a4bd77b9b5559c1b7fcb8ec9635922ed49 --scenario scenario1
+```
+
+
+### Configuration & Environment Variables
+
+Rules of thumb:
+
+- Programs should accept command line parameters to configure things that change often, e.g. server bind address
+- Configuration should be stored in configuration system (e.g. json files or backend service)
+- Environment variables should be set by shell scripts living **outside** of project directory, and
+  should only be used for things that cannot be stored in proper configuration files, e.g. secrets
+
+Note that we **don't** use ~~`.env`~~ because:
+
+1. this encourages creating program configuration using environment variables as opposed to properly designed configuration system
+
+2. somone would commit their private key by mistake and we don't want that.
+
+
 
 ### **Scripts:** Build, Test & Deploy Smart-Contracts
 

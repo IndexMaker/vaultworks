@@ -13,7 +13,7 @@ members = [
     "libs/icore",
 
     # Native Application Package
-    "apps/ap",
+    "apps/scenarios",
 
     "proc-macros/amount-macros",
     "proc-macros/devil-macros",

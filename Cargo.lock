@@ -569,29 +569,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "ap"
-version = "0.1.0"
-dependencies = [
- "alloy-primitives",
- "alloy-sol-types",
- "amount-macros",
- "chrono",
- "clap",
- "decon",
- "deli",
- "devil-macros",
- "ethers",
- "eyre",
- "futures",
- "icore",
- "itertools 0.14.0",
- "labels-macros",
- "reqwest 0.12.15",
- "tokio",
- "vector-macros",
-]
-
-[[package]]
 name = "ark-ff"
 version = "0.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4154,6 +4131,29 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn 2.0.110",
+]
+
+[[package]]
+name = "scenarios"
+version = "0.1.0"
+dependencies = [
+ "alloy-primitives",
+ "alloy-sol-types",
+ "amount-macros",
+ "chrono",
+ "clap",
+ "decon",
+ "deli",
+ "devil-macros",
+ "ethers",
+ "eyre",
+ "futures",
+ "icore",
+ "itertools 0.14.0",
+ "labels-macros",
+ "reqwest 0.12.15",
+ "tokio",
+ "vector-macros",
 ]
 
 [[package]]

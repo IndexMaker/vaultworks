@@ -1,8 +1,8 @@
 [package]
-name = "ap"
+name = "scenarios"
 version = "0.1.0"
 edition = "2021"
-description = "Off-Chain Access Point"
+description = "Scenario Runner for SBE validation and performance testing"
 
 [dependencies]
 alloy-primitives = { workspace = true }
