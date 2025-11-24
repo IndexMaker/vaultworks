@@ -6,11 +6,11 @@ We used small VIL program to test that it will be correctly executed by *DeVIL* 
 
 ## Scenario 2. *(Index Order Execution)* - Sanity Check
 
-We ran small Index order execution scenario with known expected outcome to veify that this program runs correctly on *DeVIL* deployed to *Nitro-Dev-Node*.
+We ran small Index order execution scenario with known expected outcome to verify that this program runs correctly on *DeVIL* deployed to *Nitro-Dev-Node*.
 
 ## Scenario 3. *(Update Inventory & Quote)*
 
-We ran small Inventory & Quote update scenario with known expected outcome to veify that this program runs correctly on *DeVIL* deployed to *Nitro-Dev-Node*.
+We ran small Inventory & Quote update scenario with known expected outcome to verify that this program runs correctly on *DeVIL* deployed to *Nitro-Dev-Node*.
 
 ## Scenario 4. *(Index Order Execution)* on Nitro-Dev-Node - Performance Test
 
