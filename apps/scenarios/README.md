@@ -1,6 +1,18 @@
 # Performance
 
-## Scenario 4. *(Index Order Execution)* on Nitro-Dev-Node - Test Results
+## Scenario 1. *(Small VIL Program)* - Sanity Check
+
+We used small VIL program to test that it will be correctly executed by *DeVIL* deployed to *Nitro-Dev-Node*.
+
+## Scenario 2. *(Index Order Execution)* - Sanity Check
+
+We ran small Index order execution scenario with known expected outcome to veify that this program runs correctly on *DeVIL* deployed to *Nitro-Dev-Node*.
+
+## Scenario 3. *(Update Inventory & Quote)*
+
+We ran small Inventory & Quote update scenario with known expected outcome to veify that this program runs correctly on *DeVIL* deployed to *Nitro-Dev-Node*.
+
+## Scenario 4. *(Index Order Execution)* on Nitro-Dev-Node - Performance Test
 
 We ran *Scenario 4. (Index Order Execution)* is several configurations, and we measured cost of running `execute_buy_order` *VIL* vector program on *Nitro-Dev-Node*.
 
