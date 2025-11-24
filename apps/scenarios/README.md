@@ -4,7 +4,7 @@
 
 We ran *Scenario 4. (Index Order Execution)* is several configurations, and we measured cost of running `execute_buy_order` *VIL* vector program on *Nitro-Dev-Node*.
 
-The `execute_buy_order` is a complex VIL program, which:
+The [`execute_buy_order`](../../libs//icore/src/vil/execute_buy_order.rs) is a complex VIL program, which:
 
 - loads vectors from blockchain
 - solves quadratic equation to compute possible Index quantity for given amount of collateral, and Index price dependent on volume (slope).
