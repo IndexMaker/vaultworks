@@ -35,6 +35,11 @@ Our design is inspired by RPG & card games such as Diablo, and Magic The Gatheri
 | Keeper (Servant) | Settlement Off-Chain Agent: Monitors the Devil's books; pays gas to execute gross settlement VIL programs to close positions. | The vigilant maintenance service that ensures the Devil's ledger stays up to date. |
 | Vendor (Servant) | Off-Chain Fulfillment Service: Reads executed orders from the Market and initiates the final off-chain asset transfers. | The trusted logistics master who completes the physical delivery based on Daxos's on-chain instructions. |
 
+### Performance
+
+We have done initial performance testing of Devil smart-contract, and 
+the results can be found **[here...](./apps/scenarios/README.md)**
+
 
 ## Architecture
 
@@ -94,7 +99,6 @@ This design delegates all vector math computation to Vector IL virtual machine, 
 for achieving high performance zero-copy, minimum blockchain load/store overhead, and yet plenty
 of WASM space for implementing business logic in the client contracts, i.e. *Vault*, *Market*, and
 *Daxos*.
-
 
 ## Development
 
