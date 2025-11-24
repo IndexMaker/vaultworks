@@ -8,7 +8,7 @@ We used small VIL program to test that it will be correctly executed by *DeVIL* 
 
 We ran small Index order execution scenario with known expected outcome to veify that this program runs correctly on *DeVIL* deployed to *Nitro-Dev-Node*.
 
-## Scenario 3. *(Update Inventory & Quote)*
+## Scenario 3. *(Update Inventory & Quote)*
 
 We ran small Inventory & Quote update scenario with known expected outcome to veify that this program runs correctly on *DeVIL* deployed to *Nitro-Dev-Node*.
 
