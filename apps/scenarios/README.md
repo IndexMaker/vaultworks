@@ -1,6 +1,6 @@
 # Performance
 
-## Scenario 4. *(Index Order Execution)* on Nitro-Dev-Node - Test Reulsts
+## Scenario 4. *(Index Order Execution)* on Nitro-Dev-Node - Test Results
 
 We ran *Scenario 4. (Index Order Execution)* is several configurations, and we measured cost of running `execute_buy_order` *VIL* vector program on *Nitro-Dev-Node*.
 
