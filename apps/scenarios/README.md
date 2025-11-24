@@ -14,7 +14,7 @@ We ran small Inventory & Quote update scenario with known expected outcome to ve
 
 ## Scenario 4. *(Index Order Execution)* on Nitro-Dev-Node - Performance Test
 
-We ran *Scenario 4. (Index Order Execution)* is several configurations, and we measured cost of running `execute_buy_order` *VIL* vector program on *Nitro-Dev-Node*.
+We ran *Scenario 4. (Index Order Execution)* in several configurations, and we measured cost of running `execute_buy_order` *VIL* vector program on *Nitro-Dev-Node*.
 
 The [`execute_buy_order`](../../libs//icore/src/vil/execute_buy_order.rs) is a complex VIL program, which:
 
