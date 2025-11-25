@@ -78,7 +78,7 @@ pub fn execute_buy_order(
         LDV         delta_short_id              // Stack [AN, MAN, Margin, DeltaLong, DeltaShort]
         SWAP        2                           // Stack [AN, MAN, DeltaShort, DeltaLong, Margin]
         SSB         2                           // Stack [AN, MAN, DeltaShort, DeltaLong, Margin s- DeltaShort]
-        MAX         1                           // Stack [AN, MAN, DS, DL, L = MAX(DL, M - DS)]
+        ADD         1                           // Stack [AN, MAN, DS, DL, L = DL + M - DS]
         JFLT        3   4                       // Stack [AN, MAN, DS, DL, fL]
         LDR         _Weights                    // Stack [AN, MAN, DS, DL, fL, W = AssetWeights]
         SWAP        1                           // Stack [AN, MAN, DS, DL, W, fL]
