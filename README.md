@@ -22,7 +22,7 @@ vendor on the market, and what is the better name for smart-contract storing
 *Supply & Demand* if not *Market*. Thus in our very simple design we have:
 *Vaults, Market, Devil & Daxos*, and off-chain service we called *Vendor*.
 
-### Roles
+## Roles
 
 Our design is inspired by RPG & card games such as Diablo, and Magic The Gathering.
 
@@ -35,7 +35,7 @@ Our design is inspired by RPG & card games such as Diablo, and Magic The Gatheri
 | Keeper (Servant) | Settlement Off-Chain Agent: Monitors the Devil's books; pays gas to execute gross settlement VIL programs to close positions. | The vigilant maintenance service that ensures the Devil's ledger stays up to date. |
 | Vendor (Servant) | Off-Chain Fulfillment Service: Reads executed orders from the Market and initiates the final off-chain asset transfers. | The trusted logistics master who completes the physical delivery based on Daxos's on-chain instructions. |
 
-### Performance
+## Performance
 
 We have done initial performance testing of Devil smart-contract, and 
 the results can be found **[here...](./apps/scenarios/README.md)**
@@ -64,29 +64,29 @@ All of the above off-chain components interact exclusively with *Daxos*
 contract, except *Vault* contracts can be interacted via *IERC20* interface,
 i.e. as ITP tokens.
 
-### **Interaction**
+## **Interaction**
 
-#### Create Index & Initial Quote
+### Create Index & Initial Quote
 
 Here *Issuer* wants to add new index to the system.
 
 <img src="./docs/CreateIndex.jpg">
 
-#### New Order: Instant Fill
+### New Order: Instant Fill
 
 Here *User* places new order, which gets instantly filled, and
 and ITP Index token is minted by *Vault*.
 
 <img src="./docs/InstantFill.jpg">
 
-#### Update Index Quotes
+### Update Index Quotes
 
 Here external service sends a *Poke* to update index quotes, i.e. prices and capacity
 so that they are used the next time instant fill is processed.
 
 <img src="./docs/UpdateIndexQuotes.jpg">
 
-#### Submit Inventory
+### Submit Inventory
 
 Here *Vendor* service adds new *Inventory* to the pool.
 
@@ -100,18 +100,11 @@ for achieving high performance zero-copy, minimum blockchain load/store overhead
 of WASM space for implementing business logic in the client contracts, i.e. *Vault*, *Market*, and
 *Daxos*.
 
-## Development
-
-The development process is simple, but requires meticulous approach as the
-integration of the **off-chain** code with **on-chain** smart-contracts needed
-to setup workspace is this specific manner.
-
-
-### **Quick Start:** Scenario Runner
+## Quick Start *(Scenario Runner)*
 
 Scenario Runner app can be used to validate SBE and test performance of smart-contracts.
 
-#### 1. Build & Deploy smart-contracts
+### 1. Build & Deploy smart-contracts
 
 Set environment variable:
 ```
@@ -128,7 +121,7 @@ Deploy smart-contract:
 ./scripts/deploy.sh devil
 ```
 
-#### 2. Run Scenario Runner
+### 2. Run Scenario Runner
 
 Set environment variable:
 ```
@@ -141,7 +134,7 @@ cargo run -p scenarios --features debug -- --devil-address 0x85d9a8a4bd77b9b5559
 ```
 
 
-### Configuration & Environment Variables
+## Configuration & Environment Variables
 
 Rules of thumb:
 
@@ -156,6 +149,13 @@ Note that we **don't** use ~~`.env`~~ because:
 
 2. somone would commit their private key by mistake and we don't want that.
 
+
+
+## Development
+
+The development process is simple, but requires meticulous approach as the
+integration of the **off-chain** code with **on-chain** smart-contracts needed
+to setup workspace is this specific manner.
 
 
 ### **Scripts:** Build, Test & Deploy Smart-Contracts
@@ -193,12 +193,12 @@ cargo test
 
 Alternatively build tests for specific contract with debug logging:
 ```
-./scripts/test-debug.sh CONTRACT_NAME
+./scripts/test-debug.sh CONTRACT_NAME [TEST_NAME]
 ```
 
 Example:
 ```
-./scripts/test-debug.sh disolver
+./scripts/test-debug.sh devil test::test_scenarios::test_buy_index
 ```
 
 #### 2. Launch Arbitrum Nitro Node
@@ -222,7 +222,7 @@ Build each contract by using scripts provided:
 
 Example:
 ```
-./scripts/check.sh disolver
+./scripts/check.sh devil
 ```
 
 #### 5. Deploy Contracts
@@ -234,7 +234,7 @@ Deploy contracts each contract by using scripts provided:
 
 Example:
 ```
-./scripts/deploy.sh disolver
+./scripts/deploy.sh devil
 ```
 
 #### 6. Export Contracts ABI
@@ -246,5 +246,5 @@ Export contracts ABI each contract by using scripts provided:
 
 Example:
 ```
-./scripts/export-abi.sh disolver
+./scripts/export-abi.sh devil
 ```
