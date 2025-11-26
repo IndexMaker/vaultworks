@@ -38,7 +38,7 @@ It is critical to note that the internal execution complexity of these Label Man
 
 \section{Mathematical Framework for Index Acquisition}
 
-The execution algorithm is an atomic, six-step process. Variables denoted in bold ($\mathbf{V}$) are vectors, while italic variables ($s$) are scalars. Operations $\oplus, \ominus, \odot, \oslash$ represent vector addition, saturating subtraction, component-wise multiplication, and component-wise division, respectively. $\min(\mathbf{V})$ denotes the minimum value across all vector components.
+The execution algorithm is an atomic, six-step process. Variables denoted in bold ($\mathbf{V}$) are vectors, while italic variables ($s$) are scalars. Operations $\oplus, \ominus, \odot, \oslash$ represent vector addition, saturating subtraction, component-wise multiplication, and component-wise division, respectively. $\min(\mathbf{V})$ denotes the minimum value across all vector components. \textbf{Note: When a scalar ($s$) is used in a vector operation (e.g., $\min(\mathbf{V}, s)$ or $s \odot \mathbf{W}$), it implies a component-wise operation where the scalar is broadcast to a vector of matching dimension.}
 
 \subsection{Step 1: Collateral Update and Index Pricing Inputs}
 
@@ -75,19 +75,19 @@ CL = \min \left( \frac{\mathbf{L}}{\mathbf{W}} \right)
 $$
 
 \begin{enumerate}
-    \item \textbf{Margin Limit Vector ($\mathbf{L}$):} The available capacity ($\mathbf{L}$) is the \textbf{sum} of the system's available resources: the \textbf{Inventory} that can be closed plus the \textbf{Remaining Margin Headroom} that can be utilized.
+    \item \textbf{Margin Limit Vector ($\mathbf{L}$):} The available capacity ($\mathbf{L}$) is the \textbf{sum} of the system's available resources: the \textbf{Inventory} that can be closed ($\Delta_L$ or $\Delta_S$) plus the \textbf{Remaining Margin Headroom}, capped by the equivalent vector for the scalar Market Capacity ($\text{Cap} \odot \mathbf{W}$).
     
     \begin{itemize}
-        \item \textbf{For a Buy Order (increasing system Short exposure):} The capacity is the sum of Existing Long Inventory ($\Delta_L$) and the Unused Short Risk Budget ($\mathbf{M} \ominus \Delta_S$).
+        \item \textbf{For a Buy Order (increasing system Short exposure):} The capacity is the sum of Existing Long Inventory ($\Delta_L$) which is given priority, and the Unused Short Risk Budget ($\mathbf{M} \ominus \Delta_S$) component-wise capped by the maximum component-wise asset quantity ($\text{Cap} \odot \mathbf{W}$).
 
         $$
-        \mathbf{L} = \Delta_L \oplus (\mathbf{M} \ominus \Delta_S)
+        \mathbf{L} = \Delta_L \oplus \min(\mathbf{M} \ominus \Delta_S, \text{Cap} \odot \mathbf{W})
         $$
 
-        \item \textbf{For a Sell Order (increasing system Long exposure):} The capacity is the sum of Existing Short Inventory ($\Delta_S$) and the Unused Long Risk Budget ($\mathbf{M} \ominus \Delta_L$).
+        \item \textbf{For a Sell Order (increasing system Long exposure):} The capacity is the sum of Existing Short Inventory ($\Delta_S$) and the Unused Long Risk Budget ($\mathbf{M} \ominus \Delta_L$), component-wise capped by the maximum component-wise asset quantity ($\text{Cap} \odot \mathbf{W}$).
 
         $$
-        \mathbf{L} = \Delta_S \oplus (\mathbf{M} \ominus \Delta_L)
+        \mathbf{L} = \Delta_S \oplus \min(\mathbf{M} \ominus \Delta_L, \text{Cap} \odot \mathbf{W})
         $$
     \end{itemize}
 
@@ -109,10 +109,10 @@ $$
 
 \subsection{Step 4: Final Quantity Execution and Asset Calculation}
 
-The executed Index Quantity ($Q_{\text{final}}$) is capped by the maximum allowed by pricing ($Q_{\text{max, pricing}}$), the Margin Capacity ($CL$), and the system's overall index capacity ($\text{Cap}$).
+The executed Index Quantity ($Q_{\text{final}}$) is capped by the maximum allowed by pricing ($Q_{\text{max, pricing}}$) and the Margin Capacity ($CL$). The overall index capacity ($\text{Cap}$) is no longer explicitly here as it has been factored into the calculation of $CL$.
 
 $$
-Q_{\text{final}} = \min(Q_{\text{max, pricing}}, CL, \text{Cap})
+Q_{\text{final}} = \min(Q_{\text{max, pricing}}, CL)
 $$
 
 The resulting executed asset quantities ($\mathbf{A}$) are calculated by distributing $Q_{\text{final}}$ according to the Index Weights ($\mathbf{W}$).
@@ -163,7 +163,7 @@ The order's spent collateral is calculated: $C_{\text{spent}} = Q_{\text{final}}
 
 The efficiency of this \textbf{meticulous} vectorized execution, even with the complex $50 \rightarrow 150$ vector alignment, is quantified by the observed gas cost.
 
-The analyzed transaction required \textbf{3,378,136 gas} to execute. This cost is incurred for the following operations:
+The analyzed transaction required \textbf{3,381,746 gas} to execute, based on the provided transaction receipt. This cost is incurred for the following operations:
 \begin{itemize}
     \item Solving the scalar quadratic equation.
     \item Performing exactly 11 vector arithmetic operations ($\oplus, \ominus, \odot, \oslash$) on vectors up to 150 components.
@@ -172,16 +172,18 @@ The analyzed transaction required \textbf{3,378,136 gas} to execute. This cost i
 
 \begin{table}[h]
     \centering
-    \caption{Transaction Cost and Scale Summary}
+    \caption{Transaction Cost and Scale Summary (Updated)}
     \label{tab:cost_summary}
     \begin{tabular}{l l l}
         \toprule
-        \textbf{Metric} & \textbf{Value} & \textbf{Cost Equivalency} \\
+        \textbf{Metric} & \textbf{Value} & \textbf{Cost Equivalency (at 100 Gwei)} \\
         \midrule
-        \textbf{Total Gas Used} & $\mathbf{3,378,136}$ & $\mathbf{0.0003378136} \text{ ETH}$ \\
+        \textbf{Total Gas Used} & $\mathbf{3,381,746}$ & Actual on-chain consumption \\
         \textbf{Asset Scale} & $N_I=50 \text{ vs. } N_M=150$ & High dimensional processing \\
-        \textbf{Transaction Cost} & $100,000,000 \text{ wei}$ effective gas price & $\approx \mathbf{\$1.22} \text{ USD} \text{ (or } \mathbf{121.61} \text{ ¢)}$ \\
+        \textbf{ETH Cost} & $3,381,746 \cdot 100 \cdot 10^{-9} \text{ ETH}$ & $\mathbf{0.0003381746} \text{ ETH}$ \\
+        \textbf{USD Cost} & $0.0003381746 \text{ ETH} \times \$3,600/\text{ETH}^*$ & $\approx \mathbf{\$1.22} \text{ USD} \text{ (or } \mathbf{121.74} \text{ ¢)}$ \\
         \bottomrule
+        \multicolumn{3}{l}{\small $^*$Assuming an ETH price of $\$3,600$ for illustrative purposes.}
     \end{tabular}
 \end{table}
 
@@ -189,6 +191,6 @@ The performance demonstrates that even complex, risk-controlled financial logic-
 
 \section{Conclusion}
 
-The Vectorized Index Buy Order Execution Algorithm provides a mathematically sound and highly performant mechanism for executing high-dimensional financial derivatives on-chain. The formalism highlights the \textbf{intricate} and \textbf{meticulous} balancing act between pricing constraints ($Q_{\text{max, pricing}}$), systemic stability ($CL$), and market dynamics ($\mathbf{D}_{S, new}, \mathbf{D}_{L, new}$). By offloading vector operations and data alignment to the optimized VIL layer, the system achieves a transaction cost of $\approx \mathbf{\$1.22}$ for a complex 50/150 asset trade, confirming the viability of vector-based financial primitives in decentralized ecosystems.
+The Vectorized Index Buy Order Execution Algorithm provides a mathematically sound and highly performant mechanism for executing high-dimensional financial derivatives on-chain. The formalism highlights the \textbf{intricate} and \textbf{meticulous} balancing act between pricing constraints ($Q_{\text{max, pricing}}$), systemic stability ($CL$), and market dynamics ($\mathbf{D}_{S, new}, \mathbf{D}_{L, new}$). By offloading vector operations and data alignment to the optimized VIS layer, the system achieves a transaction cost of $\approx \mathbf{\$1.22}$ for a complex 50/150 asset trade, confirming the viability of vector-based financial primitives in decentralized ecosystems.
 
 \end{document}
