@@ -70,11 +70,34 @@ pub fn execute_buy_order(
         B           solve_quadratic_id  3  1  4 // Stack: [IndexQuantity]
         STR         _IndexQuantity              // Stack: []
 
+        // Compute CapacityLimit = MIN( (DeltaLong + MIN(Margin - DeltaShort, Capacity * AssetWeights)) / AssetWeights)
+        LDL         asset_names_id              // Stack: [AssetNames]
+        LDL         market_asset_names_id       // Stack: [AN = AssetNames, MAN = MarketAssetNames]
+        LDV         margin_id                   // Stack: [AN, MAN, M = Margin]
+        LDV         delta_long_id               // Stack: [AN, MAN, M, DL = DeltaLong]
+        JFLT        2   3                       // Stack: [AN, MAN, M, fDL]
+        LDV         delta_short_id              // Stack: [AN, MAN, M, fDL, DS = DeltaShort]
+        SWAP        2                           // Stack: [AN, MAN, DS, fDL, M]
+        SSB         2                           // Stack: [AN, MAN, DS, fDL, M_DS = M s- DS]
+        JFLT        3   4                       // Stack: [AN, MAN, DS, fDL, fM_DS]
+        LDR         _Weights                    // Stack: [AN, MAN, DS, fDL, fM_DS, W = AssetWeights]
+        LDM         _Capacity                   // Stack: [AN, MAN, DS, fDL, fM_DS, W, Cap]
+        LDD         1                           // Stack: [AN, MAN, DS, fDL, fM_DS, W, Cap, W]
+        MUL         1                           // Stack: [AN, MAN, DS, fDL, fM_DS, W, Cap, Cap_W = Cap * W]
+        MIN         3                           // Stack: [AN, MAN, DS, fDL, fM_DS, W, Cap, MA = MIN(fM_DS, Cap_W)]
+        ADD         4                           // Stack: [AN, MAN, DS, fDL, fM_DS, W, Cap, L = MA + fDL]
+        DIV         2                           // Stack: [AN, MAN, DS, fDL, fM_DS, W, Cap, CL_vec = L / W]
+        VMIN                                    // Stack: [AN, MAN, DS, fDL, fM_DS, W, Cap, CL = VMIN(CL_vec)]
+        SWAP        5                           // Stack: [AN, MAN, CL, fDL, fM_DS, W, Cap, DS]
+        POPN        5                           // Stack: [AN, MAN, CL]
+        SWAP        2                           // Stack: [CL, MAN, AN]
+        STR         _AssetNames                 // Stack: [CL, MAN]
+        STR         _MarketAssetNames           // Stack: [CapacityLimit = CL]
+        
         // Cap Index Quantity with Capacity
-        LDM         _Capacity                   // Stack: [Capacity]
-        LDR         _IndexQuantity              // Stack: [Capacity, IndexQuantity]
-        MIN         1                           // Stack: [Capacity, CIQ = MIN(Capacity, IndexQuantity)]
-        STR         _CappedIndexQuantity        // Stack: [Capacity]
+        LDR         _IndexQuantity              // Stack: [CapacityLimit, IndexQuantity]
+        MIN         1                           // Stack: [CapacityLimit, CIQ = MIN(Capacity, IndexQuantity)]
+        STR         _CappedIndexQuantity        // Stack: [CapacityLimit ]
         POPN        1                           // Stack: []
 
         // Generate Individual Asset Orders (compute asset quantities)
@@ -86,8 +109,8 @@ pub fn execute_buy_order(
         POPN        1                           // Stack: []
 
         // Match Market: Update Demand and Delta
-        LDL         asset_names_id              // Stack [AssetNames]
-        LDL         market_asset_names_id       // Stack [AssetNames, MarketAssetNames]
+        LDM         _AssetNames                 // Stack [AssetNames]
+        LDM         _MarketAssetNames           // Stack [AssetNames, MarketAssetNames]
         
         // Compute Demand Short = MAX(Demand Short - Asset Quantities, 0)
         LDV         demand_short_id             // Stack [AssetNames, MarketAssetNames, DS_old]
@@ -138,17 +161,6 @@ pub fn execute_buy_order(
         SSB         1                           // Stack [AssetNames, MarketAssetNames, DeltaShort, RL = (DeltaLong s- DeltaShort)]
         STR         _DeltaLong                  // Stack [AssetNames, MarketAssetNames, DeltaShort]
         POPN        3                           // Stack []
-
-        // Test Margin >= MAX(Delta Short, Delta Long)
-        LDV         margin_id                   // Stack [Margin]
-        LDR         _DeltaShort                 // Stack [Margin, DeltaShort]
-        LDR         _DemandLong                 // Stack [Margin, DeltaShort, DeltaLong]
-        MAX         1                           // Stack [Margin, DeltaShort, Max_Delta = MAX(DeltaShort, DeltaLong)]
-        SWAP        2                           // Stack [Max_Delta, DeltaShort, Margin]
-        SUB         2                           // Stack [Max_Delta, DeltaShort, MarginRemaining = Margin - Max_Delta]
-
-        // (!) --- RAISE ERROR if Margin < Max_Delta THEN => NO COMMIT (REVERT)
-
 
         // =============================
         // * * * COMMIT NEW VALUES * * *

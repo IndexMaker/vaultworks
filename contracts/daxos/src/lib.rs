@@ -419,9 +419,6 @@ impl Daxos {
             asset_prices_id,
             asset_slopes_id,
             asset_liquidity_id,
-            delta_long_id,
-            delta_short_id,
-            margin_id,
         );
         let num_registry = 16;
         self.send_to_devil(update, num_registry)?;

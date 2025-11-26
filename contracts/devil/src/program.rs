@@ -674,29 +674,19 @@ impl Stack {
                 if v2.data.len() != labels_b.data.len() {
                     Err(ErrorCode::InvalidOperand)?;
                 }
-                let mut j = 0;
-                for i in 0..labels_a.data.len() {
-                    let label_a = labels_a.data[i];
-                    while j < labels_b.data.len() {
-                        let label_b = labels_b.data[j];
-                        if label_b < label_a {
-                            // Label B not in A. This is an error, as we are not
-                            // extending A, and value would be missing. A must
-                            // have at least all same labels as B or more
-                            // labels.
-                            Err(ErrorCode::MathUnderflow)?
-                        } else if label_a < label_b {
-                            // Label A not in B.  Preserve value in A, as A + None = A
-                            break;
-                        } else {
-                            // Found matching label in B. Sum values in-place: A <- A + B
-                            v1.data[i] = v2.data[j];
-                            j += 1;
-                            break;
+                let mut i = 0;
+                for j in 0..labels_b.data.len() {
+                    if i < labels_a.data.len() {
+                        if labels_a.data[i] != labels_b.data[j] {
+                            i += labels_a.data[i..]
+                                .binary_search(&labels_b.data[j])
+                                .map_err(|_| ErrorCode::MathUnderflow)?;
                         }
+                        v1.data[i] = v2.data[j];
+                        i += 1;
                     }
-                    // NOTE: if we didn't match any label in B, then preserve value in A, as A + None = A
                 }
+                // }
             }
             _ => Err(ErrorCode::InvalidOperand)?,
         }
@@ -745,31 +735,20 @@ impl Stack {
                 if v2.data.len() != labels_b.data.len() {
                     Err(ErrorCode::InvalidOperand)?;
                 }
-                let mut j = 0;
-                for i in 0..labels_a.data.len() {
-                    let label_a = labels_a.data[i];
-                    while j < labels_b.data.len() {
-                        let label_b = labels_b.data[j];
-                        if label_b < label_a {
-                            // Label B not in A. This is an error, as we are not
-                            // extending A, and value would be missing. A must
-                            // have at least all same labels as B or more
-                            // labels.
-                            Err(ErrorCode::MathUnderflow)?
-                        } else if label_a < label_b {
-                            // Label A not in B.  Preserve value in A, as A + None = A
-                            break;
-                        } else {
-                            // Found matching label in B. Sum values in-place: A <- A + B
-                            let x1 = &mut v1.data[i];
-                            *x1 = x1
-                                .checked_add(v2.data[j])
-                                .ok_or_else(|| ErrorCode::MathOverflow)?;
-                            j += 1;
-                            break;
+                let mut i = 0;
+                for j in 0..labels_b.data.len() {
+                    if i < labels_a.data.len() {
+                        if labels_a.data[i] != labels_b.data[j] {
+                            i += labels_a.data[i..]
+                                .binary_search(&labels_b.data[j])
+                                .map_err(|_| ErrorCode::MathUnderflow)?;
                         }
+                        let x1 = &mut v1.data[i];
+                        *x1 = x1
+                            .checked_add(v2.data[j])
+                            .ok_or_else(|| ErrorCode::MathOverflow)?;
+                        i += 1;
                     }
-                    // NOTE: if we didn't match any label in B, then preserve value in A, as A + None = A
                 }
             }
             _ => Err(ErrorCode::InvalidOperand)?,
@@ -802,30 +781,20 @@ impl Stack {
                 if v1.data.len() != labels_a.data.len() {
                     Err(ErrorCode::InvalidOperand)?;
                 }
-                let mut j = 0;
-                let mut k = 0;
-                for i in 0..labels_a.data.len() {
-                    let label_a = labels_a.data[i];
-                    while j < labels_b.data.len() {
-                        let label_b = labels_b.data[j];
-                        if label_b < label_a {
-                            // Label B not in A. B must be a subset of A.
-                            Err(ErrorCode::NotFound)?;
-                        } else if label_a < label_b {
-                            // Label A not in B.
-                            v1.data.remove(k);
-                            break;
-                        } else {
-                            // Found matching label in B.
-                            j += 1;
-                            k += 1;
-                            // go to next A and next B
-                            break;
+                let mut result = Vec::with_capacity(labels_b.data.len());
+                let mut i = 0;
+                for j in 0..labels_b.data.len() {
+                    if i < labels_a.data.len() {
+                        if labels_a.data[i] != labels_b.data[j] {
+                            i += labels_a.data[i..]
+                                .binary_search(&labels_b.data[j])
+                                .map_err(|_| ErrorCode::MathUnderflow)?;
                         }
+                        result.push(v1.data[i]);
+                        i += 1;
                     }
                 }
-                // Drop any further A as their labels didn't match any labels in B
-                drop(v1.data.drain(k..))
+                v1.data = result;
             }
             _ => Err(ErrorCode::InvalidOperand)?,
         }
