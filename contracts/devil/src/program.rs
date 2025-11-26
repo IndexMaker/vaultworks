@@ -674,35 +674,6 @@ impl Stack {
                 if v2.data.len() != labels_b.data.len() {
                     Err(ErrorCode::InvalidOperand)?;
                 }
-                // Note: Having both cases takes too much WASM size
-                // Choosing O(M + N) version over O(M * log(N))
-                // The O(M * log(N)) would perform better for N much bigger than M.
-                // ---
-                // if labels_a.data.len() / labels_b.data.len() < 10 {
-                // let mut j = 0;
-                // for i in 0..labels_a.data.len() {
-                //     let label_a = labels_a.data[i];
-                //     while j < labels_b.data.len() {
-                //         let label_b = labels_b.data[j];
-                //         if label_b < label_a {
-                //             // Label B not in A. This is an error, as we are not
-                //             // extending A, and value would be missing. A must
-                //             // have at least all same labels as B or more
-                //             // labels.
-                //             Err(ErrorCode::MathUnderflow)?
-                //         } else if label_a < label_b {
-                //             // Label A not in B.  Preserve value in A, as A + None = A
-                //             break;
-                //         } else {
-                //             // Found matching label in B. Sum values in-place: A <- A + B
-                //             v1.data[i] = v2.data[j];
-                //             j += 1;
-                //             break;
-                //         }
-                //     }
-                //     // NOTE: if we didn't match any label in B, then preserve value in A, as A + None = A
-                // }
-                // } else {
                 let mut i = 0;
                 for j in 0..labels_b.data.len() {
                     if i < labels_a.data.len() {
@@ -764,38 +735,6 @@ impl Stack {
                 if v2.data.len() != labels_b.data.len() {
                     Err(ErrorCode::InvalidOperand)?;
                 }
-                // Note: Having both cases takes too much WASM size
-                // Choosing O(M + N) version over O(M * log(N))
-                // The O(M * log(N)) would perform better for N much bigger than M.
-                // ---
-                // if labels_a.data.len() / labels_b.data.len() < 10 {
-                // let mut j = 0;
-                // for i in 0..labels_a.data.len() {
-                //     let label_a = labels_a.data[i];
-                //     while j < labels_b.data.len() {
-                //         let label_b = labels_b.data[j];
-                //         if label_b < label_a {
-                //             // Label B not in A. This is an error, as we are not
-                //             // extending A, and value would be missing. A must
-                //             // have at least all same labels as B or more
-                //             // labels.
-                //             Err(ErrorCode::MathUnderflow)?
-                //         } else if label_a < label_b {
-                //             // Label A not in B.  Preserve value in A, as A + None = A
-                //             break;
-                //         } else {
-                //             // Found matching label in B. Sum values in-place: A <- A + B
-                //             let x1 = &mut v1.data[i];
-                //             *x1 = x1
-                //                 .checked_add(v2.data[j])
-                //                 .ok_or_else(|| ErrorCode::MathOverflow)?;
-                //             j += 1;
-                //             break;
-                //         }
-                //     }
-                //     // NOTE: if we didn't match any label in B, then preserve value in A, as A + None = A
-                // }
-                // } else {
                 let mut i = 0;
                 for j in 0..labels_b.data.len() {
                     if i < labels_a.data.len() {
@@ -811,7 +750,6 @@ impl Stack {
                         i += 1;
                     }
                 }
-                // }
             }
             _ => Err(ErrorCode::InvalidOperand)?,
         }
@@ -843,64 +781,7 @@ impl Stack {
                 if v1.data.len() != labels_a.data.len() {
                     Err(ErrorCode::InvalidOperand)?;
                 }
-                // This version drops elements form v1 based on labels_b
-                // For vectors where labels_a and labels_b have multiple
-                // contiguous sections of overlap this version is superrior O(N + M),
-                // however of ovrlap between labels_a and labels_b is sparse,
-                // this version would lead to O( N^2 ).
-                // ---
-                // let mut j = 0;
-                // let mut k = 0;
-                // for i in 0..labels_a.data.len() {
-                //     let label_a = labels_a.data[i];
-                //     while j < labels_b.data.len() {
-                //         let label_b = labels_b.data[j];
-                //         if label_b < label_a {
-                //             // Label B not in A. B must be a subset of A.
-                //             Err(ErrorCode::NotFound)?;
-                //         } else if label_a < label_b {
-                //             // Label A not in B.
-                //             v1.data.remove(k);
-                //             break;
-                //         } else {
-                //             // Found matching label in B.
-                //             j += 1;
-                //             k += 1;
-                //             // go to next A and next B
-                //             break;
-                //         }
-                //     }
-                // }
-                // // Drop any further A as their labels didn't match any labels in B
-                // drop(v1.data.drain(k..));
-
                 let mut result = Vec::with_capacity(labels_b.data.len());
-                // Note: Having both cases takes too much WASM size
-                // Choosing O(M + N) version over O(M * log(N))
-                // The O(M * log(N)) would perform better for N much bigger than M.
-                // ---
-                // if labels_a.data.len() / labels_b.data.len() < 10 {
-                // let mut j = 0;
-                // for i in 0..labels_a.data.len() {
-                //     let label_a = labels_a.data[i];
-                //     while j < labels_b.data.len() {
-                //         let label_b = labels_b.data[j];
-                //         if label_b < label_a {
-                //             // Label B not in A. B must be a subset of A.
-                //             Err(ErrorCode::NotFound)?;
-                //         } else if label_a < label_b {
-                //             // Label A not in B.
-                //             break;
-                //         } else {
-                //             // Found matching label in B.
-                //             j += 1;
-                //             result.push(v1.data[i]);
-                //             // go to next A and next B
-                //             break;
-                //         }
-                //     }
-                // }
-                // } else {
                 let mut i = 0;
                 for j in 0..labels_b.data.len() {
                     if i < labels_a.data.len() {
@@ -913,7 +794,6 @@ impl Stack {
                         i += 1;
                     }
                 }
-                // }
                 v1.data = result;
             }
             _ => Err(ErrorCode::InvalidOperand)?,
