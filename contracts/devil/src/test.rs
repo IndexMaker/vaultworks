@@ -489,9 +489,6 @@ mod test_scenarios {
                 market_asset_prices_id,
                 market_asset_slopes_id,
                 market_asset_liquidity_id,
-                delta_long_id,
-                delta_short_id,
-                margin_id,
             ),
         );
 
@@ -603,7 +600,7 @@ mod test_scenarios {
         let new_quote = vio.load_vector(quote_id).unwrap();
         assert_eq!(
             new_quote.data,
-            amount_vec![1.000000000, 12000.000000000, 1120.000000000].data
+            amount_vec![1.250000000, 12000.000000000, 1120.000000000].data
         )
     }
 }

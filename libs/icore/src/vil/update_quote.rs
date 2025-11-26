@@ -10,9 +10,6 @@ pub fn update_quote(
     asset_prices_id: u128,
     asset_slopes_id: u128,
     asset_liquidity_id: u128,
-    delta_long_id: u128,
-    delta_short_id: u128,
-    margin_id: u128,
 ) -> Vec<u8> {
     devil! {
         // ====================================
@@ -44,62 +41,16 @@ pub fn update_quote(
         STR         _Slope                          //  [AssetNames, MarketAssetNames, AssetWeights^2]
         POPN        1                               //  [AssetNames, MarketAssetNames]
 
-        // Compute C = MIN(AssetCapacity / AssetWeights) 
-        // &
-        // AssetCapacity = MIN(MarketAssetLiquidity, Margin - MAX(Delta Short, Delta Long))
+        // Compute C = MIN(AssetLiquidity / AssetWeights) 
         //
-        // Note that this will guarantee that order is capped to either market liquidity or remaining margin
+        // NOTE: We just put market liquidity based capacity, and then when we execute orders we cap with available margin.
         //
-        // Possible Changes
-        // ----------------
-        // 1. Add InventoryCapacity
-        //
-        //      AvailableMargin = Margin - MAX(DeltaLong, DeltaShort)
-        //	
-        //      MarketCapacity = MIN(Liquidity, AvailableMargin)
-        // 
-        //      InventoryCapacity = MIN(SupplyLong, DeltaLong)
-        // 
-        //      Capacity = MAX(MarketCapacity, InventoryCapacity)
-        //
-        //  2. Consider whether we need DemandShort and SupplyShort
-        //
-        //      DeltaLong - DeltaShort = SupplyLong - DemandLong
-
-        //  for:
-        //      DemandShort = (0,...)
-        //      SupplyShort = (0,...)
-        //  
-        //  We would always have Demand and Supply Long never Short, only Delta can be Long and Short.
-        //  Demand could only be short if we were to allow short-selling Index, and then Supply could
-        //  be Short if we are to allow Vendor to go short. We keep Short side for Supply and Demand
-        //  for accounting correctness, but it should always be (0,...), and it might be more gas
-        //  efficient to skip that and only have Long sides for Supply and Demand.
-        //
-        //  TVL vs Supply & Demand
-        //  ----------------------
-        //  Both Supply & Demand constitute TVL tracking mechanism, however TVL can be seen as static
-        //  whereas Supply & Demand are dynamic. When Delta = (0,...), then TVL = Supply = Demand, and
-        //  when Supply != Demand, then TVL is blurred, because it means that both Vendor and users
-        //  are acting at the same time, and while Vendor tries to reduce Delta to (0,...), and users
-        //  move Delta away from (0,...).
-        //
-        LDV         delta_short_id                  //  [AssetNames, MarketAssetNames, DS = DeltaShort]
-        LDV         delta_long_id                   //  [AssetNames, MarketAssetNames, DS, DL = DeltaLong]
-        MAX         1                               //  [AssetNames, MarketAssetNames, DS, Max_D = MAX(DS, DL)]
-        LDV         margin_id                       //  [AssetNames, MarketAssetNames, DS, Max_D = MAX(DS, DL), Margin]
-        SSB         1                               //  [AssetNames, MarketAssetNames, DS, Max_D, RM = Margin s- Max_D]
-        SWAP        2                               //  [AssetNames, MarketAssetNames, RM, Max_D, DS]
-        POPN        2                               //  [AssetNames, MarketAssetNames, RM]
-        LDV         asset_liquidity_id              //  [AssetNames, MarketAssetNames, RM, MarketAssetLiquidity]
-        MIN         1                               //  [AssetNames, MarketAssetNames, RM, AC = MIN(MarketAssetLiquidity, RM)]
-        LDR         _AssetWeights                   //  [AssetNames, MarketAssetNames, RM, AC, AssetWeights]
-        SWAP        2                               //  [AssetNames, MarketAssetNames, AssetWeights, AC, RM]
-        POPN        1                               //  [AssetNames, MarketAssetNames, AssetWeights, AC]
-        JFLT        2   3                           //  [AssetNames, MarketAssetNames, AssetWeights, Flt_AC]
-        DIV         1                               //  [AssetNames, MarketAssetNames, AssetWeights, C_vec = (Flt_AC / AssetWeights)]
-        VMIN                                        //  [AssetNames, MarketAssetNames, AssetWeights, C = MIN(C_vec)]
-        STR         _Capacity                       //  [AssetNames, MarketAssetNames, AssetWeights]
+        LDR         _AssetWeights                   //  [AN = AssetNames, MAN = MarketAssetNames, W = AssetWeights]
+        LDV         asset_liquidity_id              //  [AN, MAN, W, MAL = MarketAssetLiquidity]
+        JFLT        2   3                           //  [AN, MAN, W, Flt_MAL]
+        DIV         1                               //  [AN, MAN, W, C_vec = (Flt_MAL / W)]
+        VMIN                                        //  [AN, MAN, W, C = MIN(C_vec)]
+        STR         _Capacity                       //  [AN, MAN, W]
         POPN        3                               //  []
 
         // =============================

@@ -167,9 +167,6 @@ pub async fn run_scenario(client: &TxClient, devil_address: Address) -> eyre::Re
                 market_asset_prices_id,
                 market_asset_slopes_id,
                 market_asset_liquidity_id,
-                delta_long_id,
-                delta_short_id,
-                margin_id,
             ),
             16,
         ))
