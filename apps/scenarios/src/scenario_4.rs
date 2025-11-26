@@ -5,7 +5,7 @@ use icore::vil::{
     execute_buy_order::execute_buy_order,
     solve_quadratic::{self, solve_quadratic},
 };
-use itertools::Itertools;
+use itertools::{chain, Itertools};
 use labels_macros::label_vec;
 use vector_macros::amount_vec;
 
@@ -35,17 +35,24 @@ pub async fn run_scenario(client: &TxClient, devil_address: Address) -> eyre::Re
     let collateral_removed = amount!(50.0);
 
     let asset_names = Labels {
-        data: (31..81).into_iter().collect_vec(),
+        data: chain!(
+            [1, 2, 5, 9, 11, 12, 15, 17, 18, 21],
+            (31..41).into_iter(),
+            [51, 52, 55, 57, 59, 62, 63, 64, 68, 69],
+            (71..81).into_iter(),
+            (81..91).into_iter()
+        )
+        .collect_vec(),
     };
     let asset_vector = |val| Vector {
-        data: (31..81).into_iter().map(|_| val).collect_vec(),
+        data: asset_names.data.iter().map(|_| val).collect_vec(),
     };
 
     let market_asset_names = Labels {
         data: (1..151).into_iter().collect_vec(),
     };
     let market_vector = |val| Vector {
-        data: (1..151).into_iter().map(|_| val).collect_vec(),
+        data: market_asset_names.data.iter().map(|_| val).collect_vec(),
     };
 
     client
