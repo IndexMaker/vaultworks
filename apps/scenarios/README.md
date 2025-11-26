@@ -44,6 +44,8 @@ The [`execute_buy_order`](../../libs//icore/src/vil/execute_buy_order.rs) is a c
 - **1.0** Initial version
 - **1.1** Execute Buy w/ Capacity Limit
 
+See explanation [here...](../../docs/Vectorized%20Index%20Buy%20Order%20Execution%20Algorithm.pdf)
+
 
 ### Conclusion
 
