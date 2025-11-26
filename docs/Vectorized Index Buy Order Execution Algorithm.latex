@@ -16,8 +16,8 @@
 \usepackage{enumitem}
 
 \title{\textbf{The Vectorized Index Buy Order Execution Algorithm: A Formal Analysis of On-Chain Vector Processing}}
-\author{}
-\date{}
+\author{Sonia Kolasinska}
+\date{\today}
 
 \begin{document}
 
@@ -25,7 +25,7 @@
 \thispagestyle{empty} % No page number on the title page
 
 \begin{abstract}
-The execution of financial primitives involving baskets of underlying assets poses a significant computational challenge in constrained smart contract environments. This paper formalizes a novel, high-dimensional algorithm, implemented on a $\text{VM}^2$ environment, which is a Virtual Machine deployed as a smart contract (Stylus/WASM). This $\text{VM}^2$ is optimized for vector processing using its \textbf{Vector Intermediate Language (VIL)}, designed to execute complex index order primitives (Buy, Sell, Rebalance). The algorithm meticulously integrates four key steps: solving a vector-based quadratic pricing equation, determining a systemic margin capacity limit, performing complex market demand rebalancing, and updating net exposure (Delta). We demonstrate that this approach successfully manages a a \textbf{flexible Index structure} (e.g., a 50-asset index) against a \textbf{150-asset Market}, utilizing the VIL's labels manipulation to handle various index sizes (e.g., top 20, top 100). This capability is crucial to quantifying the operational cost and providing a blueprint for efficient, high-fidelity vector arithmetic on a blockchain.
+The execution of financial primitives involving baskets of underlying assets poses a significant computational challenge in constrained smart contract environments. This paper formalizes a novel, high-dimensional algorithm, implemented on a $\text{VM}^2$ environment, which is a Virtual Machine deployed as a smart contract (Stylus/WASM). This $\text{VM}^2$ is optimized for vector processing using its \textbf{Vector Intermediate Language (VIL)}, designed to execute complex index order primitives (Buy, Sell, Rebalance). The algorithm integrates four key steps: solving a vector-based quadratic pricing equation, determining a systemic margin capacity limit, performing complex market demand rebalancing, and updating net exposure (Delta). We demonstrate that this approach successfully manages a a \textbf{flexible Index structure} (e.g., a 50-asset index) against a \textbf{150-asset Market}, utilizing the VIL's labels manipulation to handle various index sizes (e.g., top 20, top 100). This capability is crucial to quantifying the operational cost and providing a blueprint for efficient, high-fidelity vector arithmetic on a blockchain.
 \end{abstract}
 
 \section{Introduction to the Problem}
@@ -34,7 +34,7 @@ Decentralized finance protocols increasingly rely on complex, multi-asset produc
 
 This challenge is overcome by deploying a separate, custom $\text{VM}^2$ environment, which is the \textbf{Vector IL VM} running inside the Arbitrum WASM VM (implemented as a smart contract compiled via Stylus). The $\text{VM}^2$'s core advantage lies in its specialized \textbf{Vector Instruction Set (VIS)}, providing native, low-level vector operations (e.g., $\mathbf{A} \oplus \mathbf{B}$). Critically, the VIS includes \textbf{Labels Manipulation} instructions (`JFLT`, `JUPD`). These commands are essential for correctly aligning and propagating data between the Index domain (e.g., 50 components) and the Market domain (150 components) without compromising state integrity.
 
-It is critical to note that the internal execution complexity of these Label Manipulation instructions is linear, specifically $O(N_I + N_M)$ where $N_I$ is the index size and $N_M$ is the market size. However, this contained $O(N_I + N_M)$ complexity within the highly optimized VIL VM represents a transformative gas saving compared to an EVM implementation. The alternative's gas cost is dominated by the necessity of performing high-cost storage operations ($\text{SLOAD}$ \& $\text{SSTORE}$) on the underlying blockchain, which makes it prohibitively expensive. By performing this alignment in a single VIL operation, the overall transaction maintains a flat, low gas cost profile. The goal is to define an algorithm that is computationally efficient and mathematically sound, ensuring the transaction satisfies pricing, collateral, and systemic risk (Margin) constraints simultaneously.
+It is critical to note that the internal execution complexity of these Label Manipulation instructions is linear, specifically $O(N_I + N_M)$ where $N_I$ is the index size and $N_M$ is the market size. However, this contained $O(N_I + N_M)$ complexity within the highly optimized VIL VM represents a transformative gas saving compared to an EVM implementation. The alternative's gas cost is dominated by the necessity of performing high-cost storage operations ($\text{SLOAD}$ \& $\text{SSTORE}$) on the underlying blockchain, which makes it prohibitively expensive. By performing this alignment in a single VIL operation, the overall transaction maintains a flat, low gas cost profile. The goal is to define an algorithm that is computationally efficient and mathematically sound, ensuring the transaction satisfies pricing, collateral, and systemic risk (Margin) constraints simultaneously.
 
 \section{Mathematical Framework for Index Acquisition}
 
@@ -109,7 +109,7 @@ $$
 
 \subsection{Step 4: Final Quantity Execution and Asset Calculation}
 
-The executed Index Quantity ($Q_{\text{final}}$) is capped by the maximum allowed by pricing ($Q_{\text{max, pricing}}$) and the Margin Capacity ($CL$). The overall index capacity ($\text{Cap}$) is no longer explicitly here as it has been factored into the calculation of $CL$.
+The executed Index Quantity ($Q_{\text{final}}$) is capped by the maximum allowed by pricing ($Q_{\text{max, pricing}}$) and the Margin Capacity ($CL$).
 
 $$
 Q_{\text{final}} = \min(Q_{\text{max, pricing}}, CL)
@@ -121,9 +121,9 @@ $$
 \mathbf{A} = Q_{\text{final}} \odot \mathbf{W}
 $$
 
-\subsection{Step 5: Meticulous Market Demand Rebalancing}
+\subsection{Step 5: Market Demand Rebalancing}
 
-This is the most \textbf{intricate} step, where the 50-component $\mathbf{A}$ vector updates the 150-component market demand vectors ($\mathbf{D}_S, \mathbf{D}_L$).
+This is next step, where the 50-component $\mathbf{A}$ vector updates the 150-component market demand vectors ($\mathbf{D}_S, \mathbf{D}_L$).
 
 \begin{enumerate}
     \item \textbf{New Short Demand ($\mathbf{D}_{S, new}$):} The executed assets reduce the standing short demand, saturating at zero.
@@ -161,7 +161,7 @@ The order's spent collateral is calculated: $C_{\text{spent}} = Q_{\text{final}}
 
 \section{Performance Analysis and Efficiency}
 
-The efficiency of this \textbf{meticulous} vectorized execution, even with the complex $50 \rightarrow 150$ vector alignment, is quantified by the observed gas cost.
+The efficiency of this vectorized execution, even with the complex $50 \rightarrow 150$ vector alignment, is quantified by the observed gas cost.
 
 The analyzed transaction required \textbf{3,381,746 gas} to execute, based on the provided transaction receipt. This cost is incurred for the following operations:
 \begin{itemize}
@@ -181,7 +181,7 @@ The analyzed transaction required \textbf{3,381,746 gas} to execute, based on th
         \textbf{Total Gas Used} & $\mathbf{3,381,746}$ & Actual on-chain consumption \\
         \textbf{Asset Scale} & $N_I=50 \text{ vs. } N_M=150$ & High dimensional processing \\
         \textbf{ETH Cost} & $3,381,746 \cdot 100 \cdot 10^{-9} \text{ ETH}$ & $\mathbf{0.0003381746} \text{ ETH}$ \\
-        \textbf{USD Cost} & $0.0003381746 \text{ ETH} \times \$3,600/\text{ETH}^*$ & $\approx \mathbf{\$1.22} \text{ USD} \text{ (or } \mathbf{121.74} \text{ ¢)}$ \\
+        \textbf{USD Cost} & $0.0003381746 \text{ ETH} \times \$3,600/\text{ETH}^*$ & $\approx \mathbf{\$1.22} \text{ USD} \text{ (or } \mathbf{121.74} \text{ cents)}$ \\
         \bottomrule
         \multicolumn{3}{l}{\small $^*$Assuming an ETH price of $\$3,600$ for illustrative purposes.}
     \end{tabular}
@@ -191,6 +191,6 @@ The performance demonstrates that even complex, risk-controlled financial logic-
 
 \section{Conclusion}
 
-The Vectorized Index Buy Order Execution Algorithm provides a mathematically sound and highly performant mechanism for executing high-dimensional financial derivatives on-chain. The formalism highlights the \textbf{intricate} and \textbf{meticulous} balancing act between pricing constraints ($Q_{\text{max, pricing}}$), systemic stability ($CL$), and market dynamics ($\mathbf{D}_{S, new}, \mathbf{D}_{L, new}$). By offloading vector operations and data alignment to the optimized VIS layer, the system achieves a transaction cost of $\approx \mathbf{\$1.22}$ for a complex 50/150 asset trade, confirming the viability of vector-based financial primitives in decentralized ecosystems.
+The Vectorized Index Buy Order Execution Algorithm provides a mathematically sound and highly performant mechanism for executing high-dimensional financial derivatives on-chain. The formalism highlights the intricate balancing act between pricing constraints ($Q_{\text{max, pricing}}$), systemic stability ($CL$), and market dynamics ($\mathbf{D}_{S, new}, \mathbf{D}_{L, new}$). By offloading vector operations and data alignment to the optimized VIS layer, the system achieves a transaction cost of $\approx \mathbf{\$1.22}$ for a complex 50/150 asset trade, confirming the viability of vector-based financial primitives in decentralized ecosystems.
 
 \end{document}
