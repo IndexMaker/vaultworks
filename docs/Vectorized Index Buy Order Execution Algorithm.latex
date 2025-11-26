@@ -1,0 +1,194 @@
+\documentclass[11pt, a4paper]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{amsthm}
+\usepackage{booktabs}
+\usepackage[a4paper, top=2.5cm, bottom=2.5cm, left=2.5cm, right=2.5cm]{geometry}
+\usepackage{hyperref}
+\hypersetup{
+    colorlinks=true,
+    linkcolor=blue,
+    filecolor=magenta,      
+    urlcolor=cyan,
+}
+\usepackage{enumitem}
+
+\title{\textbf{The Vectorized Index Buy Order Execution Algorithm: A Formal Analysis of On-Chain Vector Processing}}
+\author{}
+\date{}
+
+\begin{document}
+
+\maketitle
+\thispagestyle{empty} % No page number on the title page
+
+\begin{abstract}
+The execution of financial primitives involving baskets of underlying assets poses a significant computational challenge in constrained smart contract environments. This paper formalizes a novel, high-dimensional algorithm, implemented on a $\text{VM}^2$ environment, which is a Virtual Machine deployed as a smart contract (Stylus/WASM). This $\text{VM}^2$ is optimized for vector processing using its \textbf{Vector Intermediate Language (VIL)}, designed to execute complex index order primitives (Buy, Sell, Rebalance). The algorithm meticulously integrates four key steps: solving a vector-based quadratic pricing equation, determining a systemic margin capacity limit, performing complex market demand rebalancing, and updating net exposure (Delta). We demonstrate that this approach successfully manages a a \textbf{flexible Index structure} (e.g., a 50-asset index) against a \textbf{150-asset Market}, utilizing the VIL's labels manipulation to handle various index sizes (e.g., top 20, top 100). This capability is crucial to quantifying the operational cost and providing a blueprint for efficient, high-fidelity vector arithmetic on a blockchain.
+\end{abstract}
+
+\section{Introduction to the Problem}
+
+Decentralized finance protocols increasingly rely on complex, multi-asset products. An index, composed of $N_I$ assets (e.g., $N_I \in \{20, 50, 100\}$), must interact with a broader market environment of $N_M$ assets (where $N_M=150$). The specific case where $N_I=50$ is used throughout this analysis as an \textbf{illustrative example} of an index being a portion of the total market. The core difficulty lies in processing high-dimensional vectors (up to $N_M$ components) entirely on-chain, where computation is constrained and expensive. Traditional Ethereum Virtual Machine (EVM) operations struggle with loop-based, element-wise vector arithmetic, leading to prohibitive gas costs for products requiring continuous rebalancing.
+
+This challenge is overcome by deploying a separate, custom $\text{VM}^2$ environment, which is the \textbf{Vector IL VM} running inside the Arbitrum WASM VM (implemented as a smart contract compiled via Stylus). The $\text{VM}^2$'s core advantage lies in its specialized \textbf{Vector Instruction Set (VIS)}, providing native, low-level vector operations (e.g., $\mathbf{A} \oplus \mathbf{B}$). Critically, the VIS includes \textbf{Labels Manipulation} instructions (`JFLT`, `JUPD`). These commands are essential for correctly aligning and propagating data between the Index domain (e.g., 50 components) and the Market domain (150 components) without compromising state integrity.
+
+It is critical to note that the internal execution complexity of these Label Manipulation instructions is linear, specifically $O(N_I + N_M)$ where $N_I$ is the index size and $N_M$ is the market size. However, this contained $O(N_I + N_M)$ complexity within the highly optimized VIL VM represents a transformative gas saving compared to an EVM implementation. The alternative's gas cost is dominated by the necessity of performing high-cost storage operations ($\text{SLOAD}$ \& $\text{SSTORE}$) on the underlying blockchain, which makes it prohibitively expensive. By performing this alignment in a single VIL operation, the overall transaction maintains a flat, low gas cost profile. The goal is to define an algorithm that is computationally efficient and mathematically sound, ensuring the transaction satisfies pricing, collateral, and systemic risk (Margin) constraints simultaneously.
+
+\section{Mathematical Framework for Index Acquisition}
+
+The execution algorithm is an atomic, six-step process. Variables denoted in bold ($\mathbf{V}$) are vectors, while italic variables ($s$) are scalars. Operations $\oplus, \ominus, \odot, \oslash$ represent vector addition, saturating subtraction, component-wise multiplication, and component-wise division, respectively. $\min(\mathbf{V})$ denotes the minimum value across all vector components.
+
+\subsection{Step 1: Collateral Update and Index Pricing Inputs}
+
+The user's effective collateral ($C_{\text{new}}$) is calculated based on initial funds ($C_{\text{old}}$) and external transfers ($C_{add}, C_{rem}$).
+
+$$
+C_{\text{new}} = (C_{\text{old}} + C_{add}) - C_{rem}
+$$
+
+The market provides the scalar Index Price Slope ($S$) and Price ($P$), which define the marginal cost function for the total index quantity $Q$.
+
+\subsection{Step 2: Maximum Quantity Determination via Quadratic Solver}
+
+The maximum possible Index Quantity based on collateral ($Q_{\text{max, pricing}}$) is determined by solving the Index Price Function, which links the cost ($C_{\text{new}}$) to the quantity ($Q$): $C_{\text{new}} = P \cdot Q + S \cdot Q^2$.
+
+This is reformulated into a standard scalar quadratic equation:
+
+$$
+S \cdot Q^2 + P \cdot Q - C_{\text{new}} = 0
+$$
+
+The maximum quantity is found by taking the positive root of the solution:
+
+$$
+Q_{\text{max, pricing}} = \frac{\sqrt{P^2 + 4 \cdot S \cdot C_{\text{new}}} - P}{2 \cdot S}
+$$
+
+\subsection{Step 3: Margin-Based Capacity Limit ($CL$)}
+
+To prevent systemic risk breaches, the transaction must be capped by the market's remaining margin capacity ($\mathbf{M}$) relative to the current long ($\Delta_L$) and short ($\Delta_S$) exposures. The \textbf{Final Capacity Limit ($CL$)} for the entire index purchase is defined by the following expression, which is calculated sequentially in the VIL:
+
+$$
+CL = \min \left( \frac{\mathbf{L}}{\mathbf{W}} \right)
+$$
+
+\begin{enumerate}
+    \item \textbf{Margin Limit Vector ($\mathbf{L}$):} The available capacity ($\mathbf{L}$) is the \textbf{sum} of the system's available resources: the \textbf{Inventory} that can be closed plus the \textbf{Remaining Margin Headroom} that can be utilized.
+    
+    \begin{itemize}
+        \item \textbf{For a Buy Order (increasing system Short exposure):} The capacity is the sum of Existing Long Inventory ($\Delta_L$) and the Unused Short Risk Budget ($\mathbf{M} \ominus \Delta_S$).
+
+        $$
+        \mathbf{L} = \Delta_L \oplus (\mathbf{M} \ominus \Delta_S)
+        $$
+
+        \item \textbf{For a Sell Order (increasing system Long exposure):} The capacity is the sum of Existing Short Inventory ($\Delta_S$) and the Unused Long Risk Budget ($\mathbf{M} \ominus \Delta_L$).
+
+        $$
+        \mathbf{L} = \Delta_S \oplus (\mathbf{M} \ominus \Delta_L)
+        $$
+    \end{itemize}
+
+    \textbf{Note:} $\mathbf{M}$ represents the maximum allowed net exposure, typically equivalent to the total Vendor-managed reserves. Since $\Delta_L$ and $\Delta_S$ are mutually exclusive (an asset cannot be net long and net short simultaneously), the additive vector operation ($\oplus$) correctly aggregates the two distinct sources of capacity.
+
+    \item \textbf{Asset Capacity Limit Vector ($\mathbf{CL}_{\text{vec}}$):} This vector is aligned via Label Manipulation (`JFLT`) to the Index Asset Weights ($\mathbf{W}$) and determines the maximum \textit{Index} quantity each asset can sustain.
+
+    $$
+    \mathbf{CL}_{\text{vec}} = \mathbf{L} \oslash \mathbf{W}
+    $$
+
+    \item \textbf{Final Capacity Limit ($CL$):} The system capacity is the minimum across all assets. This is extracted using the \textbf{VIL `VMIN`} instruction.
+
+    $$
+    CL = \min(\mathbf{CL}_{\text{vec}})
+    $$
+\end{enumerate}
+
+
+\subsection{Step 4: Final Quantity Execution and Asset Calculation}
+
+The executed Index Quantity ($Q_{\text{final}}$) is capped by the maximum allowed by pricing ($Q_{\text{max, pricing}}$), the Margin Capacity ($CL$), and the system's overall index capacity ($\text{Cap}$).
+
+$$
+Q_{\text{final}} = \min(Q_{\text{max, pricing}}, CL, \text{Cap})
+$$
+
+The resulting executed asset quantities ($\mathbf{A}$) are calculated by distributing $Q_{\text{final}}$ according to the Index Weights ($\mathbf{W}$).
+
+$$
+\mathbf{A} = Q_{\text{final}} \odot \mathbf{W}
+$$
+
+\subsection{Step 5: Meticulous Market Demand Rebalancing}
+
+This is the most \textbf{intricate} step, where the 50-component $\mathbf{A}$ vector updates the 150-component market demand vectors ($\mathbf{D}_S, \mathbf{D}_L$).
+
+\begin{enumerate}
+    \item \textbf{New Short Demand ($\mathbf{D}_{S, new}$):} The executed assets reduce the standing short demand, saturating at zero.
+
+    $$
+    \mathbf{D}_{S, new} = \mathbf{D}_S \ominus \mathbf{A}
+    $$
+
+    \item \textbf{Residual Quantities ($\mathbf{R}_{\text{A}}$):} Any asset quantities that could not be matched by existing short demand become residual.
+
+    $$
+    \mathbf{R}_{\text{A}} = \mathbf{A} \ominus \mathbf{D}_S
+    $$
+
+    \item \textbf{New Long Demand ($\mathbf{D}_{L, new}$):} The residual quantities are added to the long demand.
+
+    $$
+    \mathbf{D}_{L, new} = \mathbf{D}_L \oplus \mathbf{R}_{\text{A}}
+    $$
+\end{enumerate}
+
+\subsection{Step 6: Delta Update and Financial Commit}
+
+The final net exposures ($\Delta_L, \Delta_S$) are updated based on the new demand/supply state ($\mathbf{D}_S, \mathbf{D}_L, \mathbf{S}_L, \mathbf{S}_S$).
+
+$$
+\mathbf{T}_L = \mathbf{S}_L \oplus \mathbf{D}_{S, new} \quad ; \quad \mathbf{T}_S = \mathbf{S}_S \oplus \mathbf{D}_{L, new}
+$$
+
+$$
+\Delta_{L, new} = \mathbf{T}_L \ominus \mathbf{T}_S \quad ; \quad \Delta_{S, new} = \mathbf{T}_S \ominus \mathbf{T}_L
+$$
+
+The order's spent collateral is calculated: $C_{\text{spent}} = Q_{\text{final}} \cdot (S \cdot Q_{\text{final}} + P)$. All market and order state vectors are then committed.
+
+\section{Performance Analysis and Efficiency}
+
+The efficiency of this \textbf{meticulous} vectorized execution, even with the complex $50 \rightarrow 150$ vector alignment, is quantified by the observed gas cost.
+
+The analyzed transaction required \textbf{3,378,136 gas} to execute. This cost is incurred for the following operations:
+\begin{itemize}
+    \item Solving the scalar quadratic equation.
+    \item Performing exactly 11 vector arithmetic operations ($\oplus, \ominus, \odot, \oslash$) on vectors up to 150 components.
+    \item Executing exactly 4 Label Manipulation instructions (`JFLT`, `JUPD`, `JADD`) to align and commit data between the Index and Market domains.
+\end{itemize}
+
+\begin{table}[h]
+    \centering
+    \caption{Transaction Cost and Scale Summary}
+    \label{tab:cost_summary}
+    \begin{tabular}{l l l}
+        \toprule
+        \textbf{Metric} & \textbf{Value} & \textbf{Cost Equivalency} \\
+        \midrule
+        \textbf{Total Gas Used} & $\mathbf{3,378,136}$ & $\mathbf{0.0003378136} \text{ ETH}$ \\
+        \textbf{Asset Scale} & $N_I=50 \text{ vs. } N_M=150$ & High dimensional processing \\
+        \textbf{Transaction Cost} & $100,000,000 \text{ wei}$ effective gas price & $\approx \mathbf{\$1.22} \text{ USD} \text{ (or } \mathbf{121.61} \text{ ¢)}$ \\
+        \bottomrule
+    \end{tabular}
+\end{table}
+
+The performance demonstrates that even complex, risk-controlled financial logic---which would typically require dozens of expensive storage reads and writes in standard Solidity---can be executed efficiently using native vector processing. The reduced gas cost is a testament to the VIS's ability to minimize expensive external memory operations and instead rely on fast, in-VM vector arithmetic.
+
+\section{Conclusion}
+
+The Vectorized Index Buy Order Execution Algorithm provides a mathematically sound and highly performant mechanism for executing high-dimensional financial derivatives on-chain. The formalism highlights the \textbf{intricate} and \textbf{meticulous} balancing act between pricing constraints ($Q_{\text{max, pricing}}$), systemic stability ($CL$), and market dynamics ($\mathbf{D}_{S, new}, \mathbf{D}_{L, new}$). By offloading vector operations and data alignment to the optimized VIL layer, the system achieves a transaction cost of $\approx \mathbf{\$1.22}$ for a complex 50/150 asset trade, confirming the viability of vector-based financial primitives in decentralized ecosystems.
+
+\end{document}
