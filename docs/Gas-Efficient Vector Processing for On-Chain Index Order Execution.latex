@@ -34,7 +34,7 @@ Decentralized finance protocols increasingly rely on complex, multi-asset produc
 
 This challenge is overcome by deploying a separate, custom $\text{VM}^2$ environment, which is the \textbf{Vector IL VM} running inside the Arbitrum WASM VM (implemented as a smart contract compiled via Stylus). The $\text{VM}^2$'s core advantage lies in its specialized \textbf{Vector Instruction Set (VIS)}, providing native, low-level vector operations (e.g., $\mathbf{A} \oplus \mathbf{B}$). Critically, the VIS includes \textbf{Labels Manipulation} instructions (`JFLT`, `JUPD`, `JADD`). These commands are essential for correctly aligning and propagating data between the Index domain (e.g., 50 components) and the Market domain (150 components) without compromising state integrity.
 
-It is critical to note that the internal execution complexity of these Label Manipulation instructions is linear, specifically $O(N_I + N_M)$ where $N_I$ is the index size and $N_M$ is the market size. However, this contained $O(N_I + N_M)$ complexity within the highly optimized VIL VM represents a transformative gas saving compared to an EVM implementation. The alternative's gas cost is dominated by the necessity of performing high-cost storage operations ($\text{SLOAD}$ \& $\text{SSTORE}$) on the underlying blockchain, which makes it prohibitively expensive. By performing this alignment in a single VIL operation, the overall transaction maintains a flat, low gas cost profile. The goal is to define an algorithm that is computationally efficient and mathematically sound, ensuring the transaction satisfies pricing, collateral, and systemic risk (Margin) constraints simultaneously.
+It is critical to note that the internal execution complexity of these Label Manipulation instructions is linear, specifically $O(N_I + N_M)$ where $N_I$ is the index size and $N_M$ is the market size. However, this contained $O(N_I + N_M)$ complexity within the highly optimized VIL VM represents a transformative gas saving compared to an EVM implementation. The alternative's gas cost is dominated by the necessity of performing high-cost storage operations ($\text{SLOAD}$ \& $\text{SSTORE}$) on the underlying blockchain, which makes it prohibitively expensive. By performing this alignment in a single VIL operation, the overall transaction maintains a flat, low gas cost profile. The goal is to define an algorithm that is computationally efficient and mathematically sound, ensuring the transaction satisfies pricing, collateral, and systemic (Margin) constraints simultaneously.
 
 \section{Decentralized Architecture and Thematic Roles (DeIndex)}
 
@@ -144,7 +144,7 @@ For the system to maintain a continuous, accurate, and solvent state, several ma
 
 \subsection{Data Feed Integration (\texttt{update\_market\_data})}
 
-The \texttt{update\_market\_data} routine is executed by the \textbf{Vendor (Authorized Provider)}. The Vendor is responsible for the \textbf{meticulous} computation of the core market vectors ($\mathbf{P}, \mathbf{S}, \mathbf{L}$) from raw, off-chain order book data before injection. This process ensures that the on-chain state accurately reflects real-time liquidity and price impact, thereby maintaining system solvency.
+The \texttt{update\_market\_data} routine is executed by the \textbf{Vendor (Authorized Provider)}. The Vendor is responsible for the computation of the core market vectors ($\mathbf{P}, \mathbf{S}, \mathbf{L}$) from raw, off-chain order book data before injection. This process ensures that the on-chain state accurately reflects real-time liquidity and price impact, thereby maintaining system solvency.
 
 For each asset, the Vendor processes the top $K$ levels (e.g., $K=5$) of the order book (Bids and Asks) to derive the three key vector components ($\mathbf{P}_i, \mathbf{S}_i, \mathbf{L}_i$):
 
@@ -180,7 +180,7 @@ Similarly for $\mathbf{S}_{\text{new}}$ and $\mathbf{L}_{\text{new}}$.
 
 \subsection{Margin Headroom Update (\texttt{update\_margin})}
 
-The maximum allowed net exposure vector ($\mathbf{M}$), which defines the systemic risk limit (Margin Headroom), must also be dynamically adjustable. The \texttt{update\_margin} routine allows the Vendor or governance mechanism to inject new margin limits, also using the $\text{JUPD}$ instruction for selective updates.
+The maximum allowed net exposure vector ($\mathbf{M}$), which defines the systemic limit (Margin Headroom), must also be dynamically adjustable. The \texttt{update\_margin} routine allows the Vendor or governance mechanism to inject new margin limits, also using the $\text{JUPD}$ instruction for selective updates.
 
 $$
 \mathbf{M}_{\text{new}} = \mathbf{M}_{\text{old}} \text{ join\_update } \mathbf{M}_{\text{input}}
@@ -233,7 +233,7 @@ $$
 \subsection{Step 3: Margin-Based Capacity Limit ($CL$) with Progressive Constraint}
 \label{sec:margin_capacity_limit}
 
-To prevent systemic risk breaches, the transaction must be capped by the market's remaining margin capacity ($\mathbf{M}$) relative to the current long ($\Delta_L$) and short ($\Delta_S$) exposures. The \textbf{Final Capacity Limit ($CL$)} for the entire index purchase is defined by the minimum available capacity across all assets, \textbf{constrained progressively by the $\mathbf{AssetContributionFractions}$ vector ($\mathbf{F}$)}.
+To prevent systemic limits breaches, the transaction must be capped by the market's remaining margin capacity ($\mathbf{M}$) relative to the current long ($\Delta_L$) and short ($\Delta_S$) exposures. The \textbf{Final Capacity Limit ($CL$)} for the entire index purchase is defined by the minimum available capacity across all assets, \textbf{constrained progressively by the $\mathbf{AssetContributionFractions}$ vector ($\mathbf{F}$)}.
 
 \textbf{Role of $\mathbf{F}$:} This vector $\mathbf{F}$ is derived from a batch of pending index orders. It ensures that the available margin capacity of bottleneck assets is split proportionally among the batch of orders, guaranteeing that the orders can progress and preventing any single large order from blocking the entire batch.
 
@@ -245,17 +245,20 @@ $$
     \item \textbf{Margin Limit Vector ($\mathbf{L}$):} The available capacity ($\mathbf{L}$) is the \textbf{sum} of the system's available resources: the \textbf{Inventory} that can be closed ($\Delta_L$ or $\Delta_S$) plus the \textbf{Remaining Margin Headroom}, capped by the equivalent vector for the scalar Market Capacity ($C \odot \mathbf{W}$).
 
     \begin{itemize}
-        \item \textbf{For a Buy Order (increasing system Short exposure):}
+        \item \textbf{For a Buy Order (increasing system Short exposure):} The capacity is the sum of Existing Long Inventory ($\Delta_L$) which is given priority, and the Unused Short Limit Budget ($\mathbf{M} \ominus \Delta_S$) component-wise capped by the maximum component-wise asset quantity ($C \odot \mathbf{W}$).
         $$
         \mathbf{L} = \Delta_L \oplus \min(\mathbf{M} \ominus \Delta_S, C \odot \mathbf{W})
         $$
 
-        \item \textbf{For a Sell Order (increasing system Long exposure):}
+        \item \textbf{For a Sell Order (increasing system Long exposure):} The capacity is the sum of Existing Short Inventory ($\Delta_S$) and the Unused Long Limit Budget ($\mathbf{M} \ominus \Delta_L$), component-wise capped by the maximum component-wise asset quantity ($C \odot \mathbf{W}$).
         $$
         \mathbf{L} = \Delta_S \oplus \min(\mathbf{M} \ominus \Delta_L, C \odot \mathbf{W})
         $$
     \end{itemize}
+    
+\textbf{Note:} $\mathbf{M}$ represents the maximum allowed net exposure, typically equivalent to the total Vendor-managed reserves. The Market Capacity $C$ used here is derived from the \texttt{update\_quote} function (Section \ref{sec:index_capacity}). Since $\Delta_L$ and $\Delta_S$ are mutually exclusive (an asset cannot be net long and net short simultaneously), the additive vector operation ($\oplus$) correctly aggregates the two distinct sources of capacity.
 
+    \item \textbf{Asset Capacity Limit Vector ($\mathbf{CL}_{\text{vec}}$):} This vector is aligned via Label Manipulation (`JFLT`) to the Index Asset Weights ($\mathbf{W}$) and determines the maximum \textit{Index} quantity each asset can sustain.
     \item \textbf{Final Capacity Limit ($CL$):} The system capacity is the minimum across all assets after the asset-level capacity ($\mathbf{L} \oslash \mathbf{W}$) is constrained by the `AssetContributionFractions` vector ($\mathbf{F}$). This ensures that the current iterative order consumes no more than its allocated fraction of the total remaining margin.
 
     $$
@@ -350,7 +353,7 @@ The analyzed transaction required \textbf{3,461,868 gas} to execute, based on th
 
 \subsection{VIL Performance Analysis: Justification for Low Gas Cost}
 
-The core of the low-cost execution is the efficient implementation of the VIL's \textbf{Join operations}: `JFLT` (Join-Filter), `JUPD` (Join-Update), and `JADD` (Join-Add). These operations, essential for aligning the 50-asset index vector with the 150-asset market vector, carry an inherent risk of high computational cost if implemented naively. The paper, "Aligning Market and Index Vectors" (2025), provided a comparative analysis of four implementation strategies, summarized in Table \ref{tab:vil_performance}, which empirically justifies the mandated choice.
+The core of the low-cost execution is the efficient implementation of the VIL's \textbf{Join operations}: `JFLT` (Join-Filter), `JUPD` (Join-Update), and `JADD` (Join-Add). These operations are essential for aligning the asset index vector with the asset market vector. The paper, "Aligning Market and Index Vectors" (2025), provided a comparative analysis of four implementation strategies, summarized in Table \ref{tab:vil_performance}, which empirically justifies the mandated choice.
 
 \subsubsection*{Comparative Analysis of VIL Implementations}
 
@@ -382,7 +385,7 @@ The analysis proved that deterministic, predictable performance is non-negotiabl
 
 \begin{enumerate}
     \item \textbf{Deterministic Safety:} Candidates (b), (c), and (d) are safe.
-    \item \textbf{Risk Validation:} Solution (a) incurred the highest gas cost ($3,993,165$) under mixed-data conditions, proving its cost is volatile and unacceptable.
+    \item \textbf{Stability Validation:} Solution (a) incurred the highest gas cost ($3,993,165$) under mixed-data conditions, proving its cost is volatile and unacceptable.
     \item \textbf{Comparative Efficiency:} The three deterministic solutions performed closely: Solution (d) at $3,990,453$ gas, Solution (b) at $3,990,747$ gas, and Solution (c) at $3,991,967$ gas. This confirms that the hybrid approach (\textbf{d}) is the most gas-efficient under these mixed-data conditions, validating the strategic decision to prioritize its adaptive logic.
 \end{enumerate}
 
@@ -390,6 +393,6 @@ The implementation of the VIL's core instructions with the \textbf{Hybrid Soluti
 
 \section{Conclusion}
 
-The Vectorized Index Buy Order Execution Algorithm provides a mathematically sound and highly performant mechanism for executing high-dimensional financial derivatives on-chain. The formalism highlights the \textbf{intricate} balancing act between quote determination (Section \ref{sec:quote_determination}), Vendor state management (Section \ref{sec:vendor_role}), data integrity (Section \ref{sec:maintenance_routines}), pricing constraints ($Q_{\text{max, pricing}}$), systemic stability ($CL$), and market dynamics ($\mathbf{D}_{S, new}, \mathbf{D}_{L, new}$). By offloading vector operations and data alignment to the optimized VIS layer, underpinned by the empirically validated \textbf{Hybrid Solution (d)} for Label Manipulation, the system achieves a transaction cost of $\approx \mathbf{\$1.25}$ for a complex 50/150 asset trade, confirming the viability of vector-based financial primitives in decentralized ecosystems.
+The Vectorized Index Buy Order Execution Algorithm provides a mathematically sound and highly performant mechanism for executing high-dimensional financial derivatives on-chain. The formalism highlights the balancing act between quote determination (Section \ref{sec:quote_determination}), Vendor state management (Section \ref{sec:vendor_role}), data integrity (Section \ref{sec:maintenance_routines}), pricing constraints ($Q_{\text{max, pricing}}$), systemic stability ($CL$), and market dynamics ($\mathbf{D}_{S, new}, \mathbf{D}_{L, new}$). By offloading vector operations and data alignment to the optimized VIS layer, underpinned by the empirically validated \textbf{Hybrid Solution (d)} for Label Manipulation, the system achieves a transaction cost of $\approx \mathbf{\$1.25}$ for a complex 50/150 asset trade, confirming the viability of vector-based financial primitives in decentralized ecosystems.
 
 \end{document}
