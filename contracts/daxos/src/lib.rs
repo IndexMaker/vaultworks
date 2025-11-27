@@ -473,7 +473,9 @@ impl Daxos {
         let delta_long_id = 106;
         let delta_short_id = 107;
         let margin_id = 999;
+        let asset_contribution_fractions_id = 1999;
         let solve_quadratic_id = 10;
+        let max_order_size = 0;
 
         // Compile VIL program, which we will send to DeVIL for execution.
         //
@@ -488,6 +490,7 @@ impl Daxos {
             index_order_id,
             collateral_amount,
             0,
+            max_order_size,
             executed_index_quantities_id,
             executed_asset_quantities_id,
             asset_names_id,
@@ -501,6 +504,7 @@ impl Daxos {
             delta_long_id,
             delta_short_id,
             margin_id,
+            asset_contribution_fractions_id,
             solve_quadratic_id,
         );
         let num_registry = 16;

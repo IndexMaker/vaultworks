@@ -6,6 +6,7 @@ pub fn execute_buy_order(
     order_id: u128,
     collateral_added: u128,
     collateral_removed: u128,
+    max_order_size: u128,
     executed_index_quantities_id: u128,
     executed_asset_quantities_id: u128,
     asset_names_id: u128,
@@ -19,6 +20,7 @@ pub fn execute_buy_order(
     delta_long_id: u128,
     delta_short_id: u128,
     margin_id: u128,
+    asset_contribution_fractions_id: u128,
     solve_quadratic_id: u128,
 ) -> Vec<u8> {
     devil! {
@@ -64,32 +66,37 @@ pub fn execute_buy_order(
         STR         _Slope                      // Stack: []
         
         // Solve Quadratic: S * Q^2 + P * Q - C = 0
-        LDR         _Slope                      // Stack: [Slope]
-        LDR         _Price                      // Stack: [Slope, Price]
-        LDR         _Collateral                 // Stack: [Slope, Price, Collateral]
-        B           solve_quadratic_id  3  1  4 // Stack: [IndexQuantity]
-        STR         _IndexQuantity              // Stack: []
+        IMMS        max_order_size              // Stack: [MaxOrderSize]
+        LDR         _Slope                      // Stack: [MaxOrderSize, Slope]
+        LDR         _Price                      // Stack: [MaxOrderSize, Slope, Price]
+        LDR         _Collateral                 // Stack: [MaxOrderSize, Slope, Price, Collateral]
+        MIN         3                           // Stack: [MaxOrderSize, Slope, Price, CappedCollateral]
+        B           solve_quadratic_id  3  1  4 // Stack: [MaxOrderSize, IndexQuantity]
+        STR         _IndexQuantity              // Stack: [MaxOrderSize]
+        POPN        1                           // Stack: []
 
         // Compute CapacityLimit = MIN( (DeltaLong + MIN(Margin - DeltaShort, Capacity * AssetWeights)) / AssetWeights)
         LDL         asset_names_id              // Stack: [AssetNames]
         LDL         market_asset_names_id       // Stack: [AN = AssetNames, MAN = MarketAssetNames]
-        LDV         margin_id                   // Stack: [AN, MAN, M = Margin]
-        LDV         delta_long_id               // Stack: [AN, MAN, M, DL = DeltaLong]
-        JFLT        2   3                       // Stack: [AN, MAN, M, fDL]
-        LDV         delta_short_id              // Stack: [AN, MAN, M, fDL, DS = DeltaShort]
-        SWAP        2                           // Stack: [AN, MAN, DS, fDL, M]
-        SSB         2                           // Stack: [AN, MAN, DS, fDL, M_DS = M s- DS]
-        JFLT        3   4                       // Stack: [AN, MAN, DS, fDL, fM_DS]
-        LDR         _Weights                    // Stack: [AN, MAN, DS, fDL, fM_DS, W = AssetWeights]
-        LDM         _Capacity                   // Stack: [AN, MAN, DS, fDL, fM_DS, W, Cap]
-        LDD         1                           // Stack: [AN, MAN, DS, fDL, fM_DS, W, Cap, W]
-        MUL         1                           // Stack: [AN, MAN, DS, fDL, fM_DS, W, Cap, Cap_W = Cap * W]
-        MIN         3                           // Stack: [AN, MAN, DS, fDL, fM_DS, W, Cap, MA = MIN(fM_DS, Cap_W)]
-        ADD         4                           // Stack: [AN, MAN, DS, fDL, fM_DS, W, Cap, L = MA + fDL]
-        DIV         2                           // Stack: [AN, MAN, DS, fDL, fM_DS, W, Cap, CL_vec = L / W]
-        VMIN                                    // Stack: [AN, MAN, DS, fDL, fM_DS, W, Cap, CL = VMIN(CL_vec)]
-        SWAP        5                           // Stack: [AN, MAN, CL, fDL, fM_DS, W, Cap, DS]
-        POPN        5                           // Stack: [AN, MAN, CL]
+        LDV         asset_contribution_fractions_id // Stack: [AN, MAN, ACF = AssetContributionFractions]
+        LDV         margin_id                   // Stack: [AN, MAN, ACF, M = Margin]
+        LDV         delta_long_id               // Stack: [AN, MAN, ACF, M, DL = DeltaLong]
+        JFLT        3   4                       // Stack: [AN, MAN, ACF, M, fDL]
+        LDV         delta_short_id              // Stack: [AN, MAN, ACF, M, fDL, DS = DeltaShort]
+        SWAP        2                           // Stack: [AN, MAN, ACF, DS, fDL, M]
+        SSB         2                           // Stack: [AN, MAN, ACF, DS, fDL, M_DS = M s- DS]
+        JFLT        4   5                       // Stack: [AN, MAN, ACF, DS, fDL, fM_DS]
+        LDR         _Weights                    // Stack: [AN, MAN, ACF, DS, fDL, fM_DS, W = AssetWeights]
+        LDM         _Capacity                   // Stack: [AN, MAN, ACF, DS, fDL, fM_DS, W, Cap]
+        LDD         1                           // Stack: [AN, MAN, ACF, DS, fDL, fM_DS, W, Cap, W]
+        MUL         1                           // Stack: [AN, MAN, ACF, DS, fDL, fM_DS, W, Cap, Cap_W = Cap * W]
+        MIN         3                           // Stack: [AN, MAN, ACF, DS, fDL, fM_DS, W, Cap, MA = MIN(fM_DS, Cap_W)]
+        ADD         4                           // Stack: [AN, MAN, ACF, DS, fDL, fM_DS, W, Cap, L = MA + fDL]
+        DIV         2                           // Stack: [AN, MAN, ACF, DS, fDL, fM_DS, W, Cap, CL_vec = L / W]
+        MUL         6                           // Stack: [AN, MAN, ACF, DS, fDL, fM_DS, W, Cap, CL_vec_acf = CL_vec * ACF]
+        VMIN                                    // Stack: [AN, MAN, ACF, DS, fDL, fM_DS, W, Cap, CL = VMIN(CL_vec_acf)]
+        SWAP        6                           // Stack: [AN, MAN, CL, DS, fDL, fM_DS, W, Cap, ACF]
+        POPN        6                           // Stack: [AN, MAN, CL]
         SWAP        2                           // Stack: [CL, MAN, AN]
         STR         _AssetNames                 // Stack: [CL, MAN]
         STR         _MarketAssetNames           // Stack: [CapacityLimit = CL]

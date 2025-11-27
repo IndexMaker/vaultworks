@@ -194,30 +194,36 @@ One of the most powerful VIL operations is the atomic expansion of the Market As
 
 The execution algorithm is an atomic, six-step process. Variables denoted in bold ($\mathbf{V}$) are vectors, while italic variables ($s$) are scalars. Operations $\oplus, \ominus, \odot, \oslash$ represent vector addition, saturating subtraction, component-wise multiplication, and component-wise division, respectively. $\min(\mathbf{V})$ denotes the minimum value across all vector components. \textbf{Note: When a scalar ($s$) is used in a vector operation (e.g., $\min(\mathbf{V}, s)$ or $s \odot \mathbf{W}$), it implies a component-wise operation where the scalar is broadcast to a vector of matching dimension.}
 
-\subsection{Step 1: Collateral Update and Index Pricing Inputs}
+\subsection{Step 1: Collateral Update and Order Size Constraint}
 
-The user's effective collateral ($C_{\text{new}}$) is calculated based on initial funds ($C_{\text{old}}$) and external transfers ($C_{add}, C_{rem}$).
+The user's effective collateral ($C_{\text{eff}}$) is calculated based on initial funds ($C_{\text{old}}$) and external transfers ($C_{add}, C_{rem}$). Crucially, this usable collateral is then capped by a pre-defined maximum order size ($\text{MaxOrderSize}$) to mitigate flash loan risks or sudden liquidity shocks.
 
 $$
 C_{\text{new}} = (C_{\text{old}} + C_{add}) - C_{rem}
+$$
+
+The final effective collateral used for the pricing calculation is:
+
+$$
+C_{\text{eff}} = \min(\text{MaxOrderSize}, C_{\text{new}})
 $$
 
 The market provides the scalar Index Price Slope ($S$) and Price ($P$), which define the marginal cost function for the total index quantity $Q$. These are the values computed in Section \ref{sec:quote_determination}.
 
 \subsection{Step 2: Maximum Quantity Determination via Quadratic Solver}
 
-The maximum possible Index Quantity based on collateral ($Q_{\text{max, pricing}}$) is determined by solving the Index Price Function, which links the cost ($C_{\text{new}}$) to the quantity ($Q$): $C_{\text{new}} = P \cdot Q + S \cdot Q^2$.
+The maximum possible Index Quantity based on collateral ($Q_{\text{max, pricing}}$) is determined by solving the Index Price Function, which links the effective cost ($C_{\text{eff}}$) to the quantity ($Q$): $C_{\text{eff}} = P \cdot Q + S \cdot Q^2$.
 
 This is reformulated into a standard scalar quadratic equation:
 
 $$
-S \cdot Q^2 + P \cdot Q - C_{\text{new}} = 0
+S \cdot Q^2 + P \cdot Q - C_{\text{eff}} = 0
 $$
 
 The maximum quantity is found by taking the positive root of the solution:
 
 $$
-Q_{\text{max, pricing}} = \frac{\sqrt{P^2 + 4 \cdot S \cdot C_{\text{new}}} - P}{2 \cdot S}
+Q_{\text{max, pricing}} = \frac{\sqrt{P^2 + 4 \cdot S \cdot C_{\text{eff}}} - P}{2 \cdot S}
 $$
 
 \subsection{Step 3: Margin-Based Capacity Limit ($CL$)}
@@ -362,7 +368,7 @@ The challenge involves synchronizing two sorted vectors: a large Market Vector (
     \renewcommand{\arraystretch}{1.2} % Set vertical spacing to 1.2 for this table as well
     \begin{tabular}{@{}l l r r@{}}
         \toprule
-        Version & Implementation Method & Gas Cost (Test Set A) & Gas Cost (Test Set B - Mixed Data) \\
+        \textbf{Version} & \textbf{Implementation Method} & \textbf{Gas Cost (Test A)} & \textbf{(Test B - Mixed Data)} \\
         \midrule
         \textbf{(a)} & Linear scan, filtering \textbf{in-place} & $3,380,000$ & $\mathbf{3,993,165}$ \\
         \textbf{(b)} & Linear scan, filtering and \textbf{appending} & $\mathbf{3,380,000}$ & $3,990,747$ \\
