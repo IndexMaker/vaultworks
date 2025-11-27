@@ -28,15 +28,18 @@ pub async fn run_scenario(client: &TxClient, devil_address: Address) -> eyre::Re
     let delta_long_id = 106;
     let delta_short_id = 107;
     let margin_id = 108;
+    let asset_contribution_fractions_id = 109;
     let solve_quadratic_id = 10;
 
     let collateral_added = amount!(100.0);
     let collateral_removed = amount!(50.0);
+    let max_order_size = amount!(10000.0);
 
     client
         .begin_tx()
         .add(devil.submit(asset_names_id, label_vec![51, 53, 54].to_vec()))
         .add(devil.submit(weights_id, amount_vec![0.100, 1.000, 100.0].to_vec()))
+        .add(devil.submit(asset_contribution_fractions_id, amount_vec![1, 1, 1].to_vec()))
         .add(devil.submit(quote_id, amount_vec![10.00, 10_000, 100.0].to_vec()))
         .add(devil.submit(index_order_id, amount_vec![950.00, 0, 0].to_vec()))
         .add(devil.submit(
@@ -57,15 +60,12 @@ pub async fn run_scenario(client: &TxClient, devil_address: Address) -> eyre::Re
         .await?;
 
     let solve_quadratic_code = solve_quadratic();
-    
+
     log_msg!("Solve Quadratic Code: {:?}", solve_quadratic_code);
-    
+
     client
         .begin_tx()
-        .add(devil.submit(
-            solve_quadratic_id,
-            solve_quadratic_code,
-        ))
+        .add(devil.submit(solve_quadratic_id, solve_quadratic_code))
         .send()
         .await?;
 
@@ -73,6 +73,7 @@ pub async fn run_scenario(client: &TxClient, devil_address: Address) -> eyre::Re
         index_order_id,
         collateral_added.to_u128_raw(),
         collateral_removed.to_u128_raw(),
+        max_order_size.to_u128_raw(),
         executed_index_quantities_id,
         executed_asset_quantities_id,
         asset_names_id,
@@ -86,6 +87,7 @@ pub async fn run_scenario(client: &TxClient, devil_address: Address) -> eyre::Re
         delta_long_id,
         delta_short_id,
         margin_id,
+        asset_contribution_fractions_id,
         solve_quadratic_id,
     );
 

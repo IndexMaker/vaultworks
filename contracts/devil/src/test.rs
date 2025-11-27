@@ -221,15 +221,20 @@ mod test_scenarios {
         let delta_long_id = 106;
         let delta_short_id = 107;
         let margin_id = 108;
+        let asset_contribution_fractions_id = 109;
         let solve_quadratic_id = 10;
 
         let collateral_added = amount!(100.0);
         let collateral_removed = amount!(50.0);
+        let max_order_size = amount!(10000.0);
 
         vio.store_labels(asset_names_id, label_vec![51, 53, 54])
             .unwrap();
 
         vio.store_vector(weights_id, amount_vec![0.100, 1.000, 100.0])
+            .unwrap();
+
+        vio.store_vector(asset_contribution_fractions_id, amount_vec![1, 1, 1])
             .unwrap();
 
         vio.store_vector(quote_id, amount_vec![10.00, 10_000, 100.0])
@@ -269,6 +274,7 @@ mod test_scenarios {
             index_order_id,
             collateral_added.to_u128_raw(),
             collateral_removed.to_u128_raw(),
+            max_order_size.to_u128_raw(),
             executed_index_quantities_id,
             executed_asset_quantities_id,
             asset_names_id,
@@ -282,6 +288,7 @@ mod test_scenarios {
             delta_long_id,
             delta_short_id,
             margin_id,
+            asset_contribution_fractions_id,
             solve_quadratic_id,
         );
 
