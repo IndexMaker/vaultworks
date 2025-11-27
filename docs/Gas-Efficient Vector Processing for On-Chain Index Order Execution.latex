@@ -25,12 +25,12 @@
 \thispagestyle{empty} % No page number on the title page
 
 \begin{abstract}
-The execution of financial primitives involving baskets of underlying assets poses a significant computational challenge in constrained smart contract environments. This paper formalizes a novel, high-dimensional algorithm, implemented on a $\text{VM}^2$ environment, which is a Virtual Machine deployed as a smart contract (Stylus/WASM). This $\text{VM}^2$ is optimized for vector processing using its \textbf{Vector Intermediate Language (VIL)}, designed to execute complex index order primitives (Buy, Sell, Rebalance) and \textbf{dynamically update the index quote and margin parameters}. The complete system operation integrates six key steps: 1) dynamically deriving the index quote (Price, Slope, Capacity), 2) updating the Vendor's net supply and market delta, 3) solving a vector-based quadratic pricing equation, 4) determining a systemic margin capacity limit, 5) performing complex market demand rebalancing, and 6) updating final net exposure (Delta). Furthermore, we detail the \textbf{maintenance VIL routines} essential for robust, continuous operation, including market data integration, margin limit updates, and asset list expansion. A crucial component of this low-cost execution is the selection of the VIL's Join-operation implementation, which is formally justified by comparative gas cost analysis, ensuring $\mathbf{O(N_I + N_M)}$ complexity and cost predictability. We demonstrate that this approach successfully manages a \textbf{flexible Index structure} (e.g., a 50-asset index) against a \textbf{150-asset Market}, utilizing the VIL's labels manipulation to handle various index sizes (e.g., top 20, top 100). This capability is crucial to quantifying the operational cost and providing a blueprint for efficient, high-fidelity vector arithmetic on a blockchain.
+The execution of financial primitives involving baskets of underlying assets poses a significant computational challenge in constrained smart contract environments. This paper formalizes a novel, high-dimensional algorithm, implemented on a $\text{VM}^2$ environment, which is a Virtual Machine deployed as a smart contract (Stylus/WASM). This $\text{VM}^2$ is optimized for vector processing using its \textbf{Vector Intermediate Language (VIL)}, designed to execute complex index order primitives (Buy, Sell, Rebalance) and dynamically update the index quote and margin parameters. The complete system operation integrates six key steps: 1) dynamically deriving the index quote (Price, Slope, Capacity), 2) updating the Vendor's net supply and market delta, 3) solving a vector-based quadratic pricing equation, 4) determining a systemic margin capacity limit, 5) performing complex market demand rebalancing, and 6) updating final net exposure (Delta). Furthermore, we detail the maintenance VIL routines essential for robust, continuous operation, including market data integration, margin limit updates, and asset list expansion. A crucial component of this low-cost execution is the selection of the VIL's Join-operation implementation, which is formally justified by comparative gas cost analysis, ensuring $\mathbf{O(N_I + N_M)}$ complexity and cost predictability. We demonstrate that this approach successfully manages a flexible Index structure (e.g., a 50-asset index) against a 150-asset Market, utilizing the VIL's labels manipulation to handle various index sizes (e.g., top 20, top 100). This capability is crucial to quantifying the operational cost and providing a blueprint for efficient, high-fidelity vector arithmetic on a blockchain.
 \end{abstract}
 
 \section{Introduction to the Problem}
 
-Decentralized finance protocols increasingly rely on complex, multi-asset products. An index, composed of $N_I$ assets (e.g., $N_I \in \{20, 50, 100\}$), must interact with a broader market environment of $N_M$ assets (where $N_M=150$). The specific case where $N_I=50$ is used throughout this analysis as an \textbf{illustrative example} of an index being a portion of the total market. The core difficulty lies in processing high-dimensional vectors (up to $N_M$ components) entirely on-chain, where computation is constrained and expensive. Traditional Ethereum Virtual Machine (EVM) operations struggle with loop-based, element-wise vector arithmetic, leading to prohibitive gas costs for products requiring continuous rebalancing.
+Decentralized finance protocols increasingly rely on complex, multi-asset products. An index, composed of $N_I$ assets (e.g., $N_I \in \{20, 50, 100\}$), must interact with a broader market environment of $N_M$ assets (where $N_M=150$). The specific case where $N_I=50$ is used throughout this analysis as an illustrative example of an index being a portion of the total market. The core difficulty lies in processing high-dimensional vectors (up to $N_M$ components) entirely on-chain, where computation is constrained and expensive. Traditional Ethereum Virtual Machine (EVM) operations struggle with loop-based, element-wise vector arithmetic, leading to prohibitive gas costs for products requiring continuous rebalancing.
 
 This challenge is overcome by deploying a separate, custom $\text{VM}^2$ environment, which is the \textbf{Vector IL VM} running inside the Arbitrum WASM VM (implemented as a smart contract compiled via Stylus). The $\text{VM}^2$'s core advantage lies in its specialized \textbf{Vector Instruction Set (VIS)}, providing native, low-level vector operations (e.g., $\mathbf{A} \oplus \mathbf{B}$). Critically, the VIS includes \textbf{Labels Manipulation} instructions (`JFLT`, `JUPD`, `JADD`). These commands are essential for correctly aligning and propagating data between the Index domain (e.g., 50 components) and the Market domain (150 components) without compromising state integrity.
 
@@ -45,15 +45,15 @@ The system is formally known as the \textbf{Decentralised Index Maker (DeIndex)}
     \renewcommand{\arraystretch}{1.2} % Increased row spacing
     \caption{Thematic Roles and Technical Functions of the DeIndex Architecture}
     \label{tab:architecture_roles}
-    \begin{tabular}{l l p{6cm}}
+    \begin{tabular}{l l p{6.5cm}}
         \toprule
         \textbf{Thematic Role} & \textbf{Technical Function} & \textbf{Summary} \\
         \midrule
-        \textbf{DeVIL} & Vector Intermediate Language (VIL) & The specialized instruction set for on-chain vector processing ($\text{VM}^2$). \\
-        \textbf{Daxos (Hero)} & Core Orchestrator / VIL Runner & The entry point that orchestrates the overall transaction and executes VIL code. \\
-        \textbf{Vendor (AP)} & Authorized Provider Service & The off-chain service responsible for data integrity and system solvency. \\
-        \textbf{Market} & Smart Contract State & Stores all critical system vectors: Supply, Demand, Delta, Price, Slope, and Margin. \\
-        \textbf{Vault} & Index Smart Contract & The tokenized derivative (the index primitive) being bought, sold, or rebalanced. \\
+        \textbf{Daxos (Hero)} & Main Contract & The main contract that orchestrates all transactions following the business logic. \\
+        \textbf{DeVIL (Machine)} & Vector Math & An on-chain computation machine that can perform operations on vectors. It is $\text{VIL VM}$ in $\text{WASM VM}$  $(\text{VM}^2)$, which executes Vector Intermediate Language (VIL) code. \\       
+        \textbf{Vault (Safe)} & Index Token $\text{(ITP)}$ & The tokenized derivative (the index primitive) being bought, sold, or rebalanced. \\
+        \textbf{Vendor (Merchant)} & Authorized Provider & The off-chain service responsible for providing supply and pricing to the $\text{Market}$. \\
+        \textbf{Market (Place)} & Supply \& Demand & Stores all critical system vectors: Supply, Demand, Delta, Price, Slope, and Margin. \\
         \bottomrule
     \end{tabular}
 \end{table}
@@ -245,18 +245,20 @@ $$
     \item \textbf{Margin Limit Vector ($\mathbf{L}$):} The available capacity ($\mathbf{L}$) is the \textbf{sum} of the system's available resources: the \textbf{Inventory} that can be closed ($\Delta_L$ or $\Delta_S$) plus the \textbf{Remaining Margin Headroom}, capped by the equivalent vector for the scalar Market Capacity ($C \odot \mathbf{W}$).
 
     \begin{itemize}
-        \item \textbf{For a Buy Order (increasing system Short exposure):} The capacity is the sum of Existing Long Inventory ($\Delta_L$) which is given priority, and the Unused Short Limit Budget ($\mathbf{M} \ominus \Delta_S$) component-wise capped by the maximum component-wise asset quantity ($C \odot \mathbf{W}$).
+        \item \textbf{For a Buy Order} (either reducing $\Delta_L$ or increasing $\Delta_S$):
         $$
         \mathbf{L} = \Delta_L \oplus \min(\mathbf{M} \ominus \Delta_S, C \odot \mathbf{W})
         $$
 
-        \item \textbf{For a Sell Order (increasing system Long exposure):} The capacity is the sum of Existing Short Inventory ($\Delta_S$) and the Unused Long Limit Budget ($\mathbf{M} \ominus \Delta_L$), component-wise capped by the maximum component-wise asset quantity ($C \odot \mathbf{W}$).
+        \item \textbf{For a Sell Order} (either reducing $\Delta_S$ or increasing $\Delta_L$):
         $$
         \mathbf{L} = \Delta_S \oplus \min(\mathbf{M} \ominus \Delta_L, C \odot \mathbf{W})
         $$
     \end{itemize}
     
-\textbf{Note:} $\mathbf{M}$ represents the maximum allowed net exposure, typically equivalent to the total Vendor-managed reserves. The Market Capacity $C$ used here is derived from the \texttt{update\_quote} function (Section \ref{sec:index_capacity}). Since $\Delta_L$ and $\Delta_S$ are mutually exclusive (an asset cannot be net long and net short simultaneously), the additive vector operation ($\oplus$) correctly aggregates the two distinct sources of capacity.
+    \textbf{Note:} $\mathbf{M}$ represents the maximum allowed net exposure, which serves as a \textbf{hard, systemic upper limit} such that $\text{Abs}(\Delta_L \oplus \Delta_S) \le \mathbf{M}$ must always be true. This Margin ($\mathbf{M}$) is typically equivalent to the total Vendor-managed reserves. The Market Capacity $C$ used here is derived from the \texttt{update\_quote} function (Section \ref{sec:index_capacity}). Since $\Delta_L$ and $\Delta_S$ are mutually exclusive (an asset cannot be net long and net short simultaneously), the additive vector operation ($\oplus$) correctly aggregates the two distinct sources of capacity.
+
+    The Vendor's primary role in risk management operates directly on the $\Delta_L$ and $\Delta_S$ vectors. The Vendor attempts to maintain the system's net exposure below a certain operational threshold, $\text{MinOrderSize}$. Specifically, the Vendor is considered dormant if $\max(\Delta_L, \Delta_S) < \text{MinOrderSize}$. Conversely, if $\Delta_L > \text{MinOrderSize}$, the Vendor starts selling assets to reduce the long exposure ($\Delta_L$). If $\Delta_S > \text{MinOrderSize}$, the Vendor starts buying new assets to cover the short exposure ($\Delta_S$). The Vendor's \textbf{active objective} is to always maintain $\max(\Delta_L, \Delta_S) < \text{MinOrderSize}$ through these proactive buy/sell operations.
 
     \item \textbf{Asset Capacity Limit Vector ($\mathbf{CL}_{\text{vec}}$):} This vector is aligned via Label Manipulation (`JFLT`) to the Index Asset Weights ($\mathbf{W}$) and determines the maximum \textit{Index} quantity each asset can sustain.
     \item \textbf{Final Capacity Limit ($CL$):} The system capacity is the minimum across all assets after the asset-level capacity ($\mathbf{L} \oslash \mathbf{W}$) is constrained by the `AssetContributionFractions` vector ($\mathbf{F}$). This ensures that the current iterative order consumes no more than its allocated fraction of the total remaining margin.
