@@ -32,9 +32,10 @@
 
 \vspace{1cm}
 
+\pagebreak
 \section{Introduction: The VM$^2$ Architecture}
 
-The Vector Instruction Language (VIL) Virtual Machine represents a modern approach to deploying complex mathematical and financial logic onto the Arbitrum ecosystem using Rust / Stylus.
+The Vector ---  Language (VIL) Virtual Machine represents a modern approach to deploying complex mathematical and financial logic onto the Arbitrum ecosystem using Rust / Stylus.
 
 This architecture is a \emph{VM$^2$}---a Virtual Machine (VIL) running as a smart contract within Virtual Machine (WASM, hosted by Arbitrum node).
 
@@ -59,6 +60,7 @@ In traditional EVM smart contract systems, performing vector operations often re
     \item \textbf{WASM Optimization:} By executing the core logic via a simple, specialized instruction set (VIL), the underlying WASM runtime can execute vector mathematics far more efficiently than general-purpose EVM bytecode.
 \end{itemize}
 
+\pagebreak
 \section{Development Workflow with the \texttt{devil!()} Proc Macro}
 
 Writing raw instruction bytes and operands for any VM is tedious and error-prone. The \texttt{devil!()} procedural macro simplifies VIL program creation by allowing developers to embed native VIL assembly code directly within Rust functions.
@@ -97,6 +99,7 @@ pub fn execute_buy_order(...) -> Vec<u8> {
 }
 \end{verbatim}
 
+\pagebreak
 \section{VIL Instruction Set Reference}
 
 The VIL instruction set is designed around the concept of a stack machine operating on two primary data types: \textbf{Scalar} (\texttt{Amount}) and \textbf{Vector} (\texttt{Vec<Amount>}), and additionally \textbf{Labels} (\texttt{Vec<u128>}), which enable \textsl{Join} operations (e.g. \texttt{JADD}, \texttt{JUPD}, \texttt{JFLT}). The instructions manipulate the stack and the internal registry (\texttt{R0}...\texttt{Rn}).
@@ -108,11 +111,12 @@ The VIL instruction set is designed around the concept of a stack machine operat
 \end{figure}
 
 \subsection*{Instruction Set Quick Reference}
-\addcontentsline{toc}{subsection}{Instruction Set Quick Reference}
+\addcontentsline{toc}{subsection}{---  Set Quick Reference}
 Quick listing of instructions.
 
+
 \begin{longtable}{p{0.15\linewidth} p{0.75\linewidth}}
-\caption{VIL Instruction Set Summary}\label{tab:vil_summary}\\
+\caption{VIL ---  Set Summary}\label{tab:vil_summary}\\
 \toprule
 \textbf{Mnemonic} & \textbf{Brief Description} \\
 \midrule
@@ -127,309 +131,1345 @@ Quick listing of instructions.
 \endfoot
 \bottomrule
 \endlastfoot
-% --- Data Loading & Stack Access ---
-\hyperlink{inst:ldl}{\texttt{LDL}} & Loads a \texttt{Labels} object from Blockchain storage ID (\texttt{SLOAD}). \\
-\hyperlink{inst:ldv}{\texttt{LDV}} & Loads a \texttt{Vector<Amount>} object from Blockchain storage ID (\texttt{SLOAD}). \\
-\hyperlink{inst:ldd}{\texttt{LDD}} & Loads a Duplicate (copy) of a stack operand at a relative position. \\
-\hyperlink{inst:ldr}{\texttt{LDR}} & Loads a Duplicate (copy) of a value from an internal Register. \\
-\hyperlink{inst:ldm}{\texttt{LDM}} & Loads a value moving it from an internal Register. \\
-\midrule
-% --- Data Storage & Register Access ---
-\hyperlink{inst:stl}{\texttt{STL}} & Stores the stack's TOS (Labels) to Blockchain storage (\texttt{SSTORE}). \\
-\hyperlink{inst:stv}{\texttt{STV}} & Stores the stack's TOS (Vector) to Blockchain storage (\texttt{SSTORE}). \\
-\hyperlink{inst:str}{\texttt{STR}} & Stores the stack's TOS into a named internal Register. \\
-\midrule
-\hyperlink{inst:pkv}{\texttt{PKV}} & Packs N stack items into a single Vector operand. \\
-\hyperlink{inst:pkv}{\texttt{PKL}} & Packs N stack items into a single Labels operand. \\
-\hyperlink{inst:pkv}{\texttt{UNPK}} & Unpacks elements of the stack's TOS Vector/Labels \\
-\hyperlink{inst:pkv}{\texttt{VPUSH}} & Pushes immediate value to the end of the Vector on TOS \\
-\hyperlink{inst:pkv}{\texttt{VPOP}} & Pops last value from end of the Vector on TOS \\
-\hyperlink{inst:pkv}{\texttt{T}} & Transpose N vectors starting from TOS, into M vectors using transposition \textsl{(swapping rows with columns)} \\
-\midrule
-\hyperlink{inst:pkv}{\texttt{LUNION}} & Merge-join two operands of Labels type \\
-\hyperlink{inst:pkv}{\texttt{LPUSH}} & Push immediate label onto Labels on TOS \\
-\hyperlink{inst:pkv}{\texttt{LPOP}} & Pop last label from Labels on TOS \\
-\hyperlink{inst:pkv}{\texttt{JUPD}} & Perform Join-Update. \\
-\hyperlink{inst:pkv}{\texttt{JADD}} & Perform Join-Add. \\
-\hyperlink{inst:pkv}{\texttt{JFLT}} & Perform Join-Filter. \\
-\midrule
-% --- Arithmetic Operations ---
-\hyperlink{inst:add}{\texttt{ADD}} & Performs element-wise or scalar addition \textsl{(binary)}. \\
-\hyperlink{inst:sub}{\texttt{SUB}} & Performs element-wise or scalar subtraction \textsl{(binary)}. \\
-\hyperlink{inst:sub}{\texttt{SSB}} & Performs element-wise or scalar saturating subtraction \textsl{(binary)}. \\
-\hyperlink{inst:pkv}{\texttt{MUL}} & Performs element-wise or scalar multiplication \textsl{(binary)}. \\
-\hyperlink{inst:pkv}{\texttt{DIV}} & Performs element-wise or scalar division \textsl{(binary)}. \\
-\hyperlink{inst:pkv}{\texttt{SQRT}} & Take square root element-wise or from scalar \textsl{(binary)}. \\
-\hyperlink{inst:pkv}{\texttt{MIN}} & Take minimum element-wise or from scalar \textsl{(binary)}. \\
-\hyperlink{inst:pkv}{\texttt{MAX}} & Take maximum element-wise or from scalar \textsl{(binary)}. \\
-\midrule
-\hyperlink{inst:pkv}{\texttt{VSUM}} & Sum all elements of a vector \textsl{(unary)}. \\
-\hyperlink{inst:pkv}{\texttt{VMIN}} & Find minimum in the vector \textsl{(unary)}. \\
-\hyperlink{inst:pkv}{\texttt{VMAX}} & Find maximum in the vector \textsl{(unary)}. \\
-\midrule
-\hyperlink{inst:pkv}{\texttt{IMMS}} & Load immediate value. \\
-\hyperlink{inst:pkv}{\texttt{IMML}} & Load immediate label. \\
-\hyperlink{inst:pkv}{\texttt{ZEROS}} & Creates a Vector of zeros, matching the length of a reference object. \\
-\hyperlink{inst:ones}{\texttt{ONES}} & Creates a Vector of ones, matching the length of a reference object. \\
-\midrule
-% --- Stack Control & Program Flow ---
-\hyperlink{inst:popn}{\texttt{POPN}} & Removes a specified number of items from the stack. \\
-\hyperlink{inst:swap}{\texttt{SWAP}} & Swaps TOS with an operand at a relative stack position. \\
-\hyperlink{inst:b}{\texttt{B}} & Branches execution to a subroutine, passing N inputs and receiving M outputs. \\
-\hyperlink{inst:fold}{\texttt{FOLD}} & Iteratively applies a subroutine (Fold/Reduce) over elements of a Vector operand. \\
+\hyperlink{inst:ldl}{\texttt{LDL}} & Load Labels object from VIO by ID. Pushes on TOS.. \\
+\hyperlink{inst:ldv}{\texttt{LDV}} & Load Vector object from VIO by ID. Pushes on TOS.. \\
+\hyperlink{inst:ldd}{\texttt{LDD}} & Load Duplicate (copy) of stack operand at $[T-pos]$. Pushes on TOS.. \\
+\hyperlink{inst:ldr}{\texttt{LDR}} & Load value from Registry (R0-Rn). Pushes on TOS.. \\
+\hyperlink{inst:ldm}{\texttt{LDM}} & Load value moving it out of Registry (R0-Rn). Value is removed from registry. Pushes on TOS.. \\
+\hyperlink{inst:stl}{\texttt{STL}} & Store Labels object into VIO. Consumes TOS.. \\
+\hyperlink{inst:stv}{\texttt{STV}} & Store Vector object into VIO. Consumes TOS.. \\
+\hyperlink{inst:str}{\texttt{STR}} & Store into Registry (R0-Rn). Consumes TOS.. \\
+\hyperlink{inst:pkv}{\texttt{PKV}} & Pack `count` values from stack into a new Vector. Consumes `count` operands from TOS, and replaces them with Vector.. \\
+\hyperlink{inst:pkl}{\texttt{PKL}} & Pack `count` values from stack into a new Labels object. Consumes `count` operands from TOS, and replaces them with Labels.. \\
+\hyperlink{inst:unpk}{\texttt{UNPK}} & Unpack a Vector/Labels object onto the stack. Consumes TOS, and replaces with its components.. \\
+\hyperlink{inst:vpush}{\texttt{VPUSH}} & Push a scalar onto the Vector (TOS). In-place updates Vector on TOS, appending new component at the end.. \\
+\hyperlink{inst:vpop}{\texttt{VPOP}} & Pop a scalar from the Vector (TOS). In-place updates Vector on TOS, removing last component.. \\
+\hyperlink{inst:t}{\texttt{T}} & Transpose `count` vectors on stack $[V1, V2]$ -> $[T1, T2]$. In-place updates `count` operands from TOS by performing transform.. \\
+\hyperlink{inst:lunion}{\texttt{LUNION}} & Union of two Labels operands (TOS and T-pos). Pushes on TOS.. \\
+\hyperlink{inst:lpush}{\texttt{LPUSH}} & Push a label value onto the Labels object (TOS). In-place updates Labels on TOS, appending new component at the end.. \\
+\hyperlink{inst:lpop}{\texttt{LPOP}} & Pop a label value from the Labels object (TOS). In-place updates Labels on TOS, removing last component.. \\
+\hyperlink{inst:jupd}{\texttt{JUPD}} & Update using Labels. Expands vector at $[TOS - pos\_B]$ using labels at $[TOS - lab\_B]$ to match labels of TOS at $[TOS - lab\_A]$. In-place updates TOS. Consumes TOS.. \\
+\hyperlink{inst:jadd}{\texttt{JADD}} & Add using Labels. Expands vector at $[TOS - pos\_B]$ using labels at $[TOS - lab\_B]$ to match labels of TOS at $[TOS - lab\_A]$. In-place updates TOS. Consumes TOS.. \\
+\hyperlink{inst:jflt}{\texttt{JFLT}} & Filter using Labels. Expands vector at $[TOS-1]$ using labels at $[T-lab\_B]$ to match labels of TOS at $[T-lab\_A]$. In-place updates TOS. Does not consume other operands.. \\
+\hyperlink{inst:add}{\texttt{ADD}} & Add TOS by operand at $[T-pos]$. Works with vectors and scalars. In-place updates operand on TOS. Does not consume the other operand.. \\
+\hyperlink{inst:sub}{\texttt{SUB}} & Subtract TOS by operand at $[T-pos]$. Works with vectors and scalars. In-place updates operand on TOS. Does not consume the other operand.. \\
+\hyperlink{inst:ssb}{\texttt{SSB}} & Saturating subtract TOS by operand at $[T-pos]$. Works with vectors and scalars. In-place updates operand on TOS. Does not consume the other operand.. \\
+\hyperlink{inst:mul}{\texttt{MUL}} & Multiply TOS by operand at $[T-pos]$. Works with vectors and scalars. In-place updates operand on TOS. Does not consume the other operand.. \\
+\hyperlink{inst:div}{\texttt{DIV}} & Divide TOS by operand at $[T-pos]$. Works with vectors and scalars. In-place updates operand on TOS. Does not consume the other operand.. \\
+\hyperlink{inst:sqrt}{\texttt{SQRT}} & Square root of TOS (scalar or component-wise vector). Works with vectors and scalars. In-place updates operand on TOS.. \\
+\hyperlink{inst:min}{\texttt{MIN}} & Min between TOS and operand at $[T-pos]$. Works with vectors and scalars. In-place updates operand on TOS. Does not consume the other operand.. \\
+\hyperlink{inst:max}{\texttt{MAX}} & Max between TOS and operand at $[T-pos]$. Works with vectors and scalars. In-place updates operand on TOS. Does not consume the other operand.. \\
+\hyperlink{inst:vsum}{\texttt{VSUM}} & Sum of all vector components. Pushes on TOS. Does not consume the operand.. \\
+\hyperlink{inst:vmin}{\texttt{VMIN}} & Minimum value found within vector components. Pushes on TOS. Does not consume the operand.. \\
+\hyperlink{inst:vmax}{\texttt{VMAX}} & Maximum value found within vector components. Pushes on TOS. Does not consume the operand.. \\
+\hyperlink{inst:imms}{\texttt{IMMS}} & Push immediate Scalar value on stack. \\
+\hyperlink{inst:imml}{\texttt{IMML}} & Push immediate Label value on stack. \\
+\hyperlink{inst:zeros}{\texttt{ZEROS}} & Create Vector of zeros matching length of Labels at $[T-pos]$. Pushes on TOS. Does not consume the operand.. \\
+\hyperlink{inst:ones}{\texttt{ONES}} & Create Vector of ones matching length of Labels at $[T-pos]$. Pushes on TOS. Does not consume the operand.. \\
+\hyperlink{inst:popn}{\texttt{POPN}} & Pop 'n' values from the stack. \\
+\hyperlink{inst:swap}{\texttt{SWAP}} & Swap TOS with operand at $[T-n]$. \\
+\hyperlink{inst:b}{\texttt{B}} & Call sub-routine stored as Labels at `prg\_id`, supplying `N` inputs and taking `M` outputs from stack. `N` inputs are consumed from stack. `M` outputs are moved from sub-routine's TOS to caller's TOS.. \\
+\hyperlink{inst:fold}{\texttt{FOLD}} & Fold (iterate) over vector/label operands. Same as `B` except sub-routine is called repeatedly over components of Vector at TOS.. \\
 \end{longtable}
+
+
+
 
 \vspace{0.5cm} % Add some space after the table
 
-\subsection{1. Data Loading \& Stack Access (Opcode 10-15)}
+\pagebreak
+\subsection{1. Data Loading \& Stack Access (Opcode 10..15)}
 
-These instructions are responsible for fetching data from on-chain storage or internal registers and pushing it onto the execution stack.
+\subsubsection{\texttt{LDL} --- Load Labels from Storage\label{inst:ldl}}
 
-\subsubsection{\texttt{LDL} (Load Labels)\label{inst:ldl}}
-Loads a \texttt{Labels} object (metadata, program code) from a designated Blockchain storage slot (\texttt{SLOAD}) and pushes it onto the stack (TOS).
+Load (\texttt{Labels}) object by $ID$ from \textsl{Vector I/O (VIO)}.
+
+\noindent \textbf{Notice}
+
+This is relatively gas-expensive operation as it will load binary blob from \textsl{Blockchain} using underlying \texttt{(SLOAD)} operatation.
 
 \noindent \textbf{Operands}
+
 \begin{itemize}
-    \item \texttt{<label\_id>}: \texttt{u128} Storage ID.
+\item \texttt{labels\_id: u128} -- An $ID$ of the $Labels$ object \textsl{(vector storage slot)}.
+\end{itemize}
+
+\noindent \textbf{Stack Args}
+
+\begin{itemize}
+\item \textsl{(no stack args)}.
+\end{itemize}
+
+\noindent \textbf{Return}
+
+\begin{itemize}
+\item \texttt{[TOS]: Labels} -- $Labels$ object loaded from vector storage.
 \end{itemize}
 
 \noindent \textbf{Usage Example}
+
 \begin{verbatim}
     LDL     asset_names_id
 \end{verbatim}
 
-\subsubsection{\texttt{LDV} (Load Vector)\label{inst:ldv}}
-Loads a \texttt{Vector<Amount>} object from a designated Blockchain storage slot (\texttt{SLOAD}). This involves fetching the binary blob from storage and deserializing it into a \texttt{Vec<Amount>} struct. Pushes the Vector onto the stack.
+Load $Labels$ with `asset\_names\_id' ID from vector storage.
+
+
+\subsubsection{\texttt{LDV} --- Load Vector from Storage\label{inst:ldv}}
+
+Load (\texttt{Vector}) object by $ID$ from \textsl{Vector I/O (VIO)}.
+
+\noindent \textbf{Notice}
+
+This is relatively gas-expensive operation as it will load binary blob from \textsl{Blockchain} using underlying \texttt{(SLOAD)} operatation.
 
 \noindent \textbf{Operands}
+
 \begin{itemize}
-    \item \texttt{<vector\_id>}: \texttt{u128} Storage ID.
+\item \texttt{labels\_id: u128} -- An $ID$ of the $Vector$ object \textsl{(vector storage slot)}.
+\end{itemize}
+
+\noindent \textbf{Stack Args}
+
+\begin{itemize}
+\item \textsl{(no stack args)}.
+\end{itemize}
+
+\noindent \textbf{Return}
+
+\begin{itemize}
+\item \texttt{[TOS]: Vector} -- $Vector$ object loaded from vector storage.
 \end{itemize}
 
 \noindent \textbf{Usage Example}
+
 \begin{verbatim}
+
     LDV     asset_weights_id
+
 \end{verbatim}
 
-\subsubsection{\texttt{LDD} (Load Duplicate)\label{inst:ldd}}
-Creates a copy of the operand at a specified stack position and pushes the duplicate onto the stack (TOS). Useful for reusing an operand without recalculating or reloading it.
+Load $Vector$ with `asset\_weights\_id' ID from vector storage.
+
+\subsubsection{\texttt{LDD} --- Load Duplicate from Stack\label{inst:ldd}}
+
+Load duplicate (copy) of stack operand at \texttt{T - pos}.
+
+\noindent \textbf{Notice}
+
+This is mildly gas-expensive operation, much less gas-expensive than load from
+vector storage, but still it requires cloning of a vector.
 
 \noindent \textbf{Operands}
+
 \begin{itemize}
-    \item \texttt{<pos>}: Stack index relative to TOS (0 is TOS, 1 is the item below TOS).
+\item \texttt{pos: u8} -- Stack position relative to \texttt{TOS} from where we want to duplicate an operand.
 \end{itemize}
 
-\noindent \textbf{Usage Example}
-\begin{verbatim}
-    LDD     1
-\end{verbatim}
+\noindent \textbf{Stack Args}
 
-\subsubsection{\texttt{LDR} (Load from Registry - Read)\label{inst:ldr}}
-Loads a value from a named internal register (\texttt{R0-Rn}) and pushes it onto the stack. The value remains in the registry, allowing multiple reads.
-
-\noindent \textbf{Operands}
 \begin{itemize}
-    \item \texttt{<reg>}: Registry name (e.g., \texttt{\_Weights}).
+\item \texttt{[TOS - pos]} -- Source operand to be cloned.
 \end{itemize}
 
-\noindent \textbf{Usage Example}
-\begin{verbatim}
-    LDR     _Weights
-\end{verbatim}
+\noindent \textbf{Return}
 
-\subsubsection{\texttt{LDM} (Load from Registry - Move)\label{inst:ldm}}
-Loads a value from a named internal register (\texttt{R0-Rn}) and pushes it onto the stack. The value is \textit{removed} from the registry, similar to a move operation in high-level languages.
-
-\noindent \textbf{Operands}
 \begin{itemize}
-    \item \texttt{<reg>}: Registry name (e.g., \texttt{\_Spent}).
-\end{itemize}
-
-\noindent \textbf{Usage Example}
-\begin{verbatim}
-    LDM     _Spent
-\end{verbatim}
-
-\subsection{2. Data Storage \& Register Access (Opcode 20-23)}
-
-These instructions are responsible for persisting data to the blockchain or internal registers and removing data from the stack.
-
-\subsubsection{\texttt{STL} (Store Labels)\label{inst:stl}}
-Stores the Labels object currently on the stack (TOS) into a designated Blockchain storage slot (\texttt{SSTORE}). Consumes TOS.
-
-\noindent \textbf{Operands}
-\begin{itemize}
-    \item \texttt{<label\_id>}: \texttt{u128} Storage ID.
-\end{itemize}  
-
-\noindent \textbf{Usage Example}
-
-\begin{verbatim}
-    STL     new_labels_id
-\end{verbatim}
-
-\subsubsection{\texttt{STV} (Store Vector)\label{inst:stv}}
-Stores the Vector object currently on the stack (TOS) into a designated Blockchain storage slot (\texttt{SSTORE}). This serializes the \texttt{Vector<Amount>} back to a binary blob for efficient storage. Consumes TOS.
-
-\noindent \textbf{Operands}
-\begin{itemize}
-    \item \texttt{<vector\_id>}: \texttt{u128} Storage ID.
-\end{itemize}
-
-\noindent \textbf{Usage Example}
-\begin{verbatim}
-    STV     executed_quantities_id
-\end{verbatim}
-
-\subsubsection{\texttt{STR} (Store to Registry)\label{inst:str}}
-Stores the stack operand (TOS) into a named internal register (\texttt{R0-Rn}). Consumes TOS. This is the primary way to temporarily save intermediate results.
-
-\noindent \textbf{Operands}
-\begin{itemize}
-    \item \texttt{<reg>}: Registry name (e.g., \texttt{\_Weights}).
-\end{itemize}
-
-\noindent \textbf{Usage Example}
-\begin{verbatim}
-    STR     _Weights
-\end{verbatim}
-
-\subsubsection{\texttt{PKV} (Pack Vector)\label{inst:pkv}}
-Takes $N$ items from the top of the stack and packs them into a single \texttt{Vector} or \texttt{Tuple} operand, replacing the $N$ items with the single packed item. This is crucial for saving multi-field objects into a single storage slot.
-
-\noindent \textbf{Operands}
-\begin{itemize}
-    \item \texttt{<count>}: The number of stack items to pack.
-\end{itemize}
-
-\noindent \textbf{Usage Example}
-\begin{verbatim}
-    PKV     3
-\end{verbatim}
-
-\subsection{3. Arithmetic Operations (Opcode 30-34)}
-
-These instructions perform core arithmetic logic, optimized for vector and scalar interactions.
-
-\subsubsection{\texttt{ADD} (Addition)\label{inst:add}}
-Performs element-wise addition (Vector + Vector) or scalar addition (Scalar + Scalar, or Vector + Scalar). The second operand is implicitly the one found at \texttt{[TOS - pos]}.
-
-\noindent \textbf{Operands}
-\begin{itemize}
-    \item \texttt{<pos>}: Stack index of the second operand relative to TOS.
-\end{itemize}
-
-\noindent \textbf{Usage Example}
-\begin{verbatim}
-    ADD     1
-\end{verbatim}
-
-Adds the top two stack items.
-
-\subsubsection{\texttt{SUB} (Subtraction)\label{inst:sub}}
-Performs element-wise subtraction (Vector - Vector) or scalar subtraction (Scalar - Scalar). The second operand is implicitly the one found at \texttt{[TOS - pos]}.
-
-\noindent \textbf{Operands}
-\begin{itemize}
-    \item \texttt{<pos>}: Stack index of the second operand relative to TOS.
-\end{itemize}
-
-\noindent \textbf{Usage Example}
-\begin{verbatim}
-    SUB     1
-\end{verbatim}
-
-Subtracts the second item on stack from TOS.
-
-\subsubsection{\texttt{ONES} (Create Vector of Ones)\label{inst:ones}}
-Creates a new Vector where every element is the value $1$, matching the length of a Vector or Labels object found at \texttt{[TOS - pos]}. Pushes the new Vector on TOS. This is useful for initialization or masks.
-
-\noindent \textbf{Operands}
-\begin{itemize}
-    \item \texttt{<pos>}: Stack index of the reference object whose length is used.
+\item \texttt{[TOS]} -- Duplicate of the operand at \texttt{TOS - pos}.
 \end{itemize}
 
 \noindent \textbf{Usage Example}
 
 \begin{verbatim}
-    ONES    0
+
+    LDD     3
+
 \end{verbatim}
 
-Creates a vector of ones matching the length of the current TOS.
+Create a duplicate of the operand three levels deep on the stack.
 
-\subsection{4. Stack Control \& Program Flow (Opcode 90-94)}
+\subsubsection{\texttt{LDR} --- Load Duplicate from Registry \label{inst:ldr}}
 
-These instructions manage the flow of execution and the state of the stack.
+Load duplicate (copy) from registry \texttt{reg}.
 
-\subsubsection{\texttt{POPN} (Pop N)\label{inst:popn}}
-Removes a specified number of items from the top of the stack. Used to clean up temporary results after they are consumed or stored.
+\noindent \textbf{Notice}
+
+This is mildly gas-expensive operation, much less gas-expensive than load from
+vector storage, but still it requires cloning of a vector.
 
 \noindent \textbf{Operands}
+
 \begin{itemize}
-    \item \texttt{<count>}: Number of values to pop.
+\item \texttt{reg: u8} -- Register number \texttt{0..num\_registry}.
+\end{itemize}
+
+\noindent \textbf{Stack Args}
+
+\begin{itemize}
+\item \textsl{(no stack args)}.
+\end{itemize}
+
+\noindent \textbf{Return}
+
+\begin{itemize}
+\item \texttt{[TOS]} -- Duplicate of the registry \texttt{reg}.
 \end{itemize}
 
 \noindent \textbf{Usage Example}
 
 \begin{verbatim}
-    POPN    3
+
+    LDR     _AssetWeights
+
 \end{verbatim}
 
-Removes the three topmost elements.
+Create a duplicate of the register allocated for \texttt{\_AssetWeights}.
 
-\subsubsection{\texttt{SWAP} (Swap)\label{inst:swap}}
-Swaps the top element of the stack (TOS) with the element located at the specified position. Essential for re-ordering operands for arithmetic operations.
+The \texttt{\_AssetWeights} is a convenience label we associate with some register when we use \texttt{devil!()} macro.
+
+\subsubsection{\texttt{LDM} --- Load Moving from Register\label{inst:ldm}}
+
+Load value moving it out of registry \texttt{reg}.
+
+\noindent \textbf{Notice}
+
+This is highly gas-effective operation, as operand is moved from register onto stack without copying.
 
 \noindent \textbf{Operands}
+
 \begin{itemize}
-    \item \texttt{<pos>}: Stack index of the item to swap with TOS.
+\item \texttt{reg: u8} -- Register number \texttt{0..num\_registry}.
+\end{itemize}
+
+\noindent \textbf{Stack Args}
+
+\begin{itemize}
+\item \textsl{(no stack args)}.
+\end{itemize}
+
+\noindent \textbf{Return}
+
+\begin{itemize}
+\item \texttt{[TOS]} -- Value moved out of the registry \texttt{reg}.
 \end{itemize}
 
 \noindent \textbf{Usage Example}
 
 \begin{verbatim}
-    SWAP    3
+
+    LDM     _MarketAssetPrices
+
 \end{verbatim}
 
-Swaps TOS with the element three positions beneath it (the 4th element down).
+Move \texttt{\_MarketAssetPrices} value out of register, and place it on stack.
 
-\subsubsection{\texttt{B} (Branch / Subroutine Call)\label{inst:b}}
-Calls a sub-routine (another VIL program) identified by \texttt{prg\_id}. It moves $N$ inputs from the current stack to the subroutine's stack and, upon completion, moves $M$ outputs from the subroutine's stack back to the current stack.
+The \texttt{\_MarketAssetPrices} is a convenience label we associate with some register when we use \texttt{devil!()} macro.
+
+\pagebreak
+\subsection{2. Data Storage \& Register Access (Opcode 20..23)}
+
+\subsubsection{\texttt{STL} --- Store Labels into Storage\label{inst:stl}}
+
+Store Labels object into VIO. Consumes TOS.
 
 \noindent \textbf{Operands}
+
 \begin{itemize}
-    \item \texttt{<prg\_id>}: \texttt{u128} Program/Labels ID.
-    \item \texttt{<N>}: Number of inputs consumed from the caller's stack.
-    \item \texttt{<M>}: Number of outputs produced to the caller's stack.
-    \item \texttt{<R>}: R-value (Reserved/Placeholder).
+\item \texttt{<label\_id>}: \texttt{u128} Stack pos
+\end{itemize}
+
+\noindent \textbf{Stack Args}
+
+\begin{itemize}
+\item \texttt{}: Input
+\end{itemize}
+
+\noindent \textbf{Return}
+
+\begin{itemize}
+\item \texttt{}: Output
 \end{itemize}
 
 \noindent \textbf{Usage Example}
 
 \begin{verbatim}
-    B   solve_quad  3   1   8
+
+    STL <label_id>
+
 \end{verbatim}
 
-Calls the solver program with 3 inputs, expects 1 output, and uses 8 registers.
+\subsubsection{\texttt{STV} --- Store Vector into Storage\label{inst:stv}}
 
-\subsubsection{\texttt{FOLD} (Fold / Reduce)\label{inst:fold}}
-A powerful instruction that applies a subroutine (\texttt{prg\_id}) iteratively over a Vector operand on the stack, accumulating a result (e.g., sum, product, or complex reduction). This implements functional programming's `fold' or `reduce' pattern.
+Store Vector object into VIO. Consumes TOS.
 
 \noindent \textbf{Operands}
+
 \begin{itemize}
-    \item \texttt{<prg\_id>}: \texttt{u128} Program/Labels ID.
-    \item \texttt{<N>}: Input/Accumulator management (controls how the accumulator and next element are fed into the subroutine).
-    \item \texttt{<M>}: Output management.
-    \item \texttt{<R>}: R-value (Reserved/Placeholder).
+\item \texttt{<vector\_id>}: \texttt{u128} Stack pos
+\end{itemize}
+
+\noindent \textbf{Stack Args}
+
+\begin{itemize}
+\item \texttt{}: Input
+\end{itemize}
+
+\noindent \textbf{Return}
+
+\begin{itemize}
+\item \texttt{}: Output
 \end{itemize}
 
 \noindent \textbf{Usage Example}
 
 \begin{verbatim}
-    FOLD    sum_subroutine  2   1   8 
+
+    STV <vector_id>
+
 \end{verbatim}
 
-Fold over elements of a vector on TOS using sub routine taking initially 2 inputs from stack, and returning one output at the end, and using 8 registers.
+\subsubsection{\texttt{STR} --- Store Moving into Registry\label{inst:str}}
+
+Move value from stack and store it into registry \texttt{reg}.
+
+\noindent \textbf{Operands}
+
+\begin{itemize}
+\item \texttt{reg: u8} -- Register number \texttt{0..num\_registry}.
+\end{itemize}
+
+\noindent \textbf{Stack Args}
+
+\begin{itemize}
+\item \texttt{[TOS]} -- Operand on stack to be moved into registry \texttt{reg}.
+\end{itemize}
+
+\noindent \textbf{Return}
+
+\begin{itemize}
+\item \textsl{(stack shifted by one level)}.
+\end{itemize}
+
+\noindent \textbf{Usage Example}
+
+\begin{verbatim}
+
+    STR     _AssetWeights
+
+\end{verbatim}
+
+Pop value from stack \texttt{[TOS]} and store it in register allocated for  \texttt{\_AssetWeights}.
+
+\pagebreak
+\subsection{3. Data Structure Manipulation (Opcode 30..35)}
+
+\subsubsection{\texttt{PKV} --- \label{inst:pkv}}
+
+Pack `count` values from stack into a new Vector. Consumes `count` operands from TOS, and replaces them with Vector.
+
+\noindent \textbf{Operands}
+
+\begin{itemize}
+\item \texttt{<count>}: \texttt{u128} Stack pos
+\end{itemize}
+
+\noindent \textbf{Stack Args}
+
+\begin{itemize}
+\item \texttt{stack args = $[TOS - count, ..., TOS: Scalar]$}: Input
+\end{itemize}
+
+\noindent \textbf{Return}
+
+\begin{itemize}
+\item \texttt{result $[TOS]$}: Output
+\end{itemize}
+
+\noindent \textbf{Usage Example}
+
+\begin{verbatim}
+
+    PKV <count>
+
+\end{verbatim}
+
+\subsubsection{\texttt{PKL} --- \label{inst:pkl}}
+
+Pack `count` values from stack into a new Labels object. Consumes `count` operands from TOS, and replaces them with Labels.
+
+\noindent \textbf{Operands}
+
+\begin{itemize}
+\item \texttt{<count>}: \texttt{u128} Stack pos
+\end{itemize}
+
+\noindent \textbf{Stack Args}
+
+\begin{itemize}
+\item \texttt{stack args = $[TOS - count, ..., TOS: Scalar]$}: Input
+\end{itemize}
+
+\noindent \textbf{Return}
+
+\begin{itemize}
+\item \texttt{result $[TOS]$}: Output
+\end{itemize}
+
+\noindent \textbf{Usage Example}
+
+\begin{verbatim}
+
+    PKL <count>
+
+\end{verbatim}
+
+\subsubsection{\texttt{UNPK} --- \label{inst:unpk}}
+
+Unpack a Vector/Labels object onto the stack. Consumes TOS, and replaces with its components.
+
+\noindent \textbf{Operands}
+
+\begin{itemize}
+\item (no operands)
+\end{itemize}
+
+\noindent \textbf{Stack Args}
+
+\begin{itemize}
+\item \texttt{stack args = $[TOS: Vector|Labels]$}: Input
+\end{itemize}
+
+\noindent \textbf{Return}
+
+\begin{itemize}
+\item \texttt{result $[TOS - len, ..., TOS]$}: Output
+\end{itemize}
+
+\noindent \textbf{Usage Example}
+
+\begin{verbatim}
+
+    UNPK
+
+\end{verbatim}
+
+\subsubsection{\texttt{VPUSH} --- \label{inst:vpush}}
+
+Push a scalar onto the Vector (TOS). In-place updates Vector on TOS, appending new component at the end.
+
+\noindent \textbf{Operands}
+
+\begin{itemize}
+\item \texttt{<immediate}: \texttt{u128} Stack pos
+\item \texttt{(scalar)>}: \texttt{u128} Stack pos
+\end{itemize}
+
+\noindent \textbf{Stack Args}
+
+\begin{itemize}
+\item \texttt{stack args = $[TOS: Vector[0..len]$]}: Input
+\end{itemize}
+
+\noindent \textbf{Return}
+
+\begin{itemize}
+\item \texttt{result = $[TOS: Vector[0..len + 1]$]}: Output
+\end{itemize}
+
+\noindent \textbf{Usage Example}
+
+\begin{verbatim}
+
+    VPUSH <immediate (scalar)>
+
+\end{verbatim}
+
+\subsubsection{\texttt{VPOP} --- \label{inst:vpop}}
+
+Pop a scalar from the Vector (TOS). In-place updates Vector on TOS, removing last component.
+
+\noindent \textbf{Operands}
+
+\begin{itemize}
+\item (no operands)
+\end{itemize}
+
+\noindent \textbf{Stack Args}
+
+\begin{itemize}
+\item \texttt{stack args = $[TOS: Vector[0..len]$]}: Input
+\end{itemize}
+
+\noindent \textbf{Return}
+
+\begin{itemize}
+\item \texttt{result = $[TOS: Vector[0..len - 1]$]}: Output
+\end{itemize}
+
+\noindent \textbf{Usage Example}
+
+\begin{verbatim}
+
+    VPOP
+
+\end{verbatim}
+
+\subsubsection{\texttt{T} --- \label{inst:t}}
+
+Transpose `count` vectors on stack $[V1, V2]$ -> $[T1, T2]$. In-place updates `count` operands from TOS by performing transform.
+
+\noindent \textbf{Operands}
+
+\begin{itemize}
+\item \texttt{<count>}: \texttt{u128} Stack pos
+\end{itemize}
+
+\noindent \textbf{Stack Args}
+
+\begin{itemize}
+\item \texttt{stack args = $[TOS - count, ..., TOS: Vector[0..len]$]}: Input
+\end{itemize}
+
+\noindent \textbf{Return}
+
+\begin{itemize}
+\item \texttt{result = $[TOS - len, ..., TOS: Vector[0..count]$]}: Output
+\end{itemize}
+
+\noindent \textbf{Usage Example}
+
+\begin{verbatim}
+
+    T <count>
+
+\end{verbatim}
+
+\pagebreak
+\subsection{4. Labels Manipulation (Opcode 40..46)}
+
+\subsubsection{\texttt{LUNION} --- \label{inst:lunion}}
+
+Union of two Labels operands (TOS and T-pos). Pushes on TOS.
+
+\noindent \textbf{Operands}
+
+\begin{itemize}
+\item \texttt{<pos>}: \texttt{u128} Stack pos
+\end{itemize}
+
+\noindent \textbf{Stack Args}
+
+\begin{itemize}
+\item \texttt{stack args = $[TOS - pos, TOS]$}: Input
+\end{itemize}
+
+\noindent \textbf{Return}
+
+\begin{itemize}
+\item \texttt{result = $[TOS]$}: Output
+\end{itemize}
+
+\noindent \textbf{Usage Example}
+
+\begin{verbatim}
+
+    LUNION <pos>
+
+\end{verbatim}
+
+\subsubsection{\texttt{LPUSH} --- \label{inst:lpush}}
+
+Push a label value onto the Labels object (TOS). In-place updates Labels on TOS, appending new component at the end.
+
+\noindent \textbf{Operands}
+
+\begin{itemize}
+\item \texttt{<immediate}: \texttt{u128} Stack pos
+\item \texttt{(label)>}: \texttt{u128} Stack pos
+\end{itemize}
+
+\noindent \textbf{Stack Args}
+
+\begin{itemize}
+\item \texttt{stack args = $[TOS: Labels[0..len]$]}: Input
+\end{itemize}
+
+\noindent \textbf{Return}
+
+\begin{itemize}
+\item \texttt{result = $[TOS:Labels[0..len + 1]$]}: Output
+\end{itemize}
+
+\noindent \textbf{Usage Example}
+
+\begin{verbatim}
+
+    LPUSH <immediate (label)>
+
+\end{verbatim}
+
+\subsubsection{\texttt{LPOP} --- \label{inst:lpop}}
+
+Pop a label value from the Labels object (TOS). In-place updates Labels on TOS, removing last component.
+
+\noindent \textbf{Operands}
+
+\begin{itemize}
+\item (no operands)
+\end{itemize}
+
+\noindent \textbf{Stack Args}
+
+\begin{itemize}
+\item \texttt{stack args = $[TOS: Labels[0..len]$]}: Input
+\end{itemize}
+
+\noindent \textbf{Return}
+
+\begin{itemize}
+\item \texttt{result = $[TOS: Labels[0..len - 1]$]}: Output
+\end{itemize}
+
+\noindent \textbf{Usage Example}
+
+\begin{verbatim}
+
+    LPOP
+
+\end{verbatim}
+
+\subsubsection{\texttt{JUPD} --- Update (Replace) by Joining on Labels\label{inst:jupd}}
+
+Update $Vector$ on top of the stack (\texttt{[TOS]}) by replacing its selected components
+with values from another vector on stack at \texttt{[TOS - pos\_B]}
+joining on $Labels$.
+
+\noindent \textbf{Notice}
+
+This is an efficient operation of complexity $O(N)$ \textsl{(for contiguous overlaps)}
+or $O(N \times \log M)$ \textsl{(for overlaps with gaps)}.
+
+
+\noindent \textbf{Operands}
+
+\begin{itemize}
+\item \texttt{pos\_B: u8} -- Stack position of $Vector B$ relative to \texttt{[TOS]}.
+\item \texttt{lab\_A: u8} -- Stack position of $Labels A$ relative to \texttt{[TOS]}.
+\item \texttt{lab\_B: u8} -- Stack position of $Labels B$ relative to \texttt{[TOS]}.
+\end{itemize}
+
+\noindent \textbf{Stack Args}
+
+\begin{itemize}
+\item \texttt{[TOS: Vector]} -- Vector A
+\item \texttt{[TOS - pos\_B: Vector]} -- Vector B
+\item \texttt{[TOS - lab\_A: Labels]} -- Labels A
+\item \texttt{[TOS - lab\_B: Labels]} -- Labels B
+\end{itemize}
+
+\noindent \textbf{Return}
+
+\begin{itemize}
+\item \texttt{[TOS: Vector]}: -- $Vector A$ updated by replacing values from $Vector B$ mapping them through projection of $Labels B$ onto $Labels A$.
+\end{itemize}
+
+\noindent \textbf{Usage Example}
+
+\begin{verbatim}
+
+    JUPD    2   4   5
+
+\end{verbatim}
+
+Update vector on stack at \texttt{[TOS]} by replacing its selected components with components of a vector at \texttt{[TOS - 2]},
+using labels at \texttt{[TOS - 4]} for vector at \texttt{[TOS]}, and
+using labels at \texttt{[TOS - 5]} for vector at \texttt{[TOS - 2]},
+where labels overlap.
+
+\subsubsection{\texttt{JADD} --- Add by Joining on Labels\label{inst:jadd}}
+
+Add two $Vectors$ joining on $Labels$. Expands vector at \texttt{[TOS - pos\_B]} using labels at \texttt{[TOS - lab\_B]} 
+to match labels of vector at \texttt{TOS} located on stack at \texttt{[TOS - lab\_A]}.
+
+\noindent \textbf{Notice}
+
+This is an efficient operation of complexity $O(N)$ \textsl{(for contiguous overlaps)}
+or $O(N \times \log M)$ \textsl{(for overlaps with gaps)}.
+
+\noindent \textbf{Operands}
+
+\begin{itemize}
+\item \texttt{pos\_B: u8} -- Stack position of $Vector B$ relative to \texttt{[TOS]}.
+\item \texttt{lab\_A: u8} -- Stack position of $Labels A$ relative to \texttt{[TOS]}.
+\item \texttt{lab\_B: u8} -- Stack position of $Labels B$ relative to \texttt{[TOS]}.
+\end{itemize}
+
+\noindent \textbf{Stack Args}
+
+\begin{itemize}
+\item \texttt{[TOS: Vector]} -- $Vector A$
+\item \texttt{[TOS - pos\_B: Vector]} -- $Vector B$
+\item \texttt{[TOS - lab\_A: Labels]} -- $Labels A$
+\item \texttt{[TOS - lab\_B: Labels]} -- $Labels B$
+\end{itemize}
+
+\noindent \textbf{Return}
+
+\begin{itemize}
+\item \texttt{[TOS: Vector]}: -- $Vector A$ updated by adding values from $Vector B$ mapping them through projection of $Labels B$ onto $Labels A$.
+\end{itemize}
+
+\noindent \textbf{Usage Example}
+
+\begin{verbatim}
+
+    JADD    2   4   5
+
+\end{verbatim}
+
+Add to vector on stack at \texttt{[TOS]} selected components of a vector at \texttt{[TOS - 2]},
+using labels at \texttt{[TOS - 4]} for vector at \texttt{[TOS]}, and
+using labels at \texttt{[TOS - 5]} for vector at \texttt{[TOS - 2]},
+where labels overlap.
+
+\subsubsection{\texttt{JFLT} --- Filter by Joining on Labels\label{inst:jflt}}
+
+Filter vector on stack at \texttt{[TOS]} retaining only components corresponding to labels at \texttt{[TOS - lab\_B]}
+using labels at \texttt{[TOS - lab\_A]} for vector at \texttt{[TOS]}, and
+where labels overlap.
+
+\noindent \textbf{Notice}
+
+This is an efficient operation of complexity $O(N)$ \textsl{(for contiguous overlaps)}
+or $O(N \times \log M)$ \textsl{(for overlaps with gaps)}.
+
+\noindent \textbf{Operands}
+
+\begin{itemize}
+\item \texttt{lab\_A: u8} -- Stack position of $Labels A$ relative to \texttt{[TOS]}.
+\item \texttt{lab\_B: u8} -- Stack position of $Labels B$ relative to \texttt{[TOS]}.
+\end{itemize}
+
+\noindent \textbf{Stack Args}
+
+\begin{itemize}
+\item \texttt{[TOS: Vector]} -- $Vector A$
+\item \texttt{[TOS - lab\_A: Labels]} -- $Labels A$
+\item \texttt{[TOS - lab\_B: Labels]} -- $Labels B$
+\end{itemize}
+
+\noindent \textbf{Return}
+
+\begin{itemize}
+\item \texttt{result = $[TOS: 'A filtered mapped 'LB to 'LA]$}: Output
+\item \texttt{[TOS: Vector]}: -- $Vector A$ filtered by retaining components through projection of $Labels B$ onto $Labels A$.
+\end{itemize}   
+
+\noindent \textbf{Usage Example}
+
+\begin{verbatim}
+
+    JFLT    4   5
+
+\end{verbatim}
+
+Filter vector on stack at \texttt{[TOS]} retaining only components corresponding to labels at \texttt{[TOS - 5]}
+using labels at \texttt{[TOS - 4]} for vector at \texttt{[TOS]}, and
+where labels overlap.
+
+\pagebreak
+\subsection{5. Arithmetic \& Core Math (Opcode 50..55)}
+
+\subsubsection{\texttt{ADD} --- \label{inst:add}}
+
+Add TOS by operand at $[T-pos]$. Works with vectors and scalars. In-place updates operand on TOS. Does not consume the other operand.
+
+\noindent \textbf{Operands}
+
+\begin{itemize}
+\item \texttt{<pos>}: \texttt{u128} Stack pos
+\end{itemize}
+
+\noindent \textbf{Stack Args}
+
+\begin{itemize}
+\item \texttt{stack args = $[TOS - pos, TOS: Vector|Scalar]$}: Input
+\end{itemize}
+
+\noindent \textbf{Return}
+
+\begin{itemize}
+\item \texttt{result = $[TOS]$}: Output
+\end{itemize}
+
+\noindent \textbf{Usage Example}
+
+\begin{verbatim}
+
+    ADD <pos>
+
+\end{verbatim}
+
+\subsubsection{\texttt{SUB} --- \label{inst:sub}}
+
+Subtract TOS by operand at $[T-pos]$. Works with vectors and scalars. In-place updates operand on TOS. Does not consume the other operand.
+
+\noindent \textbf{Operands}
+
+\begin{itemize}
+\item \texttt{<pos>}: \texttt{u128} Stack pos
+\end{itemize}
+
+\noindent \textbf{Stack Args}
+
+\begin{itemize}
+\item \texttt{stack args = $[TOS - pos, TOS: Vector|Scalar]$}: Input
+\end{itemize}
+
+\noindent \textbf{Return}
+
+\begin{itemize}
+\item \texttt{result = $[TOS]$}: Output
+\end{itemize}
+
+\noindent \textbf{Usage Example}
+
+\begin{verbatim}
+
+    SUB <pos>
+
+\end{verbatim}
+
+\subsubsection{\texttt{SSB} --- \label{inst:ssb}}
+
+Saturating subtract TOS by operand at $[T-pos]$. Works with vectors and scalars. In-place updates operand on TOS. Does not consume the other operand.
+
+\noindent \textbf{Operands}
+
+\begin{itemize}
+\item \texttt{<pos>}: \texttt{u128} Stack pos
+\end{itemize}
+
+\noindent \textbf{Stack Args}
+
+\begin{itemize}
+\item \texttt{stack args = $[TOS - pos, TOS: Vector|Scalar]$}: Input
+\end{itemize}
+
+\noindent \textbf{Return}
+
+\begin{itemize}
+\item \texttt{result = $[TOS]$}: Output
+\end{itemize}
+
+\noindent \textbf{Usage Example}
+
+\begin{verbatim}
+
+    SSB <pos>
+
+\end{verbatim}
+
+\subsubsection{\texttt{MUL} --- \label{inst:mul}}
+
+Multiply TOS by operand at $[T-pos]$. Works with vectors and scalars. In-place updates operand on TOS. Does not consume the other operand.
+
+\noindent \textbf{Operands}
+
+\begin{itemize}
+\item \texttt{<pos>}: \texttt{u128} Stack pos
+\end{itemize}
+
+\noindent \textbf{Stack Args}
+
+\begin{itemize}
+\item \texttt{stack args = $[TOS - pos, TOS: Vector|Scalar]$}: Input
+\end{itemize}
+
+\noindent \textbf{Return}
+
+\begin{itemize}
+\item \texttt{result = $[TOS]$}: Output
+\end{itemize}
+
+\noindent \textbf{Usage Example}
+
+\begin{verbatim}
+
+    MUL <pos>
+
+\end{verbatim}
+
+\subsubsection{\texttt{DIV} --- \label{inst:div}}
+
+Divide TOS by operand at $[T-pos]$. Works with vectors and scalars. In-place updates operand on TOS. Does not consume the other operand.
+
+\noindent \textbf{Operands}
+
+\begin{itemize}
+\item \texttt{<pos>}: \texttt{u128} Stack pos
+\end{itemize}
+
+\noindent \textbf{Stack Args}
+
+\begin{itemize}
+\item \texttt{stack args = $[TOS - pos, TOS: Vector|Scalar]$}: Input
+\end{itemize}
+
+\noindent \textbf{Return}
+
+\begin{itemize}
+\item \texttt{result = $[TOS]$}: Output
+\end{itemize}
+
+\noindent \textbf{Usage Example}
+
+\begin{verbatim}
+
+    DIV <pos>
+
+\end{verbatim}
+
+\subsubsection{\texttt{SQRT} --- \label{inst:sqrt}}
+
+Square root of TOS (scalar or component-wise vector). Works with vectors and scalars. In-place updates operand on TOS.
+
+\noindent \textbf{Operands}
+
+\begin{itemize}
+\item (no operands)
+\end{itemize}
+
+\noindent \textbf{Stack Args}
+
+\begin{itemize}
+\item \texttt{stack args = $[TOS: Vector|Scalar]$}: Input
+\end{itemize}
+
+\noindent \textbf{Return}
+
+\begin{itemize}
+\item \texttt{result = $[TOS]$}: Output
+\end{itemize}
+
+\noindent \textbf{Usage Example}
+
+\begin{verbatim}
+
+    SQRT
+
+\end{verbatim}
+
+\pagebreak
+\subsection{6. Logic \& Comparison (Opcode 60..61)}
+
+\subsubsection{\texttt{MIN} --- \label{inst:min}}
+
+Min between TOS and operand at $[T-pos]$. Works with vectors and scalars. In-place updates operand on TOS. Does not consume the other operand.
+
+\noindent \textbf{Operands}
+
+\begin{itemize}
+\item \texttt{<pos>}: \texttt{u128} Stack pos
+\end{itemize}
+
+\noindent \textbf{Stack Args}
+
+\begin{itemize}
+\item \texttt{stack args = $[TOS - pos, TOS: Vector|Scalar]$}: Input
+\end{itemize}
+
+\noindent \textbf{Return}
+
+\begin{itemize}
+\item \texttt{result = $[TOS: Vector|Scalar]$}: Output
+\end{itemize}
+
+\noindent \textbf{Usage Example}
+
+\begin{verbatim}
+
+    MIN <pos>
+
+\end{verbatim}
+
+\subsubsection{\texttt{MAX} --- \label{inst:max}}
+
+Max between TOS and operand at $[T-pos]$. Works with vectors and scalars. In-place updates operand on TOS. Does not consume the other operand.
+
+\noindent \textbf{Operands}
+
+\begin{itemize}
+\item \texttt{<pos>}: \texttt{u128} Stack pos
+\end{itemize}
+
+\noindent \textbf{Stack Args}
+
+\begin{itemize}
+\item \texttt{stack args = $[TOS - pos, TOS: Vector|Scalar]$}: Input
+\end{itemize}
+
+\noindent \textbf{Return}
+
+\begin{itemize}
+\item \texttt{result = $[TOS: Vector|Scalar]$}: Output
+\end{itemize}
+
+\noindent \textbf{Usage Example}
+
+\begin{verbatim}
+
+    MAX <pos>
+
+\end{verbatim}
+
+\pagebreak
+\subsection{7. Vector Aggregation (Opcode 70..72)}
+
+\subsubsection{\texttt{VSUM} --- \label{inst:vsum}}
+
+Sum of all vector components. Pushes on TOS. Does not consume the operand.
+
+\noindent \textbf{Operands}
+
+\begin{itemize}
+\item (no operands)
+\end{itemize}
+
+\noindent \textbf{Stack Args}
+
+\begin{itemize}
+\item \texttt{stack args = $[TOS: Vector]$}: Input
+\end{itemize}
+
+\noindent \textbf{Return}
+
+\begin{itemize}
+\item \texttt{result = $[TOS: Scalar]$}: Output
+\end{itemize}
+
+\noindent \textbf{Usage Example}
+
+\begin{verbatim}
+
+    VSUM
+
+\end{verbatim}
+
+\subsubsection{\texttt{VMIN} --- \label{inst:vmin}}
+
+Minimum value found within vector components. Pushes on TOS. Does not consume the operand.
+
+\noindent \textbf{Operands}
+
+\begin{itemize}
+\item (no operands)
+\end{itemize}
+
+\noindent \textbf{Stack Args}
+
+\begin{itemize}
+\item \texttt{stack args = $[TOS: Vector]$}: Input
+\end{itemize}
+
+\noindent \textbf{Return}
+
+\begin{itemize}
+\item \texttt{result = $[TOS: Scalar]$}: Output
+\end{itemize}
+
+\noindent \textbf{Usage Example}
+
+\begin{verbatim}
+
+    VMIN
+
+\end{verbatim}
+
+\subsubsection{\texttt{VMAX} --- \label{inst:vmax}}
+
+Maximum value found within vector components. Pushes on TOS. Does not consume the operand.
+
+\noindent \textbf{Operands}
+
+\begin{itemize}
+\item (no operands)
+\end{itemize}
+
+\noindent \textbf{Stack Args}
+
+\begin{itemize}
+\item \texttt{stack args = $[TOS: Vector]$}: Input
+\end{itemize}
+
+\noindent \textbf{Return}
+
+\begin{itemize}
+\item \texttt{result = $[TOS: Scalar]$}: Output
+\end{itemize}
+
+\noindent \textbf{Usage Example}
+
+\begin{verbatim}
+
+    VMAX
+
+\end{verbatim}
+
+\pagebreak
+\subsection{8. Immediate Values \& Vector Creation (Opcode 80..83)}
+
+\subsubsection{\texttt{IMMS} --- \label{inst:imms}}
+
+Push immediate Scalar value on stack
+
+\noindent \textbf{Operands}
+
+\begin{itemize}
+\item \texttt{<immediate}: \texttt{u128} Stack pos
+\item \texttt{(scalar)>}: \texttt{u128} Stack pos
+\end{itemize}
+
+\noindent \textbf{Stack Args}
+
+\begin{itemize}
+\item \texttt{no stack args}: Input
+\end{itemize}
+
+\noindent \textbf{Return}
+
+\begin{itemize}
+\item \texttt{result = $[TOS: Scalar]$}: Output
+\end{itemize}
+
+\noindent \textbf{Usage Example}
+
+\begin{verbatim}
+
+    IMMS <immediate (scalar)>
+
+\end{verbatim}
+
+\subsubsection{\texttt{IMML} --- \label{inst:imml}}
+
+Push immediate Label value on stack
+
+\noindent \textbf{Operands}
+
+\begin{itemize}
+\item \texttt{<immediate}: \texttt{u128} Stack pos
+\item \texttt{(label)>}: \texttt{u128} Stack pos
+\end{itemize}
+
+\noindent \textbf{Stack Args}
+
+\begin{itemize}
+\item \texttt{no stack args}: Input
+\end{itemize}
+
+\noindent \textbf{Return}
+
+\begin{itemize}
+\item \texttt{result = $[TOS: Label]$}: Output
+\end{itemize}
+
+\noindent \textbf{Usage Example}
+
+\begin{verbatim}
+
+    IMML <immediate (label)>
+
+\end{verbatim}
+
+\subsubsection{\texttt{ZEROS} --- \label{inst:zeros}}
+
+Create Vector of zeros matching length of Labels at $[T-pos]$. Pushes on TOS. Does not consume the operand.
+
+\noindent \textbf{Operands}
+
+\begin{itemize}
+\item \texttt{<pos>}: \texttt{u128} Stack pos
+\end{itemize}
+
+\noindent \textbf{Stack Args}
+
+\begin{itemize}
+\item \texttt{stack args = $[TOS - pos: Vector|Labels]$}: Input
+\end{itemize}
+
+\noindent \textbf{Return}
+
+\begin{itemize}
+\item \texttt{result = $[TOS: Vector]$}: Output
+\end{itemize}
+
+\noindent \textbf{Usage Example}
+
+\begin{verbatim}
+
+    ZEROS <pos>
+
+\end{verbatim}
+
+\subsubsection{\texttt{ONES} --- \label{inst:ones}}
+
+Create Vector of ones matching length of Labels at $[T-pos]$. Pushes on TOS. Does not consume the operand.
+
+\noindent \textbf{Operands}
+
+\begin{itemize}
+\item \texttt{<pos>}: \texttt{u128} Stack pos
+\end{itemize}
+
+\noindent \textbf{Stack Args}
+
+\begin{itemize}
+\item \texttt{stack args = $[TOS - pos: Vector|Labels]$}: Input
+\end{itemize}
+
+\noindent \textbf{Return}
+
+\begin{itemize}
+\item \texttt{result = $[TOS: Vector]$}: Output
+\end{itemize}
+
+\noindent \textbf{Usage Example}
+
+\begin{verbatim}
+
+    ONES <pos>
+
+\end{verbatim}
+
+\pagebreak
+\subsection{9. Stack Control \& Program Flow (Opcode 90..94)}
+
+\subsubsection{\texttt{POPN} --- \label{inst:popn}}
+
+Pop 'n' values from the stack
+
+\noindent \textbf{Operands}
+
+\begin{itemize}
+\item \texttt{<count>}: \texttt{u128} Stack pos
+\end{itemize}
+
+\noindent \textbf{Stack Args}
+
+\begin{itemize}
+\item \texttt{stack args = $['B..., TOS - count, ..., TOS]$}: Input
+\end{itemize}
+
+\noindent \textbf{Return}
+
+\begin{itemize}
+\item \texttt{result = $['B...]$}: Output
+\end{itemize}
+
+\noindent \textbf{Usage Example}
+
+\begin{verbatim}
+
+    POPN <count>
+
+\end{verbatim}
+
+\subsubsection{\texttt{SWAP} --- \label{inst:swap}}
+
+Swap TOS with operand at $[T-n]$
+
+\noindent \textbf{Operands}
+
+\begin{itemize}
+\item \texttt{<pos>}: \texttt{u128} Stack pos
+\end{itemize}
+
+\noindent \textbf{Stack Args}
+
+\begin{itemize}
+\item \texttt{stack args = $[TOS - pos: 'A, TOS: 'B]$}: Input
+\end{itemize}
+
+\noindent \textbf{Return}
+
+\begin{itemize}
+\item \texttt{result = $[TOS - pos: 'B, TOS: 'A]$}: Output
+\end{itemize}
+
+\noindent \textbf{Usage Example}
+
+\begin{verbatim}
+
+    SWAP <pos>
+
+\end{verbatim}
+
+\subsubsection{\texttt{B} --- \label{inst:b}}
+
+Call sub-routine stored as Labels at `prg\_id`, supplying `N` inputs and taking `M` outputs from stack. `N` inputs are consumed from stack. `M` outputs are moved from sub-routine's TOS to caller's TOS.
+
+\noindent \textbf{Operands}
+
+\begin{itemize}
+\item \texttt{<prg\_id>}: \texttt{u128} Stack pos
+\item \texttt{<N>}: \texttt{u128} Stack pos
+\item \texttt{<M>}: \texttt{u128} Stack pos
+\item \texttt{<R>}: \texttt{u128} Stack pos
+\end{itemize}
+
+\noindent \textbf{Stack Args}
+
+\begin{itemize}
+\item \texttt{stack args = $[TOS - N]$}: Input
+\end{itemize}
+
+\noindent \textbf{Return}
+
+\begin{itemize}
+\item \texttt{result = $[TOS - M]$}: Output
+\end{itemize}
+
+\noindent \textbf{Usage Example}
+
+\begin{verbatim}
+
+    B <prg_id> <N> <M> <R>
+
+\end{verbatim}
+
+\subsubsection{\texttt{FOLD} --- \label{inst:fold}}
+
+Fold (iterate) over vector/label operands. Same as `B` except sub-routine is called repeatedly over components of Vector at TOS.
+
+\noindent \textbf{Operands}
+
+\begin{itemize}
+\item \texttt{<prg\_id>}: \texttt{u128} Stack pos
+\item \texttt{<N>}: \texttt{u128} Stack pos
+\item \texttt{<M>}: \texttt{u128} Stack pos
+\item \texttt{<R>}: \texttt{u128} Stack pos
+\end{itemize}
+
+\noindent \textbf{Stack Args}
+
+\begin{itemize}
+\item \texttt{}: Input
+\end{itemize}
+
+\noindent \textbf{Return}
+
+\begin{itemize}
+\item \texttt{}: Output
+\end{itemize}
+
+\noindent \textbf{Usage Example}
+
+\begin{verbatim}
+
+    FOLD <prg_id> <N> <M> <R>
+
+\end{verbatim}
+
 
 
 \end{document}
