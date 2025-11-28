@@ -1,0 +1,435 @@
+% !TEX program = lualatex
+\documentclass[11pt, a4paper]{article}
+
+% --- UNIVERSAL PREAMBLE BLOCK ---
+\usepackage[a4paper, top=2.5cm, bottom=2.5cm, left=2cm, right=2cm]{geometry}
+\usepackage{fontspec}
+\usepackage{booktabs} % For professional-looking tables
+\usepackage{longtable} % For tables that span multiple pages
+\usepackage{amsmath} % For math environments
+\usepackage{xcolor} % For colors
+\usepackage{listings} % For code snippets
+\usepackage{hyperref} % Always load last
+\usepackage{graphicx}
+
+\usepackage[english, bidi=basic, provide=*]{babel}
+\babelprovide[import, onchar=ids fonts]{english}
+
+% Set default/Latin font to Sans Serif in the main (rm) slot
+\babelfont{rm}{Noto Sans}
+% --- END UNIVERSAL PREAMBLE BLOCK ---
+
+\title{\textbf{Vector Intermediate Language (VIL) \\
+\large Gas-Efficient Vector VM as a Smart-Contract in Rust / Stylus (WASM)}}
+\author{Sonia Kolasinska}
+\date{\today}
+
+\begin{document}
+\maketitle
+\thispagestyle{empty} % Suppress page number on the title page
+\setlength{\parskip}{0.8em}
+\setlength{\parindent}{0em}
+
+\vspace{1cm}
+
+\section{Introduction: The VM$^2$ Architecture}
+
+The Vector Instruction Language (VIL) Virtual Machine represents a modern approach to deploying complex mathematical and financial logic onto the Arbitrum ecosystem using Rust / Stylus.
+
+This architecture is a \emph{VM$^2$}---a Virtual Machine (VIL) running as a smart contract within Virtual Machine (WASM, hosted by Arbitrum node).
+
+\subsection{Motivation: Gas Efficiency through On-Chain Vector Operations}
+
+The primary innovation of VIL is the substantial gas savings realized by relocating complex vector algebra directly into the smart contract's state and execution context.
+
+In traditional EVM smart contract systems, performing vector operations often requires:
+\begin{enumerate}
+    \item Loading raw data from storage (\texttt{SLOAD}).
+    \item Storing raw data into storage (\texttt{SSTORE}).
+    \item (De)Serializing structured data (e.g. \texttt{Vec<u128>}) between contract calls.
+    \item Passing large data arrays as call data, incurring significant calldata gas costs.
+    \item Executing memory-intensive loops in the EVM, which is highly gas-inefficient for array processing.
+\end{enumerate}
+
+\textbf{VIL eliminates these bottlenecks:}
+
+\begin{itemize}
+    \item \textbf{Zero Serialization Overhead:} Vector data, stored as a pure binary blob (\texttt{Vec<Amount>}; where \texttt{Amount} is \texttt{u128} wrapper type), is loaded directly into the VIL execution environment within the same smart contract. All vector operations (addition, subtraction, multiplication, etc.) happen purely within the VIL execution context, \textbf{avoiding expensive EVM-based serialization and ABI encoding/decoding between logic steps}.
+    \item \textbf{Optimal Data Flow:} Data is loaded \textbf{once} from a single storage slot (\texttt{SLOAD}), processed entirely, and stored back once (\texttt{SSTORE}), maximizing efficiency within the WASM environment.
+    \item \textbf{WASM Optimization:} By executing the core logic via a simple, specialized instruction set (VIL), the underlying WASM runtime can execute vector mathematics far more efficiently than general-purpose EVM bytecode.
+\end{itemize}
+
+\section{Development Workflow with the \texttt{devil!()} Proc Macro}
+
+Writing raw instruction bytes and operands for any VM is tedious and error-prone. The \texttt{devil!()} procedural macro simplifies VIL program creation by allowing developers to embed native VIL assembly code directly within Rust functions.
+
+\subsection{Macro Functionality}
+
+The \texttt{devil!()} macro transpiles the human-readable VIL assembly language into an efficient, executable bytecode array (\texttt{Vec<u8>}). This allows for:
+
+\begin{itemize}
+    \item \textbf{Readability:} Programs are easy to audit and maintain.
+    \item \textbf{Type Safety:} The underlying Rust environment ensures correct operand types (e.g., \texttt{u128} storage IDs, registry names) are used.
+    \item \textbf{Concise Syntax:} Eliminates the need for manual byte array construction.
+\end{itemize}
+
+\subsection{Usage Example}
+
+The following snippet demonstrates how a complex sequence of data retrieval and vector operations is expressed concisely using the macro:
+
+\begin{verbatim}
+use devil_macros::devil;
+
+pub fn execute_buy_order(...) -> Vec<u8> {
+    devil! {
+        LDV         asset_weights_id                // Load from Blockchain (SLOAD)
+        STR         _Weights                        // Store into registry
+        // ...
+
+        LDR         _CappedIndexQuantity            // Load from registry
+        LDM         _Weights                        // Move from registry
+        MUL         1                               // Multiply
+        // ...
+
+        LDM         _AssetQuantities                // Move from registry
+        STV         executed_asset_quantities_id    // Store into Blockchain (SSTORE)
+    }
+}
+\end{verbatim}
+
+\section{VIL Instruction Set Reference}
+
+The VIL instruction set is designed around the concept of a stack machine operating on two primary data types: \textbf{Scalar} (\texttt{Amount}) and \textbf{Vector} (\texttt{Vec<Amount>}), and additionally \textbf{Labels} (\texttt{Vec<u128>}), which enable \textsl{Join} operations (e.g. \texttt{JADD}, \texttt{JUPD}, \texttt{JFLT}). The instructions manipulate the stack and the internal registry (\texttt{R0}...\texttt{Rn}).
+
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=1.0\textwidth]{VIL_Stack.jpg}\label{fig:stack_arch}
+    \caption{Conceptual VIL VM Stack and Data Flow.}
+\end{figure}
+
+\subsection*{Instruction Set Quick Reference}
+\addcontentsline{toc}{subsection}{Instruction Set Quick Reference}
+Quick listing of instructions.
+
+\begin{longtable}{p{0.15\linewidth} p{0.75\linewidth}}
+\caption{VIL Instruction Set Summary}\label{tab:vil_summary}\\
+\toprule
+\textbf{Mnemonic} & \textbf{Brief Description} \\
+\midrule
+\endfirsthead
+\multicolumn{2}{c}%
+{\tablename\ \thetable\ -- Continued from previous page} \\
+\toprule
+\textbf{Mnemonic} & \textbf{Brief Description} \\
+\midrule
+\endhead
+\bottomrule
+\endfoot
+\bottomrule
+\endlastfoot
+% --- Data Loading & Stack Access ---
+\hyperlink{inst:ldl}{\texttt{LDL}} & Loads a \texttt{Labels} object from Blockchain storage ID (\texttt{SLOAD}). \\
+\hyperlink{inst:ldv}{\texttt{LDV}} & Loads a \texttt{Vector<Amount>} object from Blockchain storage ID (\texttt{SLOAD}). \\
+\hyperlink{inst:ldd}{\texttt{LDD}} & Loads a Duplicate (copy) of a stack operand at a relative position. \\
+\hyperlink{inst:ldr}{\texttt{LDR}} & Loads a Duplicate (copy) of a value from an internal Register. \\
+\hyperlink{inst:ldm}{\texttt{LDM}} & Loads a value moving it from an internal Register. \\
+\midrule
+% --- Data Storage & Register Access ---
+\hyperlink{inst:stl}{\texttt{STL}} & Stores the stack's TOS (Labels) to Blockchain storage (\texttt{SSTORE}). \\
+\hyperlink{inst:stv}{\texttt{STV}} & Stores the stack's TOS (Vector) to Blockchain storage (\texttt{SSTORE}). \\
+\hyperlink{inst:str}{\texttt{STR}} & Stores the stack's TOS into a named internal Register. \\
+\midrule
+\hyperlink{inst:pkv}{\texttt{PKV}} & Packs N stack items into a single Vector operand. \\
+\hyperlink{inst:pkv}{\texttt{PKL}} & Packs N stack items into a single Labels operand. \\
+\hyperlink{inst:pkv}{\texttt{UNPK}} & Unpacks elements of the stack's TOS Vector/Labels \\
+\hyperlink{inst:pkv}{\texttt{VPUSH}} & Pushes immediate value to the end of the Vector on TOS \\
+\hyperlink{inst:pkv}{\texttt{VPOP}} & Pops last value from end of the Vector on TOS \\
+\hyperlink{inst:pkv}{\texttt{T}} & Transpose N vectors starting from TOS, into M vectors using transposition \textsl{(swapping rows with columns)} \\
+\midrule
+\hyperlink{inst:pkv}{\texttt{LUNION}} & Merge-join two operands of Labels type \\
+\hyperlink{inst:pkv}{\texttt{LPUSH}} & Push immediate label onto Labels on TOS \\
+\hyperlink{inst:pkv}{\texttt{LPOP}} & Pop last label from Labels on TOS \\
+\hyperlink{inst:pkv}{\texttt{JUPD}} & Perform Join-Update. \\
+\hyperlink{inst:pkv}{\texttt{JADD}} & Perform Join-Add. \\
+\hyperlink{inst:pkv}{\texttt{JFLT}} & Perform Join-Filter. \\
+\midrule
+% --- Arithmetic Operations ---
+\hyperlink{inst:add}{\texttt{ADD}} & Performs element-wise or scalar addition \textsl{(binary)}. \\
+\hyperlink{inst:sub}{\texttt{SUB}} & Performs element-wise or scalar subtraction \textsl{(binary)}. \\
+\hyperlink{inst:sub}{\texttt{SSB}} & Performs element-wise or scalar saturating subtraction \textsl{(binary)}. \\
+\hyperlink{inst:pkv}{\texttt{MUL}} & Performs element-wise or scalar multiplication \textsl{(binary)}. \\
+\hyperlink{inst:pkv}{\texttt{DIV}} & Performs element-wise or scalar division \textsl{(binary)}. \\
+\hyperlink{inst:pkv}{\texttt{SQRT}} & Take square root element-wise or from scalar \textsl{(binary)}. \\
+\hyperlink{inst:pkv}{\texttt{MIN}} & Take minimum element-wise or from scalar \textsl{(binary)}. \\
+\hyperlink{inst:pkv}{\texttt{MAX}} & Take maximum element-wise or from scalar \textsl{(binary)}. \\
+\midrule
+\hyperlink{inst:pkv}{\texttt{VSUM}} & Sum all elements of a vector \textsl{(unary)}. \\
+\hyperlink{inst:pkv}{\texttt{VMIN}} & Find minimum in the vector \textsl{(unary)}. \\
+\hyperlink{inst:pkv}{\texttt{VMAX}} & Find maximum in the vector \textsl{(unary)}. \\
+\midrule
+\hyperlink{inst:pkv}{\texttt{IMMS}} & Load immediate value. \\
+\hyperlink{inst:pkv}{\texttt{IMML}} & Load immediate label. \\
+\hyperlink{inst:pkv}{\texttt{ZEROS}} & Creates a Vector of zeros, matching the length of a reference object. \\
+\hyperlink{inst:ones}{\texttt{ONES}} & Creates a Vector of ones, matching the length of a reference object. \\
+\midrule
+% --- Stack Control & Program Flow ---
+\hyperlink{inst:popn}{\texttt{POPN}} & Removes a specified number of items from the stack. \\
+\hyperlink{inst:swap}{\texttt{SWAP}} & Swaps TOS with an operand at a relative stack position. \\
+\hyperlink{inst:b}{\texttt{B}} & Branches execution to a subroutine, passing N inputs and receiving M outputs. \\
+\hyperlink{inst:fold}{\texttt{FOLD}} & Iteratively applies a subroutine (Fold/Reduce) over elements of a Vector operand. \\
+\end{longtable}
+
+\vspace{0.5cm} % Add some space after the table
+
+\subsection{1. Data Loading \& Stack Access (Opcode 10-15)}
+
+These instructions are responsible for fetching data from on-chain storage or internal registers and pushing it onto the execution stack.
+
+\subsubsection{\texttt{LDL} (Load Labels)\label{inst:ldl}}
+Loads a \texttt{Labels} object (metadata, program code) from a designated Blockchain storage slot (\texttt{SLOAD}) and pushes it onto the stack (TOS).
+
+\noindent \textbf{Operands}
+\begin{itemize}
+    \item \texttt{<label\_id>}: \texttt{u128} Storage ID.
+\end{itemize}
+
+\noindent \textbf{Usage Example}
+\begin{verbatim}
+    LDL     asset_names_id
+\end{verbatim}
+
+\subsubsection{\texttt{LDV} (Load Vector)\label{inst:ldv}}
+Loads a \texttt{Vector<Amount>} object from a designated Blockchain storage slot (\texttt{SLOAD}). This involves fetching the binary blob from storage and deserializing it into a \texttt{Vec<Amount>} struct. Pushes the Vector onto the stack.
+
+\noindent \textbf{Operands}
+\begin{itemize}
+    \item \texttt{<vector\_id>}: \texttt{u128} Storage ID.
+\end{itemize}
+
+\noindent \textbf{Usage Example}
+\begin{verbatim}
+    LDV     asset_weights_id
+\end{verbatim}
+
+\subsubsection{\texttt{LDD} (Load Duplicate)\label{inst:ldd}}
+Creates a copy of the operand at a specified stack position and pushes the duplicate onto the stack (TOS). Useful for reusing an operand without recalculating or reloading it.
+
+\noindent \textbf{Operands}
+\begin{itemize}
+    \item \texttt{<pos>}: Stack index relative to TOS (0 is TOS, 1 is the item below TOS).
+\end{itemize}
+
+\noindent \textbf{Usage Example}
+\begin{verbatim}
+    LDD     1
+\end{verbatim}
+
+\subsubsection{\texttt{LDR} (Load from Registry - Read)\label{inst:ldr}}
+Loads a value from a named internal register (\texttt{R0-Rn}) and pushes it onto the stack. The value remains in the registry, allowing multiple reads.
+
+\noindent \textbf{Operands}
+\begin{itemize}
+    \item \texttt{<reg>}: Registry name (e.g., \texttt{\_Weights}).
+\end{itemize}
+
+\noindent \textbf{Usage Example}
+\begin{verbatim}
+    LDR     _Weights
+\end{verbatim}
+
+\subsubsection{\texttt{LDM} (Load from Registry - Move)\label{inst:ldm}}
+Loads a value from a named internal register (\texttt{R0-Rn}) and pushes it onto the stack. The value is \textit{removed} from the registry, similar to a move operation in high-level languages.
+
+\noindent \textbf{Operands}
+\begin{itemize}
+    \item \texttt{<reg>}: Registry name (e.g., \texttt{\_Spent}).
+\end{itemize}
+
+\noindent \textbf{Usage Example}
+\begin{verbatim}
+    LDM     _Spent
+\end{verbatim}
+
+\subsection{2. Data Storage \& Register Access (Opcode 20-23)}
+
+These instructions are responsible for persisting data to the blockchain or internal registers and removing data from the stack.
+
+\subsubsection{\texttt{STL} (Store Labels)\label{inst:stl}}
+Stores the Labels object currently on the stack (TOS) into a designated Blockchain storage slot (\texttt{SSTORE}). Consumes TOS.
+
+\noindent \textbf{Operands}
+\begin{itemize}
+    \item \texttt{<label\_id>}: \texttt{u128} Storage ID.
+\end{itemize}  
+
+\noindent \textbf{Usage Example}
+
+\begin{verbatim}
+    STL     new_labels_id
+\end{verbatim}
+
+\subsubsection{\texttt{STV} (Store Vector)\label{inst:stv}}
+Stores the Vector object currently on the stack (TOS) into a designated Blockchain storage slot (\texttt{SSTORE}). This serializes the \texttt{Vector<Amount>} back to a binary blob for efficient storage. Consumes TOS.
+
+\noindent \textbf{Operands}
+\begin{itemize}
+    \item \texttt{<vector\_id>}: \texttt{u128} Storage ID.
+\end{itemize}
+
+\noindent \textbf{Usage Example}
+\begin{verbatim}
+    STV     executed_quantities_id
+\end{verbatim}
+
+\subsubsection{\texttt{STR} (Store to Registry)\label{inst:str}}
+Stores the stack operand (TOS) into a named internal register (\texttt{R0-Rn}). Consumes TOS. This is the primary way to temporarily save intermediate results.
+
+\noindent \textbf{Operands}
+\begin{itemize}
+    \item \texttt{<reg>}: Registry name (e.g., \texttt{\_Weights}).
+\end{itemize}
+
+\noindent \textbf{Usage Example}
+\begin{verbatim}
+    STR     _Weights
+\end{verbatim}
+
+\subsubsection{\texttt{PKV} (Pack Vector)\label{inst:pkv}}
+Takes $N$ items from the top of the stack and packs them into a single \texttt{Vector} or \texttt{Tuple} operand, replacing the $N$ items with the single packed item. This is crucial for saving multi-field objects into a single storage slot.
+
+\noindent \textbf{Operands}
+\begin{itemize}
+    \item \texttt{<count>}: The number of stack items to pack.
+\end{itemize}
+
+\noindent \textbf{Usage Example}
+\begin{verbatim}
+    PKV     3
+\end{verbatim}
+
+\subsection{3. Arithmetic Operations (Opcode 30-34)}
+
+These instructions perform core arithmetic logic, optimized for vector and scalar interactions.
+
+\subsubsection{\texttt{ADD} (Addition)\label{inst:add}}
+Performs element-wise addition (Vector + Vector) or scalar addition (Scalar + Scalar, or Vector + Scalar). The second operand is implicitly the one found at \texttt{[TOS - pos]}.
+
+\noindent \textbf{Operands}
+\begin{itemize}
+    \item \texttt{<pos>}: Stack index of the second operand relative to TOS.
+\end{itemize}
+
+\noindent \textbf{Usage Example}
+\begin{verbatim}
+    ADD     1
+\end{verbatim}
+
+Adds the top two stack items.
+
+\subsubsection{\texttt{SUB} (Subtraction)\label{inst:sub}}
+Performs element-wise subtraction (Vector - Vector) or scalar subtraction (Scalar - Scalar). The second operand is implicitly the one found at \texttt{[TOS - pos]}.
+
+\noindent \textbf{Operands}
+\begin{itemize}
+    \item \texttt{<pos>}: Stack index of the second operand relative to TOS.
+\end{itemize}
+
+\noindent \textbf{Usage Example}
+\begin{verbatim}
+    SUB     1
+\end{verbatim}
+
+Subtracts the second item on stack from TOS.
+
+\subsubsection{\texttt{ONES} (Create Vector of Ones)\label{inst:ones}}
+Creates a new Vector where every element is the value $1$, matching the length of a Vector or Labels object found at \texttt{[TOS - pos]}. Pushes the new Vector on TOS. This is useful for initialization or masks.
+
+\noindent \textbf{Operands}
+\begin{itemize}
+    \item \texttt{<pos>}: Stack index of the reference object whose length is used.
+\end{itemize}
+
+\noindent \textbf{Usage Example}
+
+\begin{verbatim}
+    ONES    0
+\end{verbatim}
+
+Creates a vector of ones matching the length of the current TOS.
+
+\subsection{4. Stack Control \& Program Flow (Opcode 90-94)}
+
+These instructions manage the flow of execution and the state of the stack.
+
+\subsubsection{\texttt{POPN} (Pop N)\label{inst:popn}}
+Removes a specified number of items from the top of the stack. Used to clean up temporary results after they are consumed or stored.
+
+\noindent \textbf{Operands}
+\begin{itemize}
+    \item \texttt{<count>}: Number of values to pop.
+\end{itemize}
+
+\noindent \textbf{Usage Example}
+
+\begin{verbatim}
+    POPN    3
+\end{verbatim}
+
+Removes the three topmost elements.
+
+\subsubsection{\texttt{SWAP} (Swap)\label{inst:swap}}
+Swaps the top element of the stack (TOS) with the element located at the specified position. Essential for re-ordering operands for arithmetic operations.
+
+\noindent \textbf{Operands}
+\begin{itemize}
+    \item \texttt{<pos>}: Stack index of the item to swap with TOS.
+\end{itemize}
+
+\noindent \textbf{Usage Example}
+
+\begin{verbatim}
+    SWAP    3
+\end{verbatim}
+
+Swaps TOS with the element three positions beneath it (the 4th element down).
+
+\subsubsection{\texttt{B} (Branch / Subroutine Call)\label{inst:b}}
+Calls a sub-routine (another VIL program) identified by \texttt{prg\_id}. It moves $N$ inputs from the current stack to the subroutine's stack and, upon completion, moves $M$ outputs from the subroutine's stack back to the current stack.
+
+\noindent \textbf{Operands}
+\begin{itemize}
+    \item \texttt{<prg\_id>}: \texttt{u128} Program/Labels ID.
+    \item \texttt{<N>}: Number of inputs consumed from the caller's stack.
+    \item \texttt{<M>}: Number of outputs produced to the caller's stack.
+    \item \texttt{<R>}: R-value (Reserved/Placeholder).
+\end{itemize}
+
+\noindent \textbf{Usage Example}
+
+\begin{verbatim}
+    B   solve_quad  3   1   8
+\end{verbatim}
+
+Calls the solver program with 3 inputs, expects 1 output, and uses 8 registers.
+
+\subsubsection{\texttt{FOLD} (Fold / Reduce)\label{inst:fold}}
+A powerful instruction that applies a subroutine (\texttt{prg\_id}) iteratively over a Vector operand on the stack, accumulating a result (e.g., sum, product, or complex reduction). This implements functional programming's `fold' or `reduce' pattern.
+
+\noindent \textbf{Operands}
+\begin{itemize}
+    \item \texttt{<prg\_id>}: \texttt{u128} Program/Labels ID.
+    \item \texttt{<N>}: Input/Accumulator management (controls how the accumulator and next element are fed into the subroutine).
+    \item \texttt{<M>}: Output management.
+    \item \texttt{<R>}: R-value (Reserved/Placeholder).
+\end{itemize}
+
+\noindent \textbf{Usage Example}
+
+\begin{verbatim}
+    FOLD    sum_subroutine  2   1   8 
+\end{verbatim}
+
+Fold over elements of a vector on TOS using sub routine taking initially 2 inputs from stack, and returning one output at the end, and using 8 registers.
+
+
+\end{document}
