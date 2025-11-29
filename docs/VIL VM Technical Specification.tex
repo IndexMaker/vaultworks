@@ -494,9 +494,9 @@ Pack \texttt{count} $Scalar$ type values from stack into a new $Vector$.
 \noindent \textbf{Stack Args}
 
 \begin{itemize}
-\item \texttt{[TOS: Scalar]} -- Operand on stack to be packed as last element of resulting $Vector$.
+\item \texttt{[TOS]: Scalar} -- Operand on stack to be packed as last element of resulting $Vector$.
 \item [...]
-\item \texttt{[TOS - count: Scalar]} -- Operand on stack to be packed as first element of resulting $Vector$.
+\item \texttt{[TOS - count]: Scalar} -- Operand on stack to be packed as first element of resulting $Vector$.
 \end{itemize}
 
 \noindent \textbf{Return}
@@ -532,9 +532,9 @@ Pack \texttt{count} $Label$ type values from stack into a new $Labels$.
 \noindent \textbf{Stack Args}
 
 \begin{itemize}
-\item \texttt{[TOS: Label]} -- Operand on stack to be packed as last element of resulting $Labels$.
+\item \texttt{[TOS]: Label} -- Operand on stack to be packed as last element of resulting $Labels$.
 \item [...]
-\item \texttt{[TOS - count: Label]} -- Operand on stack to be packed as first element of resulting $Labels$.
+\item \texttt{[TOS - count]: Label} -- Operand on stack to be packed as first element of resulting $Labels$.
 \end{itemize}
 
 \noindent \textbf{Return}
@@ -558,126 +558,194 @@ Pack \texttt{count} $Label$ type values from stack into a new $Labels$.
 Load three $Label$ constants: \texttt{btc\_label}, \texttt{eth\_label}, \texttt{xrp\_label}, and then pack them into single $Labels$: \texttt{[btc\_label, eth\_label, xrp\_label]}.
 
 
-\subsubsection{\texttt{UNPK} --- \label{inst:unpk}}
+\subsubsection{\texttt{UNPK} --- Unpack values from Vector / Labels\label{inst:unpk}}
 
-Unpack a Vector/Labels object onto the stack. Consumes TOS, and replaces with its components.
+Unpack a $Vector$ / $Labels$ object onto the stack.
 
 \noindent \textbf{Operands}
 
 \begin{itemize}
-\item (no operands)
+\item \textsl{(no operands)}
 \end{itemize}
 
 \noindent \textbf{Stack Args}
 
 \begin{itemize}
-\item \texttt{stack args = $[TOS: Vector|Labels]$}: Input
+\item \texttt{[TOS]: Vector|Labels} -- An object to be unpacked onto stack $Vector$ / $Labels$: \texttt{[[0], ..., [count - 1]]}.
 \end{itemize}
 
 \noindent \textbf{Return}
 
 \begin{itemize}
-\item \texttt{result $[TOS - len, ..., TOS]$}: Output
+\item \texttt{[TOS]: Scalar|Label} -- Component unpacked as last from $Vector$ / $Labels$.
+\item [...]
+\item \texttt{[TOS - count]: Scalar|Label} -- Component unpacked as first from $Vector$ / $Labels$.
+\item \textsl{(stack shifted by one level)}.
 \end{itemize}
 
 \noindent \textbf{Usage Example}
 
 \begin{verbatim}
 
+    LDV     index_quote_id
     UNPK
 
 \end{verbatim}
 
-\subsubsection{\texttt{VPUSH} --- \label{inst:vpush}}
+Load a $Vector$ from vector storage with `index\_quote\_id' ID, and unpack its components onto stack. Given that `index\_quote\_id' points to a vector, the component of which are: \texttt{[capacity, price, slope]}, the resulting stack will have structure: \texttt{[(previous stack state)..., capacity, price, slope]}, where the value of `slope' will be on \texttt{[TOS]}.
 
-Push a scalar onto the Vector (TOS). In-place updates Vector on TOS, appending new component at the end.
+\subsubsection{\texttt{VPUSH} --- Push Scalar onto Vector\label{inst:vpush}}
+
+Pushes a scalar onto the $Vector$. 
+
+\noindent \textbf{Notice}
+
+This is gas-efficient in-place operation, as it updates a $Vector$ on \texttt{[TOS]}, appending new component at the end.
 
 \noindent \textbf{Operands}
 
 \begin{itemize}
-\item \texttt{<immediate}: \texttt{u128} Stack pos
-\item \texttt{(scalar)>}: \texttt{u128} Stack pos
+\item \texttt{scalar: Scalar} -- Constant $Scalar$ value to be pushed onto $Vector$ at \texttt{[TOS]}.
 \end{itemize}
 
 \noindent \textbf{Stack Args}
 
 \begin{itemize}
-\item \texttt{stack args = $[TOS: Vector[0..len]$]}: Input
+\item \texttt{[TOS]: Vector[0..len]} -- A $Vector$ of length `len'.
 \end{itemize}
 
 \noindent \textbf{Return}
 
 \begin{itemize}
-\item \texttt{result = $[TOS: Vector[0..len + 1]$]}: Output
+\item \texttt{[TOS]: Vector[0..len + 1]} -- Resulting $Vector$ of length $len + 1$.
 \end{itemize}
 
 \noindent \textbf{Usage Example}
 
 \begin{verbatim}
 
-    VPUSH <immediate (scalar)>
+    LDV     weights_id
+    VPUSH   10.0
 
 \end{verbatim}
 
-\subsubsection{\texttt{VPOP} --- \label{inst:vpop}}
+Load from storage a vector with `weights\_id' ID, and push scalar constant $10.0$ to the end of it.
 
-Pop a scalar from the Vector (TOS). In-place updates Vector on TOS, removing last component.
+\textbf{Note} This does not modify the vector in-storage, and only its on-stack copy is modified. To store this modified vector back into storage separate \texttt{STV} instruction is required.
+
+
+\subsubsection{\texttt{VPOP} --- Pop Scalar from Vector\label{inst:vpop}}
+
+Pop a scalar from the $Vector$.
+
+\noindent \textbf{Notice}
+
+This is gas-efficient in-place operation, as it updates a $Vector$ on \texttt{[TOS]}, removing its last component.
 
 \noindent \textbf{Operands}
 
 \begin{itemize}
-\item (no operands)
+\item \textsl{(no operands)}
 \end{itemize}
 
 \noindent \textbf{Stack Args}
 
 \begin{itemize}
-\item \texttt{stack args = $[TOS: Vector[0..len]$]}: Input
+\item \texttt{[TOS]: Vector[0..len]} -- A $Vector$ of length `len'.
 \end{itemize}
 
 \noindent \textbf{Return}
 
 \begin{itemize}
-\item \texttt{result = $[TOS: Vector[0..len - 1]$]}: Output
+\item \texttt{[TOS]: Vector[0..len - 1]} -- Resulting $Vector$ of length $len - 1$.
 \end{itemize}
 
 \noindent \textbf{Usage Example}
 
 \begin{verbatim}
 
+    STL     weights_id
     VPOP
 
 \end{verbatim}
 
-\subsubsection{\texttt{T} --- \label{inst:t}}
+Load from storage a vector with `weights\_id' ID, and pop last element from the end of it.
 
-Transpose `count` vectors on stack $[V1, V2]$ -> $[T1, T2]$. In-place updates `count` operands from TOS by performing transform.
+\textbf{Note} This does not modify the vector in-storage, and only its on-stack copy is modified. To store this modified vector back into storage separate \texttt{STV} instruction is required.
+
+\subsubsection{\texttt{T} --- Transpose Vectors on Stack\label{inst:t}}
+
+Perform matrix transposition of $M$ vectors on the stack ,each of length $N$.
+
+$$
+\begin{pmatrix}
+    a_{1,1} & a{1,2} & \cdots & a_{1,N} \\
+    a_{2,1} & a{2,2} & \cdots & a_{2,N} \\
+    \vdots  & \vdots  & \ddots & \vdots \\
+    a_{M,1} & a_{M,2} & \cdots & a_{M,N} \\
+\end{pmatrix}^{T}
+\Rightarrow
+\begin{pmatrix}
+    a_{1,1} & a{2,1} & \cdots & a_{M,1} \\
+    a_{1,2} & a{2,2} & \cdots & a_{M,2} \\
+    \vdots  & \vdots  & \ddots & \vdots \\
+    a_{1,N} & a_{2,N} & \cdots & a_{M,N} \\
+\end{pmatrix}
+$$
+
+\noindent \textbf{Notice}
+
+This is gas-efficient in-place operation, which updates $M$ vectors on the stack.
 
 \noindent \textbf{Operands}
 
 \begin{itemize}
-\item \texttt{<count>}: \texttt{u128} Stack pos
+\item \texttt{count: u8} -- Number of vectors on the stack to transpose together.
 \end{itemize}
 
 \noindent \textbf{Stack Args}
 
 \begin{itemize}
-\item \texttt{stack args = $[TOS - count, ..., TOS: Vector[0..len]$]}: Input
+\item \texttt{[TOS]: Vector} -- A $Vector$ of length `len'.
+\item [...]
+\item \texttt{[TOS - count]: Vector} -- A $Vector$ of length `len'.
 \end{itemize}
 
 \noindent \textbf{Return}
 
 \begin{itemize}
-\item \texttt{result = $[TOS - len, ..., TOS: Vector[0..count]$]}: Output
+\item \texttt{[TOS]: Vector} -- A $Vector$ of length `count'.
+\item [...]
+\item \texttt{[TOS - len]: Vector} -- A $Vector$ of length `count'.
 \end{itemize}
 
 \noindent \textbf{Usage Example}
 
 \begin{verbatim}
 
-    T <count>
+    LDV     index_a_quote_id
+    LDV     index_b_quote_id
+    LDV     index_c_quote_id
+    T       3
 
 \end{verbatim}
+
+Load from vector storage three vectors with IDs: \\
+
+~~~~ \texttt{index\_a\_quote\_id, index\_b\_quote\_id, index\_c\_quote\_id}, \\
+
+and then transpose them into vectors:
+
+\begin{verbatim}
+    \texttt{[index\_a\_capacity, index\_b\_capacity, index\_c\_capacity]}, \\
+    \texttt{[index\_a\_price, index\_b\_price, index\_c\_price]}, \\
+    \texttt{[index\_a\_slope, index\_b\_slope, index\_c\_slope]}, \\
+\end{verbatim}
+
+or simply: \\
+
+~~~~ \texttt{capacities}, \texttt{prices}, \texttt{slopes}.
+
 
 \pagebreak
 \subsection{4. Labels Manipulation (Opcode 40..46)}
