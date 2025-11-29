@@ -370,67 +370,85 @@ The \texttt{\_MarketAssetPrices} is a convenience label we associate with some r
 
 \subsubsection{\texttt{STL} --- Store Labels into Storage\label{inst:stl}}
 
-Store Labels object into VIO. Consumes TOS.
+Store (\texttt{Labels}) object by $ID$ into \textsl{Vector I/O (VIO)}.
+
+\noindent \textbf{Notice}
+
+This is relatively gas-expensive operation as it will store binary blob into \textsl{Blockchain} using underlying \texttt{(SSTORE)} operatation.
 
 \noindent \textbf{Operands}
 
 \begin{itemize}
-\item \texttt{<label\_id>}: \texttt{u128} Stack pos
+\item \texttt{labels\_id: u128} -- An $ID$ of the $Labels$ object \textsl{(vector storage slot)}.
 \end{itemize}
 
 \noindent \textbf{Stack Args}
 
 \begin{itemize}
-\item \texttt{}: Input
+\item \texttt{[TOS]} -- Operand on stack to be moved into vector storage \texttt{labels\_id}.
 \end{itemize}
 
 \noindent \textbf{Return}
 
 \begin{itemize}
-\item \texttt{}: Output
+\item \textsl{(stack shifted by one level)}.
 \end{itemize}
 
 \noindent \textbf{Usage Example}
 
 \begin{verbatim}
 
-    STL <label_id>
+    STL     market_asset_names_id
 
 \end{verbatim}
+
+Pop value from stack \texttt{[TOS]} and store it into vector storage with  `market\_asset\_names' ID.
+
 
 \subsubsection{\texttt{STV} --- Store Vector into Storage\label{inst:stv}}
 
-Store Vector object into VIO. Consumes TOS.
+Store (\texttt{Vector}) object by $ID$ into \textsl{Vector I/O (VIO)}.
+
+\noindent \textbf{Notice}
+
+This is relatively gas-expensive operation as it will store binary blob into \textsl{Blockchain} using underlying \texttt{(SSTORE)} operatation.
+
 
 \noindent \textbf{Operands}
 
 \begin{itemize}
-\item \texttt{<vector\_id>}: \texttt{u128} Stack pos
+\item \texttt{vector\_id: u128} -- An $ID$ of the $Vector$ object \textsl{(vector storage slot)}.
 \end{itemize}
 
 \noindent \textbf{Stack Args}
 
 \begin{itemize}
-\item \texttt{}: Input
+\item \texttt{[TOS]} -- Operand on stack to be moved into vector storage \texttt{vector\_id}.
 \end{itemize}
 
 \noindent \textbf{Return}
 
 \begin{itemize}
-\item \texttt{}: Output
+\item \textsl{(stack shifted by one level)}.
 \end{itemize}
 
 \noindent \textbf{Usage Example}
 
 \begin{verbatim}
 
-    STV <vector_id>
+    STV     market_asset_prices
 
 \end{verbatim}
+
+Pop value from stack \texttt{[TOS]} and store it into vector storage with  `market\_asset\_prices' ID.
 
 \subsubsection{\texttt{STR} --- Store Moving into Registry\label{inst:str}}
 
 Move value from stack and store it into registry \texttt{reg}.
+
+\noindent \textbf{Notice}
+
+This is highly gas-effective operation, as operand is moved from stack into register without copying.
 
 \noindent \textbf{Operands}
 
@@ -463,65 +481,82 @@ Pop value from stack \texttt{[TOS]} and store it in register allocated for  \tex
 \pagebreak
 \subsection{3. Data Structure Manipulation (Opcode 30..35)}
 
-\subsubsection{\texttt{PKV} --- \label{inst:pkv}}
+\subsubsection{\texttt{PKV} --- Pack Scalar values into Vector\label{inst:pkv}}
 
-Pack `count` values from stack into a new Vector. Consumes `count` operands from TOS, and replaces them with Vector.
+Pack \texttt{count} $Scalar$ type values from stack into a new $Vector$.
 
 \noindent \textbf{Operands}
 
 \begin{itemize}
-\item \texttt{<count>}: \texttt{u128} Stack pos
+\item \texttt{count: u8} -- Number of stack levels starting from \texttt{[TOS]} that we want to pack into $Vector$.
 \end{itemize}
 
 \noindent \textbf{Stack Args}
 
 \begin{itemize}
-\item \texttt{stack args = $[TOS - count, ..., TOS: Scalar]$}: Input
+\item \texttt{[TOS: Scalar]} -- Operand on stack to be packed as last element of resulting $Vector$.
+\item [...]
+\item \texttt{[TOS - count: Scalar]} -- Operand on stack to be packed as first element of resulting $Vector$.
 \end{itemize}
 
 \noindent \textbf{Return}
 
 \begin{itemize}
-\item \texttt{result $[TOS]$}: Output
+\item \texttt{[TOS]} -- $Vector$ contructed from stack operands \texttt{[TOS - count], ..., [TOS]}
+\item \textsl{(stack shifted by `count' levels)}.
 \end{itemize}
 
 \noindent \textbf{Usage Example}
 
 \begin{verbatim}
 
-    PKV <count>
+    LDR     _Capacity
+    LDR     _Price
+    LDR     _Slope
+    PKV     3
 
 \end{verbatim}
 
-\subsubsection{\texttt{PKL} --- \label{inst:pkl}}
+Load three values from registry: \texttt{\_Capacity}, \texttt{\_Price}, \texttt{\_Slope}, and then pack them into single $Vector$: \texttt{[\_Capacity, \_Price, \_Slope]}.
 
-Pack `count` values from stack into a new Labels object. Consumes `count` operands from TOS, and replaces them with Labels.
+\subsubsection{\texttt{PKL} --- Pack Label values into Labels object\label{inst:pkl}}
+
+Pack \texttt{count} $Label$ type values from stack into a new $Labels$.
 
 \noindent \textbf{Operands}
 
 \begin{itemize}
-\item \texttt{<count>}: \texttt{u128} Stack pos
+\item \texttt{count: u8} -- Number of stack levels starting from \texttt{[TOS]} that we want to pack into $Labels$.
 \end{itemize}
 
 \noindent \textbf{Stack Args}
 
 \begin{itemize}
-\item \texttt{stack args = $[TOS - count, ..., TOS: Scalar]$}: Input
+\item \texttt{[TOS: Label]} -- Operand on stack to be packed as last element of resulting $Labels$.
+\item [...]
+\item \texttt{[TOS - count: Label]} -- Operand on stack to be packed as first element of resulting $Labels$.
 \end{itemize}
 
 \noindent \textbf{Return}
 
 \begin{itemize}
-\item \texttt{result $[TOS]$}: Output
+\item \texttt{[TOS]} -- $Labels$ contructed from stack operands \texttt{[TOS - count], ..., [TOS]}
+\item \textsl{(stack shifted by `count' levels)}.
 \end{itemize}
 
 \noindent \textbf{Usage Example}
 
 \begin{verbatim}
 
-    PKL <count>
+    IMML    btc_label
+    IMML    eth_label
+    IMML    xrp_label
+    PKL     3
 
 \end{verbatim}
+
+Load three $Label$ constants: \texttt{btc\_label}, \texttt{eth\_label}, \texttt{xrp\_label}, and then pack them into single $Labels$: \texttt{[btc\_label, eth\_label, xrp\_label]}.
+
 
 \subsubsection{\texttt{UNPK} --- \label{inst:unpk}}
 
