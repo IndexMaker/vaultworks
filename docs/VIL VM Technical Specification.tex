@@ -686,7 +686,7 @@ Load from storage a vector with `weights\_id' ID, and pop last element from the 
 \pagebreak
 \subsubsection{\texttt{T} --- Transpose Vectors on Stack\label{inst:t}}
 
-Perform matrix transposition of $M$ vectors on the stack ,each of length $N$.
+Perform matrix transposition of $M$ vectors on the stack, each of length $N$.
 
 $$
 \begin{pmatrix}
@@ -1027,157 +1027,265 @@ where labels overlap.
 
 \subsubsection{\texttt{ADD} --- Addition\label{inst:add}}
 
-Add TOS by operand at $[T-pos]$. Works with vectors and scalars. In-place updates operand on TOS. Does not consume the other operand.
+Add operand at \texttt{[TOS]} to operand at \texttt{[TOS - pos]}.
+
+$$
+    [TOS] \leftarrow [TOS] + [TOS - pos]
+$$
+
+\noindent \textbf{Notes}
+
+\begin{itemize}
+    \item Works with vectors and scalars.
+    \item In-place updates operand on \texttt{[TOS]}.
+    \item Does not consume the other operand.
+\end{itemize}
 
 \noindent \textbf{Operands}
 
 \begin{itemize}
-\item \texttt{pos}: \texttt{u8} -- Stack position relative to \texttt{[TOS]}.
+\item \texttt{pos: u8} -- Stack position relative to \texttt{[TOS]}.
 \end{itemize}
 
 \noindent \textbf{Stack Args}
 
 \begin{itemize}
-\item \texttt{stack args = $[TOS - pos, TOS: Vector|Scalar]$}: Input
+\item \texttt{[TOS: Vector|Scalar]} -- Operand to be updated in-place, with addition.
+\item \texttt{[TOS - pos: Vector|Scalar]} -- Second operand of addition.
 \end{itemize}
 
 \noindent \textbf{Return}
 
 \begin{itemize}
-\item \texttt{result = $[TOS]$}: Output
+\item \texttt{[TOS]} -- Updated first operand.
 \end{itemize}
 
 \noindent \textbf{Usage Example}
 
 \begin{verbatim}
 
-    ADD pos
+    IMMS    3.0
+    IMMS    5.0
+    ADD     1
 
 \end{verbatim}
 
+Add $3.0$ to $5.0$, and replace $5.0$ with result of the addition ($8.0$).
+
+\pagebreak
 \subsubsection{\texttt{SUB} --- Substraction\label{inst:sub}}
 
-Subtract TOS by operand at $[T-pos]$. Works with vectors and scalars. In-place updates operand on TOS. Does not consume the other operand.
+Subtract from operand at \texttt{[TOS]} an operand at \texttt{[TOS - pos]}.
+
+\noindent \textbf{Notes}
+
+\begin{itemize}
+    \item Works with vectors and scalars.
+    \item In-place updates operand on \texttt{[TOS]}.
+    \item Does not consume the other operand.
+\end{itemize}
+
 
 \noindent \textbf{Operands}
 
 \begin{itemize}
-\item \texttt{pos}: \texttt{u8} -- Stack position relative to \texttt{[TOS]}.
+\item \texttt{pos: u8} -- Stack position relative to \texttt{[TOS]}.
 \end{itemize}
 
 \noindent \textbf{Stack Args}
 
 \begin{itemize}
-\item \texttt{stack args = $[TOS - pos, TOS: Vector|Scalar]$}: Input
+\item \texttt{[TOS: Vector|Scalar]} -- Operand to be updated in-place, with subtraction.
+\item \texttt{[TOS - pos: Vector|Scalar]} -- Second operand of subtraction.
 \end{itemize}
 
 \noindent \textbf{Return}
 
 \begin{itemize}
-\item \texttt{result = $[TOS]$}: Output
+\item \texttt{[TOS]} -- Updated first operand.
 \end{itemize}
 
 \noindent \textbf{Usage Example}
 
 \begin{verbatim}
 
-    SUB pos
+    IMMS    3.0
+    IMMS    5.0
+    SUB     1
 
 \end{verbatim}
 
+Subtract $3.0$ from $5.0$, and replace $5.0$ with result of the subtraction ($2.0$).
+
+\pagebreak
 \subsubsection{\texttt{SSB} --- Saturating Subraction\label{inst:ssb}}
 
-Saturating subtract TOS by operand at $[T-pos]$. Works with vectors and scalars. In-place updates operand on TOS. Does not consume the other operand.
+Subtract from operand at \texttt{[TOS]} an operand at \texttt{[TOS - pos]} saturating to $0$.
+
+$$
+    [TOS] \leftarrow \max([TOS] - [TOS - pos], 0)
+$$
+
+\noindent \textbf{Notes}
+
+\begin{itemize}
+    \item Works with vectors and scalars.
+    \item In-place updates operand on \texttt{[TOS]}.
+    \item Does not consume the other operand.
+\end{itemize}
+
 
 \noindent \textbf{Operands}
 
 \begin{itemize}
-\item \texttt{pos}: \texttt{u8} -- Stack position relative to \texttt{[TOS]}.
+\item \texttt{pos: u8} -- Stack position relative to \texttt{[TOS]}.
 \end{itemize}
 
 \noindent \textbf{Stack Args}
 
 \begin{itemize}
-\item \texttt{stack args = $[TOS - pos, TOS: Vector|Scalar]$}: Input
+\item \texttt{[TOS: Vector|Scalar]} -- Operand to be updated in-place, with saturating subtraction.
+\item \texttt{[TOS - pos: Vector|Scalar]} -- Second operand of saturating subtraction.
 \end{itemize}
 
 \noindent \textbf{Return}
 
 \begin{itemize}
-\item \texttt{result = $[TOS]$}: Output
+\item \texttt{[TOS]} -- Updated first operand.
 \end{itemize}
 
 \noindent \textbf{Usage Example}
 
 \begin{verbatim}
 
-    SSB pos
+    IMMS    5.0
+    IMMS    3.0
+    SSB     1
 
 \end{verbatim}
 
+Subtract $5.0$ from $3.0$ saturating at $0.0$, and replace $3.0$ with result of the saturating subtraction ($0.0$).
+
+\pagebreak
 \subsubsection{\texttt{MUL} --- Multiplication\label{inst:mul}}
 
-Multiply TOS by operand at $[T-pos]$. Works with vectors and scalars. In-place updates operand on TOS. Does not consume the other operand.
+Multiply operand at \texttt{[TOS]} by operand at \texttt{[TOS - pos]}.
+
+$$
+    [TOS] \leftarrow [TOS] \odot [TOS - pos]
+$$
+
+\noindent \textbf{Notes}
+
+\begin{itemize}
+    \item Works with vectors and scalars.
+    \item Multiplication of two vectors is performed component-wise.
+    \item Multiplication of vector by scalar is possible, but not scalar by vector as it is an in-place operation.
+    \item In-place updates operand on \texttt{[TOS]}.
+    \item Does not consume the other operand.
+\end{itemize}
 
 \noindent \textbf{Operands}
 
 \begin{itemize}
-\item \texttt{pos}: \texttt{u8} -- Stack position relative to \texttt{[TOS]}.
+\item \texttt{pos: u8} -- Stack position relative to \texttt{[TOS]}.
 \end{itemize}
 
 \noindent \textbf{Stack Args}
 
 \begin{itemize}
-\item \texttt{stack args = $[TOS - pos, TOS: Vector|Scalar]$}: Input
+\item \texttt{[TOS: Vector|Scalar]} -- Operand to be updated in-place, with multiplication.
+\item \texttt{[TOS - pos: Vector|Scalar]} -- Second operand of multiplication.
 \end{itemize}
 
 \noindent \textbf{Return}
 
 \begin{itemize}
-\item \texttt{result = $[TOS]$}: Output
+\item \texttt{[TOS]} -- Updated first operand.
 \end{itemize}
 
 \noindent \textbf{Usage Example}
 
 \begin{verbatim}
 
-    MUL pos
+    IMMS    3.0
+    IMMS    5.0
+    MUL     1
 
 \end{verbatim}
 
+Multiply $3.0$ by $5.0$, and replace $5.0$ with result of the multiplication ($15.0$).
+
+\pagebreak
 \subsubsection{\texttt{DIV} --- Division\label{inst:div}}
 
-Divide TOS by operand at $[T-pos]$. Works with vectors and scalars. In-place updates operand on TOS. Does not consume the other operand.
+Divide operand at \texttt{[TOS]} by operand at \texttt{[TOS - pos]}.
+
+$$
+    [TOS] \leftarrow \frac{ [TOS] }{ [TOS - pos] }
+$$
+
+\noindent \textbf{Notes}
+
+\begin{itemize}
+    \item Works with vectors and scalars.
+    \item Division of two vectors is performed component-wise.
+    \item Division of vector by scalar is possible, but not scalar by vector as it is an in-place operation.
+    \item In-place updates operand on \texttt{[TOS]}.
+    \item Does not consume the other operand.
+\end{itemize}
 
 \noindent \textbf{Operands}
 
 \begin{itemize}
-\item \texttt{pos}: \texttt{u8} -- Stack position relative to \texttt{[TOS]}.
+\item \texttt{pos: u8} -- Stack position relative to \texttt{[TOS]}.
 \end{itemize}
 
 \noindent \textbf{Stack Args}
 
 \begin{itemize}
-\item \texttt{stack args = $[TOS - pos, TOS: Vector|Scalar]$}: Input
+\item \texttt{[TOS: Vector|Scalar]} -- Operand to be updated in-place, with division.
+\item \texttt{[TOS - pos: Vector|Scalar]} -- Second operand of division.
 \end{itemize}
 
 \noindent \textbf{Return}
 
 \begin{itemize}
-\item \texttt{result = $[TOS]$}: Output
+\item \texttt{[TOS]} -- Updated first operand.
 \end{itemize}
 
 \noindent \textbf{Usage Example}
 
 \begin{verbatim}
 
-    DIV pos
+    IMMS    3.0
+    IMMS    15.0
+    DIV     1
 
 \end{verbatim}
 
+Divide $15.0$ by $3.0$, and replace $15.0$ with result of the multiplication ($3.0$).
+
+\pagebreak
 \subsubsection{\texttt{SQRT} --- Square Root\label{inst:sqrt}}
 
-Square root of TOS (scalar or component-wise vector). Works with vectors and scalars. In-place updates operand on TOS.
+Take square root of \texttt{[TOS]}.
+
+$$
+    [TOS] \leftarrow \sqrt{[TOS]}
+$$
+
+\noindent \textbf{Note}
+\begin{itemize}
+    \item Works with vectors and scalars. 
+    \item Square root of two vector is performed component-wise.
+    \item In-place updates operand on TOS.
+\end{itemize}
+
+\noindent \textbf{Notice}
+
+This operation is implemented using \textsl{Babylonian method} of $O(\log k)$ complexity where $k$ is number of bits.
+Since it is fixed point $128$-bit number, this is constant $O(1)$.
 
 \noindent \textbf{Operands}
 
@@ -1188,85 +1296,127 @@ Square root of TOS (scalar or component-wise vector). Works with vectors and sca
 \noindent \textbf{Stack Args}
 
 \begin{itemize}
-\item \texttt{stack args = $[TOS: Vector|Scalar]$}: Input
+\item \texttt{[TOS: Vector|Scalar]} -- Operand of square root.
 \end{itemize}
 
 \noindent \textbf{Return}
 
 \begin{itemize}
-\item \texttt{result = $[TOS]$}: Output
+\item \texttt{[TOS]} -- Result of square root.
 \end{itemize}
 
 \noindent \textbf{Usage Example}
 
 \begin{verbatim}
 
+    IMMS    4.0
     SQRT
 
 \end{verbatim}
+
+Take square root of $4.0$, and replace $4.0$ with the result ($2.0$).
 
 \pagebreak
 \subsection{Logic \& Comparison (Opcode 60..61)}
 
 \subsubsection{\texttt{MIN} --- Minimum\label{inst:min}}
 
-Min between TOS and operand at $[T-pos]$. Works with vectors and scalars. In-place updates operand on TOS. Does not consume the other operand.
+Take minimum between operand at \texttt{[TOS]} and operand at \texttt{[TOS - pos]}.
+
+$$
+    [TOS] \leftarrow \min{( [TOS], [TOS - pos] )}
+$$
+
+\noindent \textbf{Notes}
+
+\begin{itemize}
+    \item Works with vectors and scalars.
+    \item Minimum of two vectors is performed component-wise.
+    \item Minimum of vector by scalar is possible, but not scalar by vector as it is an in-place operation.
+    \item In-place updates operand on \texttt{[TOS]}.
+    \item Does not consume the other operand.
+\end{itemize}
 
 \noindent \textbf{Operands}
 
 \begin{itemize}
-\item \texttt{pos}: \texttt{u8} -- Stack position relative to \texttt{[TOS]}.
+\item \texttt{pos: u8} -- Stack position relative to \texttt{[TOS]}.
 \end{itemize}
 
 \noindent \textbf{Stack Args}
 
 \begin{itemize}
-\item \texttt{stack args = $[TOS - pos, TOS: Vector|Scalar]$}: Input
+\item \texttt{[TOS: Vector|Scalar]} -- Operand to be updated in-place, with minimum.
+\item \texttt{[TOS - pos: Vector|Scalar]} -- Second operand of minimum.
 \end{itemize}
 
 \noindent \textbf{Return}
 
 \begin{itemize}
-\item \texttt{result = $[TOS: Vector|Scalar]$}: Output
+\item \texttt{[TOS]} -- Updated first operand.
 \end{itemize}
 
 \noindent \textbf{Usage Example}
 
 \begin{verbatim}
 
-    MIN pos
+    IMMS    3.0
+    IMMS    5.0
+    MIN     1
 
 \end{verbatim}
+
+Take minimum of $5.0$ and $3.0$, and replace $5.0$ with result of the minimum ($3.0$).
 
 \subsubsection{\texttt{MAX} --- Maximum\label{inst:max}}
 
-Max between TOS and operand at $[T-pos]$. Works with vectors and scalars. In-place updates operand on TOS. Does not consume the other operand.
+Take maximum between operand at \texttt{[TOS]} and operand at \texttt{[TOS - pos]}.
+
+$$
+    [TOS] \leftarrow \max{( [TOS], [TOS - pos] )}
+$$
+
+\noindent \textbf{Notes}
+
+\begin{itemize}
+    \item Works with vectors and scalars.
+    \item Maximum of two vectors is performed component-wise.
+    \item Maximum of vector by scalar is possible, but not scalar by vector as it is an in-place operation.
+    \item In-place updates operand on \texttt{[TOS]}.
+    \item Does not consume the other operand.
+\end{itemize}
 
 \noindent \textbf{Operands}
 
 \begin{itemize}
-\item \texttt{pos}: \texttt{u8} -- Stack position relative to \texttt{[TOS]}.
+\item \texttt{pos: u8} -- Stack position relative to \texttt{[TOS]}.
 \end{itemize}
 
 \noindent \textbf{Stack Args}
 
 \begin{itemize}
-\item \texttt{stack args = $[TOS - pos, TOS: Vector|Scalar]$}: Input
+\item \texttt{[TOS: Vector|Scalar]} -- Operand to be updated in-place, with maximum.
+\item \texttt{[TOS - pos: Vector|Scalar]} -- Second operand of maximum.
 \end{itemize}
 
 \noindent \textbf{Return}
 
 \begin{itemize}
-\item \texttt{result = $[TOS: Vector|Scalar]$}: Output
+\item \texttt{[TOS]} -- Updated first operand.
 \end{itemize}
 
 \noindent \textbf{Usage Example}
 
 \begin{verbatim}
 
-    MAX pos
+    IMMS    3.0
+    IMMS    5.0
+    MAX     1
 
 \end{verbatim}
+
+Take minimum of $5.0$ and $3.0$, and replace $5.0$ with result of the minimum ($5.0$).
+
 
 \pagebreak
 \subsection{Vector Aggregation (Opcode 70..72)}
@@ -1499,7 +1649,7 @@ Pop 'n' values from the stack
 \noindent \textbf{Operands}
 
 \begin{itemize}
-\item \texttt{<count>}: \texttt{u8} -- Stack position relative to \texttt{[TOS]}.
+\item \texttt{count: u8} -- Number of levels to pop.
 \end{itemize}
 
 \noindent \textbf{Stack Args}
@@ -1558,7 +1708,7 @@ Swap TOS with operand at $[T-n]$
 
 Call sub-routine stored as $Code$ at `prg\_id`, supplying `N` inputs and taking `M` outputs from stack. 
 
-The `N` inputs are consumed from stack. `M` outputs are moved from sub-routine's TOS to caller's TOS.
+The `N` inputs are consumed from stack. `M` outputs are moved from sub-routine's \texttt{[TOS]} to caller's \texttt{[TOS]}.
 
 \noindent \textbf{Operands}
 
