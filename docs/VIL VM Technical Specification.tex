@@ -1423,7 +1423,11 @@ Take minimum of $5.0$ and $3.0$, and replace $5.0$ with result of the minimum ($
 
 \subsubsection{\texttt{VSUM} --- Sum of Vector components\label{inst:vsum}}
 
-Sum of all vector components. Pushes on TOS. Does not consume the operand.
+Sum of all vector components.
+
+$$
+    [TOS] \leftarrow \sum_{i=0}^{len([TOS])} \left( [TOS][i] \right)
+$$
 
 \noindent \textbf{Operands}
 
@@ -1434,27 +1438,35 @@ Sum of all vector components. Pushes on TOS. Does not consume the operand.
 \noindent \textbf{Stack Args}
 
 \begin{itemize}
-\item \texttt{stack args = $[TOS: Vector]$}: Input
+\item \texttt{[TOS: Vector]} -- $Vector$ of which components to sum.
 \end{itemize}
 
 \noindent \textbf{Return}
 
 \begin{itemize}
-\item \texttt{result = $[TOS: Scalar]$}: Output
+\item \texttt{[TOS: Scalar]} -- $Scalar$ sum of input vector components.
 \end{itemize}
 
 \noindent \textbf{Usage Example}
 
 \begin{verbatim}
 
+    LDV     asset_weights_id
     VSUM
 
 \end{verbatim}
 
+Load from storage a $Vector$ with ID `asset\_weights\_id', and compute sum of all components,
+i.e. sum of all weights, and place result on \texttt{[TOS]}.
+
 \pagebreak
 \subsubsection{\texttt{VMIN} --- Minimum component of a Vector\label{inst:vmin}}
 
-Minimum value found within vector components. Pushes on TOS. Does not consume the operand.
+Minimum value found within vector components.
+
+$$
+    [TOS] \leftarrow \min_{i=0}^{len([TOS])} \left( [TOS][i] \right)
+$$
 
 \noindent \textbf{Operands}
 
@@ -1465,27 +1477,35 @@ Minimum value found within vector components. Pushes on TOS. Does not consume th
 \noindent \textbf{Stack Args}
 
 \begin{itemize}
-\item \texttt{stack args = $[TOS: Vector]$}: Input
+\item \texttt{[TOS: Vector]} -- $Vector$ of which components minimum to find.
 \end{itemize}
 
 \noindent \textbf{Return}
 
 \begin{itemize}
-\item \texttt{result = $[TOS: Scalar]$}: Output
+\item \texttt{[TOS: Scalar]} -- $Scalar$ minium of input vector components.
 \end{itemize}
 
 \noindent \textbf{Usage Example}
 
 \begin{verbatim}
 
+    LDV     asset_weights_id
     VMIN
 
 \end{verbatim}
 
+Load from storage a $Vector$ with ID `asset\_weights\_id', find minimum weight, and place result on \texttt{[TOS]}.
+
+
 \pagebreak
 \subsubsection{\texttt{VMAX} --- Maximum component of a Vector\label{inst:vmax}}
 
-Maximum value found within vector components. Pushes on TOS. Does not consume the operand.
+Maximum value found within vector components.
+
+$$
+    [TOS] \leftarrow \max_{i=0}^{len([TOS])} \left( [TOS][i] \right)
+$$
 
 \noindent \textbf{Operands}
 
@@ -1496,29 +1516,33 @@ Maximum value found within vector components. Pushes on TOS. Does not consume th
 \noindent \textbf{Stack Args}
 
 \begin{itemize}
-\item \texttt{stack args = $[TOS: Vector]$}: Input
+\item \texttt{[TOS: Vector]} -- $Vector$ of which components maximum to find.
 \end{itemize}
 
 \noindent \textbf{Return}
 
 \begin{itemize}
-\item \texttt{result = $[TOS: Scalar]$}: Output
+\item \texttt{[TOS: Scalar]} -- $Scalar$ maximum of input vector components.
 \end{itemize}
 
 \noindent \textbf{Usage Example}
 
 \begin{verbatim}
 
+    LDV     asset_weights_id
     VMAX
 
 \end{verbatim}
+
+Load from storage a $Vector$ with ID `asset\_weights\_id', find maximum weight, and place result on \texttt{[TOS]}.
+
 
 \pagebreak
 \subsection{Immediate Values \& Vector Creation (Opcode 80..83)}
 
 \subsubsection{\texttt{IMMS} --- Push Scalar on Stack\label{inst:imms}}
 
-Push immediate Scalar value on stack
+Push immediate $Scalar$ value on stack.
 
 \noindent \textbf{Operands}
 
@@ -1529,27 +1553,29 @@ Push immediate Scalar value on stack
 \noindent \textbf{Stack Args}
 
 \begin{itemize}
-\item \texttt{no stack args}: Input
+\item \textsl{(no stack args)}
 \end{itemize}
 
 \noindent \textbf{Return}
 
 \begin{itemize}
-\item \texttt{result = $[TOS: Scalar]$}: Output
+\item \texttt{[TOS: Scalar]} -- $Scalar$ operand pushed.
 \end{itemize}
 
 \noindent \textbf{Usage Example}
 
 \begin{verbatim}
 
-    IMMS <immediate (scalar)>
+    IMMS    4.0
 
 \end{verbatim}
+
+Push constant value $4.0$ on \texttt{[TOS]}.
 
 \pagebreak
 \subsubsection{\texttt{IMML} --- Push Label on Stack\label{inst:imml}}
 
-Push immediate Label value on stack
+Push immediate $Label$ value on stack.
 
 \noindent \textbf{Operands}
 
@@ -1560,27 +1586,36 @@ Push immediate Label value on stack
 \noindent \textbf{Stack Args}
 
 \begin{itemize}
-\item \texttt{no stack args}: Input
+\item \textsl{(no stack args)}
 \end{itemize}
 
 \noindent \textbf{Return}
 
 \begin{itemize}
-\item \texttt{result = $[TOS: Label]$}: Output
+\item \texttt{[TOS: Label]} -- $Label$ operand pushed.
 \end{itemize}
 
 \noindent \textbf{Usage Example}
 
 \begin{verbatim}
 
-    IMML <immediate (label)>
+    IMML    btc_label
 
 \end{verbatim}
+
+Push constant label value `btc\_label' from Rust code onto stack.
 
 \pagebreak
 \subsubsection{\texttt{ZEROS} --- Zero Vector\label{inst:zeros}}
 
-Create Vector of zeros matching length of Labels at $[T-pos]$. Pushes on TOS. Does not consume the operand.
+Create Vector of zeros matching length of the operand at \texttt{[TOS - pos]}.
+
+\noindent \textbf{Notes}
+\begin{itemize}
+    \item Works for $Vector$ and $Labels$ type of operands.
+    \item Pushes new zero $Vector$ on \texttt{[TOS]}.
+    \item Does not consume the operand.
+\end{itemize}
 
 \noindent \textbf{Operands}
 
@@ -1591,27 +1626,37 @@ Create Vector of zeros matching length of Labels at $[T-pos]$. Pushes on TOS. Do
 \noindent \textbf{Stack Args}
 
 \begin{itemize}
-\item \texttt{stack args = $[TOS - pos: Vector|Labels]$}: Input
+\item \texttt{[TOS - pos: Vector|Labels]} -- $Vector$ or $Labels$ the length of which to use.
 \end{itemize}
 
 \noindent \textbf{Return}
 
 \begin{itemize}
-\item \texttt{result = $[TOS: Vector]$}: Output
+\item \texttt{[TOS: Vector]} -- $Vector$ of zeros with same length as input operand.
 \end{itemize}
 
 \noindent \textbf{Usage Example}
 
 \begin{verbatim}
 
-    ZEROS pos
+    LDL     asset_names_id
+    ZEROS   1
 
 \end{verbatim}
+
+Load from storage $Labels$ with ID `asset\_names\_id', and then create zero $Vector$ of same length.
 
 \pagebreak
 \subsubsection{\texttt{ONES} --- Unit Vector\label{inst:ones}}
 
-Create Vector of ones matching length of Labels at $[T-pos]$. Pushes on TOS. Does not consume the operand.
+Create Vector of ones matching length of the operand at \texttt{[TOS - pos]}.
+
+\noindent \textbf{Notes}
+\begin{itemize}
+    \item Works for $Vector$ and $Labels$ type of operands.
+    \item Pushes new unit $Vector$ on \texttt{[TOS]}.
+    \item Does not consume the operand.
+\end{itemize}
 
 \noindent \textbf{Operands}
 
@@ -1622,29 +1667,33 @@ Create Vector of ones matching length of Labels at $[T-pos]$. Pushes on TOS. Doe
 \noindent \textbf{Stack Args}
 
 \begin{itemize}
-\item \texttt{stack args = $[TOS - pos: Vector|Labels]$}: Input
+\item \texttt{[TOS - pos: Vector|Labels]} -- $Vector$ or $Labels$ the length of which to use.
 \end{itemize}
 
 \noindent \textbf{Return}
 
 \begin{itemize}
-\item \texttt{result = $[TOS: Vector]$}: Output
+\item \texttt{[TOS: Vector]} -- Unit $Vector$ with same length as input operand.
 \end{itemize}
 
 \noindent \textbf{Usage Example}
 
 \begin{verbatim}
 
-    ONES pos
+    LDL     asset_names_id
+    ONES    1
 
 \end{verbatim}
+
+Load from storage $Labels$ with ID `asset\_names\_id', and then create unit $Vector$ of same length.
+
 
 \pagebreak
 \subsection{Stack Control \& Program Flow (Opcode 90..94)}
 
-\subsubsection{\texttt{POPN} --- Pop levels from Stack\label{inst:popn}}
+\subsubsection{\texttt{POPN} --- Pop N levels from Stack\label{inst:popn}}
 
-Pop 'n' values from the stack
+Pop $count$ values from the stack.
 
 \noindent \textbf{Operands}
 
@@ -1655,53 +1704,74 @@ Pop 'n' values from the stack
 \noindent \textbf{Stack Args}
 
 \begin{itemize}
-\item \texttt{stack args = $['B..., TOS - count, ..., TOS]$}: Input
+\item \texttt{[TOS]} -- First level to pop from stack.
+\item \texttt{[...]}
+\item \texttt{[TOS - count]}: Last level to pop from stack.
+\item \textsl{(rest of stack...)}
 \end{itemize}
 
 \noindent \textbf{Return}
 
 \begin{itemize}
-\item \texttt{result = $['B...]$}: Output
+\item \textsl{(rest of stack...)}
 \end{itemize}
 
 \noindent \textbf{Usage Example}
 
 \begin{verbatim}
 
-    POPN <count>
+    IMMS    1.0
+    IMMS    2.0
+    IMMS    3.0
+    IMMS    4.0
+    POPN    3
 
 \end{verbatim}
+
+Pop $3$ levels from stack, i.e. poped elements are \textsl{2.0, 3.0, 4.0}, leaving $1.0$ on stack at \texttt{[TOS]}.
 
 \pagebreak
 \subsubsection{\texttt{SWAP} --- Swap levels on Stack\label{inst:swap}}
 
-Swap TOS with operand at $[T-n]$
+Swap TOS with operand at \texttt{[TOS - pos]}.
 
 \noindent \textbf{Operands}
 
 \begin{itemize}
-\item \texttt{pos}: \texttt{u8} -- Stack position relative to \texttt{[TOS]}.
+\item \texttt{pos: u8} -- Stack position relative to \texttt{[TOS]}.
 \end{itemize}
 
 \noindent \textbf{Stack Args}
 
 \begin{itemize}
-\item \texttt{stack args = $[TOS - pos: 'A, TOS: 'B]$}: Input
+\item \texttt{[TOS]} -- First level to swap.
+\item \texttt{[...]}
+\item \texttt{[TOS - pos]}: Second level to swap.
+\item \textsl{(rest of stack...)}
 \end{itemize}
 
 \noindent \textbf{Return}
 
 \begin{itemize}
-\item \texttt{result = $[TOS - pos: 'B, TOS: 'A]$}: Output
+\item \texttt{[TOS]} -- Operand from previously second level.
+\item \texttt{[...]}
+\item \texttt{[TOS - pos]}: Operand from previously first level.
+\item \textsl{(rest of stack...)}
 \end{itemize}
 
 \noindent \textbf{Usage Example}
 
 \begin{verbatim}
 
-    SWAP pos
+    IMMS    1.0
+    IMMS    2.0
+    IMMS    3.0
+    IMMS    4.0
+    SWAP    2
 
 \end{verbatim}
+
+Swap $4.0$ with $2.0$, which results in stack \texttt{[1.0, 4.0, 3.0, 2.0]}, where $2.0$ is at \texttt{[TOS]}.
 
 \pagebreak
 \subsubsection{\texttt{B} --- Branch into stored procedure\label{inst:b}}
@@ -1739,9 +1809,17 @@ The `N` inputs are consumed from stack. `M` outputs are moved from sub-routine's
 
 \begin{verbatim}
 
-    B   prg_id  N   M   R
+    LDR         _Slope
+    LDR         _Price
+    LDR         _Collateral
+    B           solve_quadratic_id  3  1  4
+    STR         _IndexQuantity
 
 \end{verbatim}
+
+Load from registry `\_Slope', `\_Price', and `\_Collateral', and pass them as arguments to function
+loaded from storage with ID `solve\_quadratic\_id'. Function returns single value, which we store into
+registry as `\_IndexQuantity'.
 
 \pagebreak
 \subsubsection{\texttt{FOLD} --- Apply stored procedure to all components\label{inst:fold}}
