@@ -101,7 +101,7 @@ C = \min_{i} \left( \frac{\mathbf{L}_i}{\mathbf{W}_i} \right)
 \]
 where $\mathbf{L}_i$ is the market liquidity of asset $i$. The VIL efficiently computes this using $\text{DIV}$ (component-wise) and $\text{VMIN}$ (vector-wide minimum).
 
-\subsection{VIL Code}
+\subsection{VIL implementation of Quote determination}
 
 \noindent Load asset weights, names, and makret asset names:        
 
@@ -226,7 +226,7 @@ The final net exposure vectors are derived by:
 The $\text{SSB}$ operation is critical here, as it ensures that for any asset $i$, if $T_{L, i} > T_{S, i}$, then $\Delta_{S, i} = 0$, and vice versa, maintaining the integrity of the margin system.
 
 \pagebreak
-\subsection{VIL Code}
+\subsection{VIL implementation of Supply and Delta update}
 
 \noindent Load asset names:
 
@@ -378,7 +378,7 @@ The maximum allowed net exposure vector ($\mathbf{M}$), which defines the system
 One of the most powerful VIL operations is the atomic expansion of the Market Asset Names ($N_M$) list. The \texttt{update\_assets} routine handles the addition of new tokens to the market's domain (e.g., increasing $N_M$ from 150 to 155). This is achieved by extending the master list of asset names and subsequently extending all associated vectors ($\mathbf{P}, \mathbf{S}, \mathbf{L}, \mathbf{S}_L, \mathbf{S}_S, \mathbf{D}_L, \mathbf{D}_S, \Delta_L, \Delta_S, \mathbf{M}$) to the new dimension. For any newly added asset, its corresponding vector components are initialized to zero using a $\text{ZEROS}$ vector and the $\text{JUPD}$ instruction, thus maintaining a safe initial state with no exposure, liquidity, or demand.
 
 \pagebreak
-\subsection{VIL Code}
+\subsection{VIL implementation of Market Data update}
 
 \noindent Update Prices, Slopes, and Liquidity:
 
@@ -463,7 +463,119 @@ C_{\text{eff}} = \min(\text{MaxOrderSize}, C_{\text{new}})
 
 The market provides the scalar Index Price Slope ($S$) and Price ($P$), which define the marginal cost function for the total index quantity $Q$. These are the values computed in Section \ref{sec:quote_determination}.
 
-\subsubsection{VIL Code}
+
+\subsection{Step 2: Maximum Quantity Determination via Quadratic Solver}
+
+The maximum possible Index Quantity based on collateral ($Q_{\text{max, pricing}}$) is determined by solving the Index Price Function, which links the effective cost ($C_{\text{eff}}$) to the quantity ($Q$): $C_{\text{eff}} = P \cdot Q + S \cdot Q^2$.
+
+This is reformulated into a standard scalar quadratic equation:
+
+\[
+S \cdot Q^2 + P \cdot Q - C_{\text{eff}} = 0
+\]
+
+The maximum quantity is found by taking the positive root of the solution:
+
+\[
+Q_{\text{max, pricing}} = \frac{\sqrt{P^2 + 4 \cdot S \cdot C_{\text{eff}}} - P}{2 \cdot S}
+\]
+
+\subsection{Step 3: Margin-Based Capacity Limit (\textsl{CL}) with Progressive Constraint}
+\label{sec:margin_capacity_limit}
+
+To prevent systemic limits breaches, the transaction must be capped by the market's remaining margin capacity ($\mathbf{M}$) relative to the current long ($\Delta_L$) and short ($\Delta_S$) exposures. The \textbf{Final Capacity Limit ($CL$)} for the entire index purchase is defined by the minimum available capacity across all assets, \textbf{constrained progressively by the $\mathbf{AssetContributionFractions}$ vector ($\mathbf{F}$)}.
+
+\textbf{Role of $\mathbf{F}$:} This vector $\mathbf{F}$ is derived from a batch of pending index orders. It ensures that the available margin capacity of bottleneck assets is split proportionally among the batch of orders, guaranteeing that the orders can progress and preventing any single large order from blocking the entire batch.
+
+\[
+CL = \min \left( \mathbf{F} \odot \frac{\mathbf{L}}{\mathbf{W}} \right)
+\]
+
+\begin{enumerate}
+    \item \textbf{Margin Limit Vector ($\mathbf{L}$):} The available capacity ($\mathbf{L}$) is the \textbf{sum} of the system's available resources: the \textbf{Inventory} that can be closed ($\Delta_L$ or $\Delta_S$) plus the \textbf{Remaining Margin Headroom}, capped by the equivalent vector for the scalar Market Capacity ($C \odot \mathbf{W}$).
+
+    \begin{itemize}
+        \item \textbf{For a Buy Order} (either reducing $\Delta_L$ or increasing $\Delta_S$):
+        \[
+        \mathbf{L} = \Delta_L \oplus \min(\mathbf{M} \ominus \Delta_S, C \odot \mathbf{W})
+        \]
+
+        \item \textbf{For a Sell Order} (either reducing $\Delta_S$ or increasing $\Delta_L$):
+        \[
+        \mathbf{L} = \Delta_S \oplus \min(\mathbf{M} \ominus \Delta_L, C \odot \mathbf{W})
+        \]
+    \end{itemize}
+    
+    \textbf{Note:} $\mathbf{M}$ represents the maximum allowed net exposure, which serves as a \textbf{hard, systemic upper limit} such that $\text{Abs}(\Delta_L \oplus \Delta_S) \le \mathbf{M}$ must always be true. This Margin ($\mathbf{M}$) is typically equivalent to the total Vendor-managed reserves. The Market Capacity $C$ used here is derived from the \texttt{update\_quote} function (Section \ref{sec:index_capacity}). Since $\Delta_L$ and $\Delta_S$ are mutually exclusive (an asset cannot be net long and net short simultaneously), the additive vector operation ($\oplus$) correctly aggregates the two distinct sources of capacity.
+
+    \item \textbf{Asset Capacity Limit Vector ($\mathbf{CL}_{\text{vec}}$):} This vector is aligned via Label Manipulation (`JFLT`) to the Index Asset Weights ($\mathbf{W}$) and determines the maximum \textit{Index} quantity each asset can sustain.
+    \item \textbf{Final Capacity Limit ($CL$):} The system capacity is the minimum across all assets after the asset-level capacity ($\mathbf{L} \oslash \mathbf{W}$) is constrained by the `AssetContributionFractions` vector ($\mathbf{F}$). This ensures that the current iterative order consumes no more than its allocated fraction of the total remaining margin.
+
+    \[
+    CL = \min \left( \mathbf{F} \odot \left( \mathbf{L} \oslash \mathbf{W} \right) \right)
+    \]
+
+\end{enumerate}
+
+\subsection{Step 4: Final Quantity Execution and Asset Calculation}
+
+The executed Index Quantity ($Q_{\text{final}}$) is capped by the maximum allowed by pricing ($Q_{\text{max, pricing}}$) and the Margin Capacity ($CL$).
+
+\[
+Q_{\text{final}} = \min(Q_{\text{max, pricing}}, CL)
+\]
+
+The resulting executed asset quantities ($\mathbf{A}$) are calculated by distributing $Q_{\text{final}}$ according to the Index Weights ($\mathbf{W}$).
+
+\[
+\mathbf{A} = Q_{\text{final}} \odot \mathbf{W}
+\]
+
+\subsection{Step 5: Market Demand Rebalancing}
+
+This is next step, where the 50-component $\mathbf{A}$ vector updates the 150-component market demand vectors ($\mathbf{D}_S, \mathbf{D}_L$).
+
+\begin{enumerate}
+    \item \textbf{New Short Demand ($\mathbf{D}_{S, new}$):} The executed assets reduce the standing short demand, saturating at zero.
+
+    \[
+    \mathbf{D}_{S, new} = \mathbf{D}_S \ominus \mathbf{A}
+    \]
+
+    \item \textbf{Residual Quantities ($\mathbf{R}_{\text{A}}$):} Any asset quantities that could not be matched by existing short demand become residual.
+
+    \[
+    \mathbf{R}_{\text{A}} = \mathbf{A} \ominus \mathbf{D}_S
+    \]
+
+    \item \textbf{New Long Demand ($\mathbf{D}_{L, new}$):} The residual quantities are added to the long demand.
+
+    \[
+    \mathbf{D}_{L, new} = \mathbf{D}_L \oplus \mathbf{R}_{\text{A}}
+    \]
+\end{enumerate}
+
+\subsection{Step 6: Delta Update and Financial Commit}
+
+The final net exposures ($\Delta_L, \Delta_S$) are updated based on the new demand/supply state ($\mathbf{D}_S$, $\mathbf{D}_L$, $\mathbf{S}_L$, $\mathbf{S}_S$).
+
+\[
+\mathbf{T}_L = \mathbf{S}_L \oplus \mathbf{D}_{S, new} \quad ; \quad \mathbf{T}_S = \mathbf{S}_S \oplus \mathbf{D}_{L, new}
+\]
+
+\[
+\Delta_{L, new} = \mathbf{T}_L \ominus \mathbf{T}_S \quad ; \quad \Delta_{S, new} = \mathbf{T}_S \ominus \mathbf{T}_L
+\]
+
+\noindent The order's spent collateral is calculated: 
+
+\[
+    C_{\text{spent}} = Q_{\text{final}} \cdot (S \cdot Q_{\text{final}} + P)
+\]
+
+\noindent All market and order state vectors are then committed.
+
+\subsection{VIL implementation of Index Order execution}
 
 \noindent Load asset weights:
 
@@ -506,24 +618,6 @@ The market provides the scalar Index Price Slope ($S$) and Price ($P$), which de
         STV         order_id
 \end{verbatim}
 
-\subsection{Step 2: Maximum Quantity Determination via Quadratic Solver}
-
-The maximum possible Index Quantity based on collateral ($Q_{\text{max, pricing}}$) is determined by solving the Index Price Function, which links the effective cost ($C_{\text{eff}}$) to the quantity ($Q$): $C_{\text{eff}} = P \cdot Q + S \cdot Q^2$.
-
-This is reformulated into a standard scalar quadratic equation:
-
-\[
-S \cdot Q^2 + P \cdot Q - C_{\text{eff}} = 0
-\]
-
-The maximum quantity is found by taking the positive root of the solution:
-
-\[
-Q_{\text{max, pricing}} = \frac{\sqrt{P^2 + 4 \cdot S \cdot C_{\text{eff}}} - P}{2 \cdot S}
-\]
-
-\subsubsection{VIL Code}
-
 \noindent Load Index quote:
 
 \begin{verbatim}
@@ -554,45 +648,6 @@ Q_{\text{max, pricing}} = \frac{\sqrt{P^2 + 4 \cdot S \cdot C_{\text{eff}}} - P}
         STR         _IndexQuantity
         POPN        1
 \end{verbatim}
-
-\subsection{Step 3: Margin-Based Capacity Limit (\textsl{CL}) with Progressive Constraint}
-\label{sec:margin_capacity_limit}
-
-To prevent systemic limits breaches, the transaction must be capped by the market's remaining margin capacity ($\mathbf{M}$) relative to the current long ($\Delta_L$) and short ($\Delta_S$) exposures. The \textbf{Final Capacity Limit ($CL$)} for the entire index purchase is defined by the minimum available capacity across all assets, \textbf{constrained progressively by the $\mathbf{AssetContributionFractions}$ vector ($\mathbf{F}$)}.
-
-\textbf{Role of $\mathbf{F}$:} This vector $\mathbf{F}$ is derived from a batch of pending index orders. It ensures that the available margin capacity of bottleneck assets is split proportionally among the batch of orders, guaranteeing that the orders can progress and preventing any single large order from blocking the entire batch.
-
-\[
-CL = \min \left( \mathbf{F} \odot \frac{\mathbf{L}}{\mathbf{W}} \right)
-\]
-
-\begin{enumerate}
-    \item \textbf{Margin Limit Vector ($\mathbf{L}$):} The available capacity ($\mathbf{L}$) is the \textbf{sum} of the system's available resources: the \textbf{Inventory} that can be closed ($\Delta_L$ or $\Delta_S$) plus the \textbf{Remaining Margin Headroom}, capped by the equivalent vector for the scalar Market Capacity ($C \odot \mathbf{W}$).
-
-    \begin{itemize}
-        \item \textbf{For a Buy Order} (either reducing $\Delta_L$ or increasing $\Delta_S$):
-        \[
-        \mathbf{L} = \Delta_L \oplus \min(\mathbf{M} \ominus \Delta_S, C \odot \mathbf{W})
-        \]
-
-        \item \textbf{For a Sell Order} (either reducing $\Delta_S$ or increasing $\Delta_L$):
-        \[
-        \mathbf{L} = \Delta_S \oplus \min(\mathbf{M} \ominus \Delta_L, C \odot \mathbf{W})
-        \]
-    \end{itemize}
-    
-    \textbf{Note:} $\mathbf{M}$ represents the maximum allowed net exposure, which serves as a \textbf{hard, systemic upper limit} such that $\text{Abs}(\Delta_L \oplus \Delta_S) \le \mathbf{M}$ must always be true. This Margin ($\mathbf{M}$) is typically equivalent to the total Vendor-managed reserves. The Market Capacity $C$ used here is derived from the \texttt{update\_quote} function (Section \ref{sec:index_capacity}). Since $\Delta_L$ and $\Delta_S$ are mutually exclusive (an asset cannot be net long and net short simultaneously), the additive vector operation ($\oplus$) correctly aggregates the two distinct sources of capacity.
-
-    \item \textbf{Asset Capacity Limit Vector ($\mathbf{CL}_{\text{vec}}$):} This vector is aligned via Label Manipulation (`JFLT`) to the Index Asset Weights ($\mathbf{W}$) and determines the maximum \textit{Index} quantity each asset can sustain.
-    \item \textbf{Final Capacity Limit ($CL$):} The system capacity is the minimum across all assets after the asset-level capacity ($\mathbf{L} \oslash \mathbf{W}$) is constrained by the `AssetContributionFractions` vector ($\mathbf{F}$). This ensures that the current iterative order consumes no more than its allocated fraction of the total remaining margin.
-
-    \[
-    CL = \min \left( \mathbf{F} \odot \left( \mathbf{L} \oslash \mathbf{W} \right) \right)
-    \]
-
-\end{enumerate}
-
-\subsubsection{VIL Code}
 
 \noindent Compute:
 \[
@@ -630,22 +685,6 @@ and then:
         STR         _MarketAssetNames
 \end{verbatim}
 
-\subsection{Step 4: Final Quantity Execution and Asset Calculation}
-
-The executed Index Quantity ($Q_{\text{final}}$) is capped by the maximum allowed by pricing ($Q_{\text{max, pricing}}$) and the Margin Capacity ($CL$).
-
-\[
-Q_{\text{final}} = \min(Q_{\text{max, pricing}}, CL)
-\]
-
-The resulting executed asset quantities ($\mathbf{A}$) are calculated by distributing $Q_{\text{final}}$ according to the Index Weights ($\mathbf{W}$).
-
-\[
-\mathbf{A} = Q_{\text{final}} \odot \mathbf{W}
-\]
-
-\subsubsection{VIL Code}
-
 \noindent Cap Index Quantity with Capacity:
 \[
     Q_{\text{final}} = \min(Q_{\text{max, pricing}}, CL)
@@ -671,32 +710,6 @@ The resulting executed asset quantities ($\mathbf{A}$) are calculated by distrib
         STR         _AssetQuantities
         POPN        1
 \end{verbatim}
-
-\subsection{Step 5: Market Demand Rebalancing}
-
-This is next step, where the 50-component $\mathbf{A}$ vector updates the 150-component market demand vectors ($\mathbf{D}_S, \mathbf{D}_L$).
-
-\begin{enumerate}
-    \item \textbf{New Short Demand ($\mathbf{D}_{S, new}$):} The executed assets reduce the standing short demand, saturating at zero.
-
-    \[
-    \mathbf{D}_{S, new} = \mathbf{D}_S \ominus \mathbf{A}
-    \]
-
-    \item \textbf{Residual Quantities ($\mathbf{R}_{\text{A}}$):} Any asset quantities that could not be matched by existing short demand become residual.
-
-    \[
-    \mathbf{R}_{\text{A}} = \mathbf{A} \ominus \mathbf{D}_S
-    \]
-
-    \item \textbf{New Long Demand ($\mathbf{D}_{L, new}$):} The residual quantities are added to the long demand.
-
-    \[
-    \mathbf{D}_{L, new} = \mathbf{D}_L \oplus \mathbf{R}_{\text{A}}
-    \]
-\end{enumerate}
-
-\subsubsection{VIL Code}
 
 \noindent Load asset names \textsl{(for Index order and for market)}:
 
@@ -742,28 +755,6 @@ This is next step, where the 50-component $\mathbf{A}$ vector updates the 150-co
         STR         _DemandLong
         STR         _DemandShort
 \end{verbatim}
-
-\subsection{Step 6: Delta Update and Financial Commit}
-
-The final net exposures ($\Delta_L, \Delta_S$) are updated based on the new demand/supply state ($\mathbf{D}_S$, $\mathbf{D}_L$, $\mathbf{S}_L$, $\mathbf{S}_S$).
-
-\[
-\mathbf{T}_L = \mathbf{S}_L \oplus \mathbf{D}_{S, new} \quad ; \quad \mathbf{T}_S = \mathbf{S}_S \oplus \mathbf{D}_{L, new}
-\]
-
-\[
-\Delta_{L, new} = \mathbf{T}_L \ominus \mathbf{T}_S \quad ; \quad \Delta_{S, new} = \mathbf{T}_S \ominus \mathbf{T}_L
-\]
-
-\noindent The order's spent collateral is calculated: 
-
-\[
-    C_{\text{spent}} = Q_{\text{final}} \cdot (S \cdot Q_{\text{final}} + P)
-\]
-
-\noindent All market and order state vectors are then committed.
-
-\subsubsection{VIL Code}
 
 \noindent Compute:
 \[
@@ -855,6 +846,7 @@ The final net exposures ($\Delta_L, \Delta_S$) are updated based on the new dema
         STV         executed_index_quantities_id
 \end{verbatim}
 
+
 \pagebreak
 \section{Performance Analysis and Efficiency}
 
@@ -923,6 +915,27 @@ The analysis proved that deterministic, predictable performance is non-negotiabl
 \end{enumerate}
 
 The implementation of the VIL's core instructions with the \textbf{Hybrid Solution (d)} appeared most optimal, enabling the complex, 6-step Index Buy Execution algorithm to maintain an extremely low, predictable overall transaction cost of $\approx \mathbf{\$1.25}$. This choice fundamentally guarantees that vector alignment overhead will not compromise the system's economic viability.
+
+\subsection*{Rust implementation of adaptive Join-Filter operation}
+
+Here we want to demonstrate our adaptive $Join-Filter$ algorithm using snippet from our Rust codebase:
+
+\begin{verbatim}
+    let mut result = Vec::with_capacity(labels_b.data.len());
+    let mut i = 0;
+    for j in 0..labels_b.data.len() {
+        if i < labels_a.data.len() {
+            if labels_a.data[i] != labels_b.data[j] {
+                i += labels_a.data[i..]
+                    .binary_search(&labels_b.data[j])
+                    .map_err(|_| ErrorCode::MathUnderflow)?;
+            }
+            result.push(v1.data[i]);
+            i += 1;
+        }
+    }
+    v1.data = result;
+\end{verbatim}
 
 \pagebreak
 \section{Conclusion}
