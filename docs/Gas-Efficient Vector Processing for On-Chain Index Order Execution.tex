@@ -98,6 +98,75 @@ C = \min_{i} \left( \frac{\mathbf{L}_i}{\mathbf{W}_i} \right)
 \]
 where $\mathbf{L}_i$ is the market liquidity of asset $i$. The VIL efficiently computes this using $\text{DIV}$ (component-wise) and $\text{VMIN}$ (vector-wide minimum).
 
+\pagebreak
+\subsection{VIL Code}
+
+\noindent Load asset weights, names, and makret asset names:        
+
+\begin{verbatim}
+        LDV         weights_id
+        STR         _AssetWeights
+        LDL         index_asset_names_id
+        LDL         market_asset_names_id
+
+\end{verbatim}
+
+\noindent Compute:
+\[
+    P = \sum_{i} \mathbf{W}_i \cdot \mathbf{P}_i
+\]
+
+\begin{verbatim}
+        LDV         asset_prices_id
+        JFLT        1   2
+        LDR         _AssetWeights
+        SWAP        1
+        MUL         1
+        VSUM
+        STR         _Price
+\end{verbatim}
+        
+\noindent Compute:
+\[
+    S = \sum_{i} \mathbf{S}_i \cdot \mathbf{W}_i^2
+\]
+
+\begin{verbatim}
+        MUL         0
+        LDV         asset_slopes_id
+        JFLT        2   3
+        MUL         1
+        VSUM
+        STR         _Slope
+        POPN        1
+\end{verbatim}
+
+\noindent Compute:
+\[
+    C = \min_{i} \left( \frac{\mathbf{L}_i}{\mathbf{W}_i} \right)
+\]
+
+\begin{verbatim}
+        LDR         _AssetWeights
+        LDV         asset_liquidity_id
+        JFLT        2   3
+        DIV         1
+        VMIN
+        STR         _Capacity
+        POPN        3
+\end{verbatim}
+
+\noindent Store results $P$, $S$, and $C$:
+
+\begin{verbatim}
+        LDM         _Capacity
+        LDM         _Price
+        LDM         _Slope
+        PKV         3
+        STV         quote_id
+    
+\end{verbatim}
+
 \section{The Vendor's Role and Market State Update}
 \label{sec:vendor_role}
 
@@ -153,6 +222,104 @@ The final net exposure vectors are derived by:
 
 The $\text{SSB}$ operation is critical here, as it ensures that for any asset $i$, if $T_{L, i} > T_{S, i}$, then $\Delta_{S, i} = 0$, and vice versa, maintaining the integrity of the margin system.
 
+\pagebreak
+\subsection{VIL Code}
+
+\noindent Load asset names:
+
+\begin{verbatim}
+        LDL         asset_names_id
+        LDL         market_asset_names_id
+\end{verbatim}
+
+\noindent Compute:
+\[
+    \mathbf{S}_{S, new} = \mathbf{S}_S \text{ join\_update } \mathbf{A}_{S}
+\]
+
+\begin{verbatim}
+        LDV         asset_quantities_short_id
+        LDV         supply_short_id
+        JUPD        1   2   3
+        STR         _SupplyShort
+        POPN        1
+\end{verbatim}
+
+\noindent Compute:
+\[
+    \mathbf{S}_{L, new} = \mathbf{S}_L \text{ join\_update } \mathbf{A}_{L}
+\]
+
+\begin{verbatim}
+        LDV         asset_quantities_long_id
+        LDV         supply_long_id
+        JUPD        1   2   3
+        STR         _SupplyLong
+        POPN        1
+\end{verbatim}
+
+\noindent Compute:
+\[
+    \mathbf{T}_L = \mathbf{S}_{L, new} \oplus \mathbf{D}_S
+\]
+
+\begin{verbatim}
+        LDR         _SupplyLong
+        LDV         demand_short_id
+        ADD         1
+        SWAP        1
+        POPN        1
+\end{verbatim}
+
+\noindent Compute:
+\[
+    \mathbf{T}_S = \mathbf{S}_{S, new} \oplus \mathbf{D}_L
+\]
+
+\begin{verbatim}
+        LDR         _SupplyShort
+        LDV         demand_long_id
+        ADD         1
+        SWAP        1
+        POPN        1
+\end{verbatim}
+
+\noindent Compute:
+\[
+    \Delta_{S, new} = \mathbf{T}_S \ominus \mathbf{T}_L
+\]
+\[
+    \Delta_{L, new} = \mathbf{T}_L \ominus \mathbf{T}_S
+\]
+
+\begin{verbatim}
+        LDD         0
+        SSB         2
+        STR         _DeltaShort
+        SWAP        1
+        SSB         1
+        STR         _DeltaLong
+        POPN        3
+\end{verbatim}
+
+\noindent Store $S_S, S_L$
+
+\begin{verbatim}
+        LDM         _SupplyLong
+        LDM         _SupplyShort
+        STV         supply_short_id
+        STV         supply_long_id
+\end{verbatim}
+
+\noindent Store $\Delta_S, \Delta_L$:
+
+\begin{verbatim}
+        LDM         _DeltaLong
+        LDM         _DeltaShort
+        STV         delta_short_id
+        STV         delta_long_id
+\end{verbatim}
+
 \section{Market Data Integrity and Maintenance Routines}\label{sec:maintenance_routines}
 
 For the system to maintain a continuous, accurate, and solvent state, several maintenance routines must be executed periodically. These operations are also implemented as specialized VIL routines to ensure vector integrity and computational efficiency. They primarily rely on the VIL's `JUPD` (Join-Update) instruction to merge new data vectors with existing market vectors ($\mathbf{V}_{\text{old}}$) based on the asset label space, which is critical for the $N_M=150$ assets.
@@ -206,6 +373,67 @@ The maximum allowed net exposure vector ($\mathbf{M}$), which defines the system
 
 One of the most powerful VIL operations is the atomic expansion of the Market Asset Names ($N_M$) list. The \texttt{update\_assets} routine handles the addition of new tokens to the market's domain (e.g., increasing $N_M$ from 150 to 155). This is achieved by extending the master list of asset names and subsequently extending all associated vectors ($\mathbf{P}, \mathbf{S}, \mathbf{L}, \mathbf{S}_L, \mathbf{S}_S, \mathbf{D}_L, \mathbf{D}_S, \Delta_L, \Delta_S, \mathbf{M}$) to the new dimension. For any newly added asset, its corresponding vector components are initialized to zero using a $\text{ZEROS}$ vector and the $\text{JUPD}$ instruction, thus maintaining a safe initial state with no exposure, liquidity, or demand.
 
+\pagebreak
+\subsection{VIL Code}
+
+\noindent Update Prices, Slopes, and Liquidity:
+
+\begin{verbatim}
+        LDL         asset_names_id
+        LDL         market_asset_names_id
+\end{verbatim}
+
+\noindent Compute:
+\[
+    \mathbf{P}_{\text{new}} = \mathbf{P}_{\text{old}} \text{ join\_update } \mathbf{P}_{\text{input}}
+\]
+
+\begin{verbatim}
+        LDV         asset_prices_id
+        LDV         market_asset_prices_id
+        JUPD        1   2   3
+        STR         _Prices
+        POPN        1
+\end{verbatim}
+        
+\noindent Compute:
+\[
+    \mathbf{S}_{\text{new}} = \mathbf{S}_{\text{old}} \text{ join\_update } \mathbf{S}_{\text{input}}
+\]
+
+\begin{verbatim}
+        LDV         asset_slopes_id
+        LDV         market_asset_slopes_id
+        JUPD        1   2   3
+        STR         _Slopes
+        POPN        1
+\end{verbatim}
+        
+\noindent Compute:
+\[
+    \mathbf{L}_{\text{new}} = \mathbf{L}_{\text{old}} \text{ join\_update } \mathbf{L}_{\text{input}}
+\]
+
+\begin{verbatim}
+        LDV         asset_liquidity_id
+        LDV         market_asset_liquidity_id
+        JUPD        1   2   3
+        STR         _Liquidity
+        POPN        1
+\end{verbatim}
+
+\noindent Store asset Prices, Slopes, and Liquidity:
+
+\begin{verbatim}
+        LDM         _Prices
+        LDM         _Slopes
+        LDM         _Liquidity
+        STV         market_asset_liquidity_id
+        STV         market_asset_slopes_id
+        STV         market_asset_prices_id
+\end{verbatim}
+
+
 \section{Mathematical Framework for Index Acquisition}
 
 The execution algorithm is an atomic, six-step process. Variables denoted in bold ($\mathbf{V}$) are vectors, while italic variables ($s$) are scalars. Operations $\oplus, \ominus, \odot, \oslash$ represent vector addition, saturating subtraction, component-wise multiplication, and component-wise division, respectively. $\min(\mathbf{V})$ denotes the minimum value across all vector components. \textbf{Note: When a scalar ($s$) is used in a vector operation (e.g., $\min(\mathbf{V}, s)$ or $s \odot \mathbf{W}$), it implies a component-wise operation where the scalar is broadcast to a vector of matching dimension.}
@@ -230,6 +458,49 @@ C_{\text{eff}} = \min(\text{MaxOrderSize}, C_{\text{new}})
 
 The market provides the scalar Index Price Slope ($S$) and Price ($P$), which define the marginal cost function for the total index quantity $Q$. These are the values computed in Section \ref{sec:quote_determination}.
 
+\subsubsection{VIL Code}
+
+\noindent Load asset weights:
+
+\begin{verbatim}
+        LDV         asset_weights_id
+        STR         _Weights
+\end{verbatim}
+
+\noindent Load Index order:
+
+\begin{verbatim}
+        LDV         order_id
+        UNPK
+        STR         _Minted
+        STR         _Spent
+\end{verbatim}
+
+\noindent Compute:
+\[
+    C_{\text{new}} = (C_{\text{old}} + C_{add}) - C_{rem}
+\]
+
+\begin{verbatim}
+        IMMS        collateral_added
+        ADD         1
+        IMMS        collateral_removed
+        SWAP        1
+        SUB         1
+        STR         _Collateral
+        POPN        2
+\end{verbatim}
+
+\noindent Store updated order:
+
+\begin{verbatim}
+        LDR         _Collateral
+        LDR         _Spent
+        LDR         _Minted
+        PKV         3
+        STV         order_id
+\end{verbatim}
+
 \subsection{Step 2: Maximum Quantity Determination via Quadratic Solver}
 
 The maximum possible Index Quantity based on collateral ($Q_{\text{max, pricing}}$) is determined by solving the Index Price Function, which links the effective cost ($C_{\text{eff}}$) to the quantity ($Q$): $C_{\text{eff}} = P \cdot Q + S \cdot Q^2$.
@@ -245,6 +516,39 @@ The maximum quantity is found by taking the positive root of the solution:
 \[
 Q_{\text{max, pricing}} = \frac{\sqrt{P^2 + 4 \cdot S \cdot C_{\text{eff}}} - P}{2 \cdot S}
 \]
+
+\subsubsection{VIL Code}
+
+\noindent Load Index quote:
+
+\begin{verbatim}
+        LDV         index_quote_id
+        UNPK
+        SWAP        2
+        STR         _Capacity
+        STR         _Price
+        STR         _Slope
+\end{verbatim}
+        
+\noindent Cap $MaxOrderSize$:
+\[
+    C_{\text{eff}} = \min(\text{MaxOrderSize}, C_{\text{new}})
+\]
+
+\noindent and Solve Quadratic:
+\[
+    S \cdot Q^2 + P \cdot Q - C_{\text{eff}} = 0
+\]
+\begin{verbatim}
+        IMMS        max_order_size
+        LDR         _Slope
+        LDR         _Price
+        LDR         _Collateral
+        MIN         3
+        B           solve_quadratic_id  3  1  4
+        STR         _IndexQuantity
+        POPN        1
+\end{verbatim}
 
 \subsection{Step 3: Margin-Based Capacity Limit (\textsl{CL}) with Progressive Constraint}
 \label{sec:margin_capacity_limit}
@@ -283,6 +587,44 @@ CL = \min \left( \mathbf{F} \odot \frac{\mathbf{L}}{\mathbf{W}} \right)
 
 \end{enumerate}
 
+\subsubsection{VIL Code}
+
+\noindent Compute:
+\[
+    \mathbf{L} = \Delta_L \oplus \min(\mathbf{M} \ominus \Delta_S, C \odot \mathbf{W})
+\]
+and then:
+\[
+    CL = \min \left( \mathbf{F} \odot \frac{\mathbf{L}}{\mathbf{W}} \right)
+\]
+
+\begin{verbatim}
+        LDL         asset_names_id
+        LDL         market_asset_names_id
+        LDV         asset_contribution_fractions_id
+        LDV         margin_id
+        LDV         delta_long_id
+        JFLT        3   4
+        LDV         delta_short_id
+        SWAP        2
+        SSB         2
+        JFLT        4   5
+        LDR         _Weights
+        LDM         _Capacity
+        LDD         1
+        MUL         1
+        MIN         3
+        ADD         4
+        DIV         2
+        MUL         6
+        VMIN
+        SWAP        6
+        POPN        6
+        SWAP        2
+        STR         _AssetNames
+        STR         _MarketAssetNames
+\end{verbatim}
+
 \subsection{Step 4: Final Quantity Execution and Asset Calculation}
 
 The executed Index Quantity ($Q_{\text{final}}$) is capped by the maximum allowed by pricing ($Q_{\text{max, pricing}}$) and the Margin Capacity ($CL$).
@@ -296,6 +638,34 @@ The resulting executed asset quantities ($\mathbf{A}$) are calculated by distrib
 \[
 \mathbf{A} = Q_{\text{final}} \odot \mathbf{W}
 \]
+
+\subsubsection{VIL Code}
+
+\noindent Cap Index Quantity with Capacity:
+\[
+    Q_{\text{final}} = \min(Q_{\text{max, pricing}}, CL)
+\]
+
+\begin{verbatim}
+        LDR         _IndexQuantity
+        MIN         1
+        STR         _CappedIndexQuantity
+        POPN        1
+\end{verbatim}
+
+\noindent Generate individual Asset Orders (compute asset quantities):
+\[
+    \mathbf{A} = Q_{\text{final}} \odot \mathbf{W}
+\]
+
+\begin{verbatim}
+        LDR         _CappedIndexQuantity
+        LDM         _Weights
+        MUL         1
+        
+        STR         _AssetQuantities
+        POPN        1
+\end{verbatim}
 
 \subsection{Step 5: Market Demand Rebalancing}
 
@@ -321,6 +691,53 @@ This is next step, where the 50-component $\mathbf{A}$ vector updates the 150-co
     \]
 \end{enumerate}
 
+\subsubsection{VIL Code}
+
+\noindent Load asset names \textsl{(for Index order and for market)}:
+
+\begin{verbatim}
+        LDM         _AssetNames
+        LDM         _MarketAssetNames
+\end{verbatim}
+        
+\noindent Compute:
+\[
+    \mathbf{D}_{S, new} = \mathbf{D}_S \ominus \mathbf{A}
+\]
+\noindent and then:
+\[
+    \mathbf{R}_{\text{A}} = \mathbf{A} \ominus \mathbf{D}_S
+\]
+
+\begin{verbatim}
+        LDV         demand_short_id
+        LDR         _AssetQuantities
+        LDD         1
+        JFLT        3   4
+        LDD         0
+        SSB         2
+        SWAP        3
+        JUPD        3   4   5
+        SWAP        3
+        POPN        1
+\end{verbatim}
+
+\noindent Compute:
+\[
+    \mathbf{D}_{L, new} = \mathbf{D}_L \oplus \mathbf{R}_{\text{A}}
+\]
+
+\begin{verbatim}
+        SWAP        1
+        SSB         1
+        LDV         demand_long_id
+        JADD        1   4   5
+        SWAP        2
+        POPN        2
+        STR         _DemandLong
+        STR         _DemandShort
+\end{verbatim}
+
 \subsection{Step 6: Delta Update and Financial Commit}
 
 The final net exposures ($\Delta_L, \Delta_S$) are updated based on the new demand/supply state ($\mathbf{D}_S$, $\mathbf{D}_L$, $\mathbf{S}_L$, $\mathbf{S}_S$).
@@ -333,7 +750,105 @@ The final net exposures ($\Delta_L, \Delta_S$) are updated based on the new dema
 \Delta_{L, new} = \mathbf{T}_L \ominus \mathbf{T}_S \quad ; \quad \Delta_{S, new} = \mathbf{T}_S \ominus \mathbf{T}_L
 \]
 
-The order's spent collateral is calculated: $C_{\text{spent}} = Q_{\text{final}} \cdot (S \cdot Q_{\text{final}} + P)$. All market and order state vectors are then committed.
+\noindent The order's spent collateral is calculated: 
+
+\[
+    C_{\text{spent}} = Q_{\text{final}} \cdot (S \cdot Q_{\text{final}} + P)
+\]
+
+\noindent All market and order state vectors are then committed.
+
+\subsubsection{VIL Code}
+
+\noindent Compute:
+\[
+    \mathbf{T}_L = \mathbf{S}_L \oplus \mathbf{D}_{S, new} \quad ; \quad \mathbf{T}_S = \mathbf{S}_S \oplus \mathbf{D}_{L, new}
+\]
+
+\begin{verbatim}
+        LDV         supply_long_id
+        LDR         _DemandShort
+        ADD         1
+        SWAP        1
+        POPN        1
+        LDV         supply_short_id
+        LDR         _DemandLong
+        ADD         1
+        SWAP        1
+        POPN        1
+\end{verbatim}
+
+\noindent Compute:
+\[
+    \Delta_{L, new} = \mathbf{T}_L \ominus \mathbf{T}_S \quad ; \quad \Delta_{S, new} = \mathbf{T}_S \ominus \mathbf{T}_L
+\]
+\begin{verbatim}
+        LDD         0
+        SSB         2
+        STR         _DeltaShort
+        SWAP        1
+        SSB         1
+        STR         _DeltaLong
+        POPN        3
+\end{verbatim}
+
+\noindent Compute:
+\[
+    C_{\text{spent}} = Q_{\text{final}} \cdot (S \cdot Q_{\text{final}} + P)
+\]
+
+\begin{verbatim}
+        LDR         _CappedIndexQuantity
+        LDM         _Slope
+        MUL         1
+        LDM         _Price
+        ADD         1
+        SWAP        1
+        POPN        1
+        MUL         1
+\end{verbatim}
+        
+\noindent Compute Index Order total remaining Collateral:
+\[
+    C_{\text{remain}} = C_{\text{new}} - C_{\text{spent}}
+\]
+
+\begin{verbatim}
+        LDM         _Collateral
+        SSB         1
+        SWAP        1
+\end{verbatim}
+
+\noindent Compute Index order total spent Collateral: 
+\[
+    C_{\text{total\_new}} = C_{\text{total\_old}} + C_{\text{spent}}
+\]
+
+\begin{verbatim}
+        LDM         _Spent
+        ADD         1
+        SWAP        1
+        POPN        1
+        SWAP        1
+        SWAP        2
+\end{verbatim}
+
+\noindent Store updated Index order:
+
+\begin{verbatim}
+        PKV         3
+        STV         order_id 
+\end{verbatim}
+
+\noindent Store executed Index quantity and remaining quantity:
+
+\begin{verbatim}
+        LDM         _CappedIndexQuantity
+        LDM         _IndexQuantity
+        SUB         1
+        PKV         2
+        STV         executed_index_quantities_id
+\end{verbatim}
 
 \section{Performance Analysis and Efficiency}
 
