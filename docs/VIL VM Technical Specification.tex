@@ -35,9 +35,15 @@
 \pagebreak
 \section{Introduction: The VM$^2$ Architecture}
 
-The Vector ---  Language (VIL) Virtual Machine represents a modern approach to deploying complex mathematical and financial logic onto the Arbitrum ecosystem using Rust / Stylus.
+The Vector Intermediate Language (VIL) Virtual Machine (VM) represents a modern approach to deploying complex mathematical and financial logic onto the Arbitrum ecosystem using Rust / Stylus.
 
-This architecture is a \emph{VM$^2$}---a Virtual Machine (VIL) running as a smart contract within Virtual Machine (WASM, hosted by Arbitrum node).
+\begin{center}
+This is \emph{VM$^2$} architecture --- Virtual Machine (VIL) running as a smart contract \\
+within Virtual Machine (WASM, hosted by Arbitrum node).
+\end{center}
+
+\subsection{Project Location}
+The complete project can be found at: \href{https://github.com/IndexMaker/deindex/tree/main}{\texttt{github.com/IndexMaker/deindex}}
 
 \subsection{Motivation: Gas Efficiency through On-Chain Vector Operations}
 
@@ -59,6 +65,30 @@ In traditional EVM smart contract systems, performing vector operations often re
     \item \textbf{Optimal Data Flow:} Data is loaded \textbf{once} from a single storage slot (\texttt{SLOAD}), processed entirely, and stored back once (\texttt{SSTORE}), maximizing efficiency within the WASM environment.
     \item \textbf{WASM Optimization:} By executing the core logic via a simple, specialized instruction set (VIL), the underlying WASM runtime can execute vector mathematics far more efficiently than general-purpose EVM bytecode.
 \end{itemize}
+
+\pagebreak
+\subsection{Design Philosophy: The Mathematical Co-processor Model}
+
+The architecture of the VIL VM is designed under the principle of hardware specialization:
+
+\begin{center}
+    \textsl{\quotedblbase \textsl{The VIL VM is to the Stylus/WASM smart contract what the x87 FPU co-processor \\ was to the x86 CPU.}\quotedblbase}
+\end{center}
+
+The VIL's stack-based architecture is prioritizing computational efficiency over general-purpose flexibility. This approach is rooted in the history of specialized math processing and draws explicit architectural inspiration from two sources:
+
+\begin{enumerate}
+    \item The \textsl{Intel x87 Floating Point Unit (FPU) co-processor}, which accelerated complex arithmetic using a dedicated register stack to minimize reliance on general-purpose memory access.
+    \item The stack-based data flow popularized by \textsl{Hewlett-Packard (HP) calculators} utilizing \textsl{Reverse Polish Notation (RPN)}, which demonstrated the extreme efficiency of a stack-centric model for complex, multi-step calculation.
+\end{enumerate}
+
+The VIL VM is architected to function as a specialized \textsl{mathematical co-processor} within the Stylus/WASM environment. This design leverages a highly optimized internal stack for vector, scalar, and label manipulation, enabling gas-efficient execution of complex vector algebra (e.g., \texttt{ADD}, \texttt{MUL} and \texttt{JADD}) without incurring the memory and gas overhead associated with deep memory reads/writes inherent in EVM and general WASM array processing.
+
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=1.0\textwidth]{VIL_Stack.jpg}\label{fig:stack_arch}
+    \caption{Conceptual VIL VM Stack and Data Flow.}
+\end{figure}
 
 \pagebreak
 \section{Development Workflow with the \texttt{devil!()} Proc Macro}
@@ -102,14 +132,23 @@ pub fn execute_buy_order(...) -> Vec<u8> {
 \pagebreak
 \section{VIL Instruction Set Reference}
 
-The VIL instruction set is designed around the concept of a stack machine operating on two primary data types: \textbf{Scalar} (\texttt{Amount}) and \textbf{Vector} (\texttt{Vec<Amount>}), and additionally \textbf{Labels} (\texttt{Vec<u128>}), which enable \textsl{Join} operations (e.g. \texttt{JADD}, \texttt{JUPD}, \texttt{JFLT}). The instructions manipulate the stack and the internal registry (\texttt{R0}...\texttt{Rn}).
+The VIL instruction set is designed around the concept of a stack machine operating on two primary data types: $Scalar$ (\texttt{Amount}) and $Vector$ (\texttt{Vec<Amount>}), and additionally $Labels$ (\texttt{Vec<u128>}), which enable $Join$ operations (e.g. \texttt{JADD}, \texttt{JUPD}, \texttt{JFLT}). The instructions manipulate the stack and the internal registry (\texttt{R0}...\texttt{Rn}).
 
-\begin{figure}[h]
-    \centering
-    \includegraphics[width=1.0\textwidth]{VIL_Stack.jpg}\label{fig:stack_arch}
-    \caption{Conceptual VIL VM Stack and Data Flow.}
-\end{figure}
+\subsection*{Instruction Set Conventions and Notation}
 
+The following conventions are used throughout the instruction set documentation to provide a clear, standardized representation of VIL stack operations, register access, and state assignments, reflecting the architecture's stack-based design inspired by the x87 FPU.
+
+\begin{itemize}
+    \item[\texttt{[TOS]}] Denotes the operand currently residing on the \textbf{Top of the Stack}.
+    \item[\texttt{[TOS - N]}] Denotes the operand located $N$ positions below the top of the stack. \\
+                              For instance, \texttt{[TOS - 1]} refers to the operand immediately below the top element.
+    \item[\texttt{\_Name}] In usage examples, names beginning with an underscore (e.g., \texttt{\_AssetWeights}) refer to dedicated VIL registers. These names are automatically associated with register indices by the \texttt{devil!()} procedural macro.
+    \item[$A \leftarrow B$] A left arrow in mathematical notation indicates an assignment operation. \\
+    The value or result on the right-hand side is assigned to the destination on the left-hand side.
+    For example, $[TOS] \leftarrow [TOS] + [TOS - 1]$ means the sum of the top two stack operands is stored back onto the top of the stack.
+\end{itemize}
+
+\pagebreak
 \subsection*{Instruction Set Quick Reference}
 \addcontentsline{toc}{subsection}{---  Set Quick Reference}
 Quick listing of instructions.
@@ -131,48 +170,46 @@ Quick listing of instructions.
 \endfoot
 \bottomrule
 \endlastfoot
-\hyperlink{inst:ldl}{\texttt{LDL}} & Load Labels object from VIO by ID. Pushes on TOS.. \\
-\hyperlink{inst:ldv}{\texttt{LDV}} & Load Vector object from VIO by ID. Pushes on TOS.. \\
-\hyperlink{inst:ldd}{\texttt{LDD}} & Load Duplicate (copy) of stack operand at $[T-pos]$. Pushes on TOS.. \\
-\hyperlink{inst:ldr}{\texttt{LDR}} & Load value from Registry (R0-Rn). Pushes on TOS.. \\
-\hyperlink{inst:ldm}{\texttt{LDM}} & Load value moving it out of Registry (R0-Rn). Value is removed from registry. Pushes on TOS.. \\
-\hyperlink{inst:stl}{\texttt{STL}} & Store Labels object into VIO. Consumes TOS.. \\
-\hyperlink{inst:stv}{\texttt{STV}} & Store Vector object into VIO. Consumes TOS.. \\
-\hyperlink{inst:str}{\texttt{STR}} & Store into Registry (R0-Rn). Consumes TOS.. \\
-\hyperlink{inst:pkv}{\texttt{PKV}} & Pack `count` values from stack into a new Vector. Consumes `count` operands from TOS, and replaces them with Vector.. \\
-\hyperlink{inst:pkl}{\texttt{PKL}} & Pack `count` values from stack into a new Labels object. Consumes `count` operands from TOS, and replaces them with Labels.. \\
-\hyperlink{inst:unpk}{\texttt{UNPK}} & Unpack a Vector/Labels object onto the stack. Consumes TOS, and replaces with its components.. \\
-\hyperlink{inst:vpush}{\texttt{VPUSH}} & Push a scalar onto the Vector (TOS). In-place updates Vector on TOS, appending new component at the end.. \\
-\hyperlink{inst:vpop}{\texttt{VPOP}} & Pop a scalar from the Vector (TOS). In-place updates Vector on TOS, removing last component.. \\
-\hyperlink{inst:t}{\texttt{T}} & Transpose `count` vectors on stack $[V1, V2]$ -> $[T1, T2]$. In-place updates `count` operands from TOS by performing transform.. \\
-\hyperlink{inst:lunion}{\texttt{LUNION}} & Union of two Labels operands (TOS and T-pos). Pushes on TOS.. \\
-\hyperlink{inst:lpush}{\texttt{LPUSH}} & Push a label value onto the Labels object (TOS). In-place updates Labels on TOS, appending new component at the end.. \\
-\hyperlink{inst:lpop}{\texttt{LPOP}} & Pop a label value from the Labels object (TOS). In-place updates Labels on TOS, removing last component.. \\
-\hyperlink{inst:jupd}{\texttt{JUPD}} & Update using Labels. Expands vector at $[TOS - pos\_B]$ using labels at $[TOS - lab\_B]$ to match labels of TOS at $[TOS - lab\_A]$. In-place updates TOS. Consumes TOS.. \\
-\hyperlink{inst:jadd}{\texttt{JADD}} & Add using Labels. Expands vector at $[TOS - pos\_B]$ using labels at $[TOS - lab\_B]$ to match labels of TOS at $[TOS - lab\_A]$. In-place updates TOS. Consumes TOS.. \\
-\hyperlink{inst:jflt}{\texttt{JFLT}} & Filter using Labels. Expands vector at $[TOS-1]$ using labels at $[T-lab\_B]$ to match labels of TOS at $[T-lab\_A]$. In-place updates TOS. Does not consume other operands.. \\
-\hyperlink{inst:add}{\texttt{ADD}} & Add TOS by operand at $[T-pos]$. Works with vectors and scalars. In-place updates operand on TOS. Does not consume the other operand.. \\
-\hyperlink{inst:sub}{\texttt{SUB}} & Subtract TOS by operand at $[T-pos]$. Works with vectors and scalars. In-place updates operand on TOS. Does not consume the other operand.. \\
-\hyperlink{inst:ssb}{\texttt{SSB}} & Saturating subtract TOS by operand at $[T-pos]$. Works with vectors and scalars. In-place updates operand on TOS. Does not consume the other operand.. \\
-\hyperlink{inst:mul}{\texttt{MUL}} & Multiply TOS by operand at $[T-pos]$. Works with vectors and scalars. In-place updates operand on TOS. Does not consume the other operand.. \\
-\hyperlink{inst:div}{\texttt{DIV}} & Divide TOS by operand at $[T-pos]$. Works with vectors and scalars. In-place updates operand on TOS. Does not consume the other operand.. \\
-\hyperlink{inst:sqrt}{\texttt{SQRT}} & Square root of TOS (scalar or component-wise vector). Works with vectors and scalars. In-place updates operand on TOS.. \\
-\hyperlink{inst:min}{\texttt{MIN}} & Min between TOS and operand at $[T-pos]$. Works with vectors and scalars. In-place updates operand on TOS. Does not consume the other operand.. \\
-\hyperlink{inst:max}{\texttt{MAX}} & Max between TOS and operand at $[T-pos]$. Works with vectors and scalars. In-place updates operand on TOS. Does not consume the other operand.. \\
-\hyperlink{inst:vsum}{\texttt{VSUM}} & Sum of all vector components. Pushes on TOS. Does not consume the operand.. \\
-\hyperlink{inst:vmin}{\texttt{VMIN}} & Minimum value found within vector components. Pushes on TOS. Does not consume the operand.. \\
-\hyperlink{inst:vmax}{\texttt{VMAX}} & Maximum value found within vector components. Pushes on TOS. Does not consume the operand.. \\
-\hyperlink{inst:imms}{\texttt{IMMS}} & Push immediate Scalar value on stack. \\
-\hyperlink{inst:imml}{\texttt{IMML}} & Push immediate Label value on stack. \\
-\hyperlink{inst:zeros}{\texttt{ZEROS}} & Create Vector of zeros matching length of Labels at $[T-pos]$. Pushes on TOS. Does not consume the operand.. \\
-\hyperlink{inst:ones}{\texttt{ONES}} & Create Vector of ones matching length of Labels at $[T-pos]$. Pushes on TOS. Does not consume the operand.. \\
-\hyperlink{inst:popn}{\texttt{POPN}} & Pop 'n' values from the stack. \\
-\hyperlink{inst:swap}{\texttt{SWAP}} & Swap TOS with operand at $[T-n]$. \\
-\hyperlink{inst:b}{\texttt{B}} & Call sub-routine stored as Labels at `prg\_id`, supplying `N` inputs and taking `M` outputs from stack. `N` inputs are consumed from stack. `M` outputs are moved from sub-routine's TOS to caller's TOS.. \\
-\hyperlink{inst:fold}{\texttt{FOLD}} & Fold (iterate) over vector/label operands. Same as `B` except sub-routine is called repeatedly over components of Vector at TOS.. \\
+\hyperref[inst:ldl]{\texttt{LDL}} & Load Labels from Storage \\
+\hyperref[inst:ldv]{\texttt{LDV}} & Load Vector from Storage \\
+\hyperref[inst:ldd]{\texttt{LDD}} & Load Duplicate from Stack \\
+\hyperref[inst:ldr]{\texttt{LDR}} & Load Duplicate from Registry \\
+\hyperref[inst:ldm]{\texttt{LDM}} & Load Moving from Register \\
+\hyperref[inst:stl]{\texttt{STL}} & Store Labels into Storage \\
+\hyperref[inst:stv]{\texttt{STV}} & Store Vector into Storage \\
+\hyperref[inst:str]{\texttt{STR}} & Store Moving into Registry \\
+\hyperref[inst:pkv]{\texttt{PKV}} & Pack Scalar values into Vector \\
+\hyperref[inst:pkl]{\texttt{PKL}} & Pack Label values into Labels object \\
+\hyperref[inst:unpk]{\texttt{UNPK}} & Unpack values from Vector / Labels \\
+\hyperref[inst:vpush]{\texttt{VPUSH}} & Push Scalar onto Vector \\
+\hyperref[inst:vpop]{\texttt{VPOP}} & Pop Scalar from Vector \\
+\hyperref[inst:t]{\texttt{T}} & Transpose Vectors on Stack \\
+\hyperref[inst:lunion]{\texttt{LUNION}} & Union of Lables \\
+\hyperref[inst:lpush]{\texttt{LPUSH}} & Push Label onto Labels \\
+\hyperref[inst:lpop]{\texttt{LPOP}} & Pop Label from Labels \\
+\hyperref[inst:jupd]{\texttt{JUPD}} & Update (Replace) by Joining on Labels \\
+\hyperref[inst:jadd]{\texttt{JADD}} & Add by Joining on Labels \\
+\hyperref[inst:jflt]{\texttt{JFLT}} & Filter by Joining on Labels \\
+\hyperref[inst:add]{\texttt{ADD}} & Addition \\
+\hyperref[inst:sub]{\texttt{SUB}} & Substraction \\
+\hyperref[inst:ssb]{\texttt{SSB}} & Saturating Subraction \\
+\hyperref[inst:mul]{\texttt{MUL}} & Multiplication \\
+\hyperref[inst:div]{\texttt{DIV}} & Division \\
+\hyperref[inst:sqrt]{\texttt{SQRT}} & Square Root \\
+\hyperref[inst:min]{\texttt{MIN}} & Minimum \\
+\hyperref[inst:max]{\texttt{MAX}} & Maximum \\
+\hyperref[inst:vsum]{\texttt{VSUM}} & Sum of Vector components \\
+\hyperref[inst:vmin]{\texttt{VMIN}} & Minimum component of a Vector \\
+\hyperref[inst:vmax]{\texttt{VMAX}} & Maximum component of a Vector \\
+\hyperref[inst:imms]{\texttt{IMMS}} & Push Scalar on Stack \\
+\hyperref[inst:imml]{\texttt{IMML}} & Push Label on Stack \\
+\hyperref[inst:zeros]{\texttt{ZEROS}} & Zero Vector \\
+\hyperref[inst:ones]{\texttt{ONES}} & Unit Vector \\
+\hyperref[inst:popn]{\texttt{POPN}} & Pop N levels from Stack \\
+\hyperref[inst:swap]{\texttt{SWAP}} & Swap levels on Stack \\
+\hyperref[inst:b]{\texttt{B}} & Branch into stored procedure \\
+\hyperref[inst:fold]{\texttt{FOLD}} & Apply stored procedure to all components \\
 \end{longtable}
-
-
 
 
 \vspace{0.5cm} % Add some space after the table
@@ -180,11 +217,11 @@ Quick listing of instructions.
 \pagebreak
 \subsection{Data Loading \& Stack Access (Opcode 10..15)}
 
-\subsubsection{\texttt{LDL} --- Load Labels from Storage\label{inst:ldl}}
+\subsubsection{\texttt{LDL} --- Load Labels from Storage\label{inst:ldl}} \hyperref[tab:vil_summary]{ $\Uparrow$ Back to top }
+
+\noindent \textbf{Description}
 
 Load (\texttt{Labels}) object by $ID$ from \textsl{Vector I/O (VIO)}.
-
-\noindent \textbf{Notice}
 
 This is relatively gas-expensive operation as it will load binary blob from \textsl{Blockchain} using underlying \texttt{(SLOAD)} operatation.
 
@@ -214,13 +251,12 @@ This is relatively gas-expensive operation as it will load binary blob from \tex
 
 Load $Labels$ with `asset\_names\_id' ID from vector storage.
 
-
 \pagebreak
-\subsubsection{\texttt{LDV} --- Load Vector from Storage\label{inst:ldv}}
+\subsubsection{\texttt{LDV} --- Load Vector from Storage\label{inst:ldv}} \hyperref[tab:vil_summary]{ $\Uparrow$ Back to top }
+
+\noindent \textbf{Description}
 
 Load (\texttt{Vector}) object by $ID$ from \textsl{Vector I/O (VIO)}.
-
-\noindent \textbf{Notice}
 
 This is relatively gas-expensive operation as it will load binary blob from \textsl{Blockchain} using underlying \texttt{(SLOAD)} operatation.
 
@@ -253,11 +289,11 @@ This is relatively gas-expensive operation as it will load binary blob from \tex
 Load $Vector$ with `asset\_weights\_id' ID from vector storage.
 
 \pagebreak
-\subsubsection{\texttt{LDD} --- Load Duplicate from Stack\label{inst:ldd}}
+\subsubsection{\texttt{LDD} --- Load Duplicate from Stack\label{inst:ldd}} \hyperref[tab:vil_summary]{ $\Uparrow$ Back to top }
+
+\noindent \textbf{Description}
 
 Load duplicate (copy) of stack operand at \texttt{T - pos}.
-
-\noindent \textbf{Notice}
 
 This is mildly gas-expensive operation, much less gas-expensive than load from
 vector storage, but still it requires cloning of a vector.
@@ -291,11 +327,11 @@ vector storage, but still it requires cloning of a vector.
 Create a duplicate of the operand three levels deep on the stack.
 
 \pagebreak
-\subsubsection{\texttt{LDR} --- Load Duplicate from Registry \label{inst:ldr}}
+\subsubsection{\texttt{LDR} --- Load Duplicate from Registry \label{inst:ldr}} \hyperref[tab:vil_summary]{ $\Uparrow$ Back to top }
+
+\noindent \textbf{Description}
 
 Load duplicate (copy) from registry \texttt{reg}.
-
-\noindent \textbf{Notice}
 
 This is mildly gas-expensive operation, much less gas-expensive than load from
 vector storage, but still it requires cloning of a vector.
@@ -331,11 +367,11 @@ Create a duplicate of the register allocated for \texttt{\_AssetWeights}.
 The \texttt{\_AssetWeights} is a convenience label we associate with some register when we use \texttt{devil!()} macro.
 
 \pagebreak
-\subsubsection{\texttt{LDM} --- Load Moving from Register\label{inst:ldm}}
+\subsubsection{\texttt{LDM} --- Load Moving from Register\label{inst:ldm}} \hyperref[tab:vil_summary]{ $\Uparrow$ Back to top }
+
+\noindent \textbf{Description}
 
 Load value moving it out of registry \texttt{reg}.
-
-\noindent \textbf{Notice}
 
 This is highly gas-effective operation, as operand is moved from register onto stack without copying.
 
@@ -372,11 +408,11 @@ The \texttt{\_MarketAssetPrices} is a convenience label we associate with some r
 \pagebreak
 \subsection{Data Storage \& Register Access (Opcode 20..23)}
 
-\subsubsection{\texttt{STL} --- Store Labels into Storage\label{inst:stl}}
+\subsubsection{\texttt{STL} --- Store Labels into Storage\label{inst:stl}} \hyperref[tab:vil_summary]{ $\Uparrow$ Back to top }
+
+\noindent \textbf{Description}
 
 Store (\texttt{Labels}) object by $ID$ into \textsl{Vector I/O (VIO)}.
-
-\noindent \textbf{Notice}
 
 This is relatively gas-expensive operation as it will store binary blob into \textsl{Blockchain} using underlying \texttt{(SSTORE)} operatation.
 
@@ -410,14 +446,13 @@ Pop value from stack \texttt{[TOS]} and store it into vector storage with  `mark
 
 
 \pagebreak
-\subsubsection{\texttt{STV} --- Store Vector into Storage\label{inst:stv}}
+\subsubsection{\texttt{STV} --- Store Vector into Storage\label{inst:stv}} \hyperref[tab:vil_summary]{ $\Uparrow$ Back to top }
+
+\noindent \textbf{Description}
 
 Store (\texttt{Vector}) object by $ID$ into \textsl{Vector I/O (VIO)}.
 
-\noindent \textbf{Notice}
-
 This is relatively gas-expensive operation as it will store binary blob into \textsl{Blockchain} using underlying \texttt{(SSTORE)} operatation.
-
 
 \noindent \textbf{Operands}
 
@@ -448,11 +483,11 @@ This is relatively gas-expensive operation as it will store binary blob into \te
 Pop value from stack \texttt{[TOS]} and store it into vector storage with  `market\_asset\_prices' ID.
 
 \pagebreak
-\subsubsection{\texttt{STR} --- Store Moving into Registry\label{inst:str}}
+\subsubsection{\texttt{STR} --- Store Moving into Registry\label{inst:str}} \hyperref[tab:vil_summary]{ $\Uparrow$ Back to top }
+
+\noindent \textbf{Description}
 
 Move value from stack and store it into registry \texttt{reg}.
-
-\noindent \textbf{Notice}
 
 This is highly gas-effective operation, as operand is moved from stack into register without copying.
 
@@ -487,7 +522,9 @@ Pop value from stack \texttt{[TOS]} and store it in register allocated for  \tex
 \pagebreak
 \subsection{Data Structure Manipulation (Opcode 30..35)}
 
-\subsubsection{\texttt{PKV} --- Pack Scalar values into Vector\label{inst:pkv}}
+\subsubsection{\texttt{PKV} --- Pack Scalar values into Vector\label{inst:pkv}} \hyperref[tab:vil_summary]{ $\Uparrow$ Back to top }
+
+\noindent \textbf{Description}
 
 Pack \texttt{count} $Scalar$ type values from stack into a new $Vector$.
 
@@ -526,7 +563,9 @@ Pack \texttt{count} $Scalar$ type values from stack into a new $Vector$.
 Load three values from registry: \texttt{\_Capacity}, \texttt{\_Price}, \texttt{\_Slope}, and then pack them into single $Vector$: \texttt{[\_Capacity, \_Price, \_Slope]}.
 
 \pagebreak
-\subsubsection{\texttt{PKL} --- Pack Label values into Labels object\label{inst:pkl}}
+\subsubsection{\texttt{PKL} --- Pack Label values into Labels object\label{inst:pkl}} \hyperref[tab:vil_summary]{ $\Uparrow$ Back to top }
+
+\noindent \textbf{Description}
 
 Pack \texttt{count} $Label$ type values from stack into a new $Labels$.
 
@@ -566,7 +605,9 @@ Load three $Label$ constants: \texttt{btc\_label}, \texttt{eth\_label}, \texttt{
 
 
 \pagebreak
-\subsubsection{\texttt{UNPK} --- Unpack values from Vector / Labels\label{inst:unpk}}
+\subsubsection{\texttt{UNPK} --- Unpack values from Vector / Labels\label{inst:unpk}} \hyperref[tab:vil_summary]{ $\Uparrow$ Back to top }
+
+\noindent \textbf{Description}
 
 Unpack a $Vector$ / $Labels$ object onto the stack.
 
@@ -603,11 +644,11 @@ Unpack a $Vector$ / $Labels$ object onto the stack.
 Load a $Vector$ from vector storage with `index\_quote\_id' ID, and unpack its components onto stack. Given that `index\_quote\_id' points to a vector, the component of which are: \texttt{[capacity, price, slope]}, the resulting stack will have structure: \texttt{[(previous stack state)..., capacity, price, slope]}, where the value of `slope' will be on \texttt{[TOS]}.
 
 \pagebreak
-\subsubsection{\texttt{VPUSH} --- Push Scalar onto Vector\label{inst:vpush}}
+\subsubsection{\texttt{VPUSH} --- Push Scalar onto Vector\label{inst:vpush}} \hyperref[tab:vil_summary]{ $\Uparrow$ Back to top }
+
+\noindent \textbf{Description}
 
 Pushes a scalar onto the $Vector$. 
-
-\noindent \textbf{Notice}
 
 This is gas-efficient in-place operation, as it updates a $Vector$ on \texttt{[TOS]}, appending new component at the end.
 
@@ -644,11 +685,11 @@ Load from storage a vector with `weights\_id' ID, and push scalar constant $10.0
 
 
 \pagebreak
-\subsubsection{\texttt{VPOP} --- Pop Scalar from Vector\label{inst:vpop}}
+\subsubsection{\texttt{VPOP} --- Pop Scalar from Vector\label{inst:vpop}} \hyperref[tab:vil_summary]{ $\Uparrow$ Back to top }
+
+\noindent \textbf{Description}
 
 Pop a scalar from the $Vector$.
-
-\noindent \textbf{Notice}
 
 This is gas-efficient in-place operation, as it updates a $Vector$ on \texttt{[TOS]}, removing its last component.
 
@@ -684,7 +725,9 @@ Load from storage a vector with `weights\_id' ID, and pop last element from the 
 \textbf{Note} This does not modify the vector in-storage, and only its on-stack copy is modified. To store this modified vector back into storage separate \texttt{STV} instruction is required.
 
 \pagebreak
-\subsubsection{\texttt{T} --- Transpose Vectors on Stack\label{inst:t}}
+\subsubsection{\texttt{T} --- Transpose Vectors on Stack\label{inst:t}} \hyperref[tab:vil_summary]{ $\Uparrow$ Back to top }
+
+\noindent \textbf{Description}
 
 Perform matrix transposition of $M$ vectors on the stack, each of length $N$.
 
@@ -703,8 +746,6 @@ $$
     a_{1,N} & a_{2,N} & \cdots & a_{M,N} \\
 \end{pmatrix}
 $$
-
-\noindent \textbf{Notice}
 
 This is gas-efficient in-place operation, which updates $M$ vectors on the stack.
 
@@ -761,11 +802,11 @@ or simply: \\
 \pagebreak
 \subsection{Labels Manipulation (Opcode 40..46)}
 
-\subsubsection{\texttt{LUNION} --- Union of Lables\label{inst:lunion}}
+\subsubsection{\texttt{LUNION} --- Union of Lables\label{inst:lunion}} \hyperref[tab:vil_summary]{ $\Uparrow$ Back to top }
+
+\noindent \textbf{Description}
 
 Union of two operands of $Labels$ type.
-
-\noindent \textbf{Notice}
 
 This is gas-efficient in-place operation of complexity $O(N + M)$.
 
@@ -801,11 +842,11 @@ This is gas-efficient in-place operation of complexity $O(N + M)$.
 Load two objects of type $Labels$ from storage with IDs: \texttt{asset\_weights} and \texttt{market\_asset\_weights}, and then modify last labels on \texttt{[TOS]} \textsl{\texttt{market\_asset\_weights}} by adding labels from \texttt{[TOS - 1]} stack level \textsl{\texttt{asset\_weights}}. Resulting labels will contain all original labels from \texttt{market\_asset\_weights} and new labels from \texttt{asset\_weights}.
 
 \pagebreak
-\subsubsection{\texttt{LPUSH} --- Push Label onto Labels\label{inst:lpush}}
+\subsubsection{\texttt{LPUSH} --- Push Label onto Labels\label{inst:lpush}} \hyperref[tab:vil_summary]{ $\Uparrow$ Back to top }
+
+\noindent \textbf{Description}
 
 Pushes a $Label$ onto the $Labels$. 
-
-\noindent \textbf{Notice}
 
 This is gas-efficient in-place operation, as it updates a $Labels$ on \texttt{[TOS]}, appending new component at the end.
 
@@ -841,11 +882,11 @@ Load from storage the labels with `asset\_names\_id' ID, and push label constant
 \textbf{Note} This does not modify the labels in-storage, and only its on-stack copy is modified. To store this modified labels back into storage separate \texttt{STL} instruction is required.
 
 \pagebreak
-\subsubsection{\texttt{LPOP} --- Pop Label from Labels\label{inst:lpop}}
+\subsubsection{\texttt{LPOP} --- Pop Label from Labels\label{inst:lpop}} \hyperref[tab:vil_summary]{ $\Uparrow$ Back to top }
+
+\noindent \textbf{Description}
 
 Pop a label from the $Labels$.
-
-\noindent \textbf{Notice}
 
 This is gas-efficient in-place operation, as it updates a $Labels$ on \texttt{[TOS]}, removing its last component.
 
@@ -882,17 +923,16 @@ Load from storage the labels with `asset\_names\_id' ID, and pop a label from th
 
 
 \pagebreak
-\subsubsection{\texttt{JUPD} --- Update (Replace) by Joining on Labels\label{inst:jupd}}
+\subsubsection{\texttt{JUPD} --- Update (Replace) by Joining on Labels\label{inst:jupd}} \hyperref[tab:vil_summary]{ $\Uparrow$ Back to top }
+
+\noindent \textbf{Description}
 
 Update $Vector$ on top of the stack (\texttt{[TOS]}) by replacing its selected components
 with values from another vector on stack at \texttt{[TOS - pos\_B]}
 joining on $Labels$.
 
-\noindent \textbf{Notice}
-
 This is an efficient operation of complexity $O(N)$ \textsl{(for contiguous overlaps)}
 or $O(N \times \log M)$ \textsl{(for overlaps with gaps)}.
-
 
 \noindent \textbf{Operands}
 
@@ -931,12 +971,12 @@ using labels at \texttt{[TOS - 5]} for vector at \texttt{[TOS - 2]},
 where labels overlap.
 
 \pagebreak
-\subsubsection{\texttt{JADD} --- Add by Joining on Labels\label{inst:jadd}}
+\subsubsection{\texttt{JADD} --- Add by Joining on Labels\label{inst:jadd}} \hyperref[tab:vil_summary]{ $\Uparrow$ Back to top }
+
+\noindent \textbf{Description}
 
 Add two $Vectors$ joining on $Labels$. Expands vector at \texttt{[TOS - pos\_B]} using labels at \texttt{[TOS - lab\_B]} 
 to match labels of vector at \texttt{TOS} located on stack at \texttt{[TOS - lab\_A]}.
-
-\noindent \textbf{Notice}
 
 This is an efficient operation of complexity $O(N)$ \textsl{(for contiguous overlaps)}
 or $O(N \times \log M)$ \textsl{(for overlaps with gaps)}.
@@ -978,13 +1018,13 @@ using labels at \texttt{[TOS - 5]} for vector at \texttt{[TOS - 2]},
 where labels overlap.
 
 \pagebreak
-\subsubsection{\texttt{JFLT} --- Filter by Joining on Labels\label{inst:jflt}}
+\subsubsection{\texttt{JFLT} --- Filter by Joining on Labels\label{inst:jflt}} \hyperref[tab:vil_summary]{ $\Uparrow$ Back to top }
+
+\noindent \textbf{Description}
 
 Filter vector on stack at \texttt{[TOS]} retaining only components corresponding to labels at \texttt{[TOS - lab\_B]}
 using labels at \texttt{[TOS - lab\_A]} for vector at \texttt{[TOS]}, and
 where labels overlap.
-
-\noindent \textbf{Notice}
 
 This is an efficient operation of complexity $O(N)$ \textsl{(for contiguous overlaps)}
 or $O(N \times \log M)$ \textsl{(for overlaps with gaps)}.
@@ -1025,15 +1065,15 @@ where labels overlap.
 \pagebreak
 \subsection{Arithmetic \& Core Math (Opcode 50..55)}
 
-\subsubsection{\texttt{ADD} --- Addition\label{inst:add}}
+\noindent \textbf{Description}
+
+\subsubsection{\texttt{ADD} --- Addition\label{inst:add}} \hyperref[tab:vil_summary]{ $\Uparrow$ Back to top }
 
 Add operand at \texttt{[TOS]} to operand at \texttt{[TOS - pos]}.
 
 $$
     [TOS] \leftarrow [TOS] + [TOS - pos]
 $$
-
-\noindent \textbf{Notes}
 
 \begin{itemize}
     \item Works with vectors and scalars.
@@ -1073,18 +1113,17 @@ $$
 Add $3.0$ to $5.0$, and replace $5.0$ with result of the addition ($8.0$).
 
 \pagebreak
-\subsubsection{\texttt{SUB} --- Substraction\label{inst:sub}}
+\subsubsection{\texttt{SUB} --- Substraction\label{inst:sub}} \hyperref[tab:vil_summary]{ $\Uparrow$ Back to top }
+
+\noindent \textbf{Description}
 
 Subtract from operand at \texttt{[TOS]} an operand at \texttt{[TOS - pos]}.
-
-\noindent \textbf{Notes}
 
 \begin{itemize}
     \item Works with vectors and scalars.
     \item In-place updates operand on \texttt{[TOS]}.
     \item Does not consume the other operand.
 \end{itemize}
-
 
 \noindent \textbf{Operands}
 
@@ -1118,7 +1157,9 @@ Subtract from operand at \texttt{[TOS]} an operand at \texttt{[TOS - pos]}.
 Subtract $3.0$ from $5.0$, and replace $5.0$ with result of the subtraction ($2.0$).
 
 \pagebreak
-\subsubsection{\texttt{SSB} --- Saturating Subraction\label{inst:ssb}}
+\subsubsection{\texttt{SSB} --- Saturating Subraction\label{inst:ssb}} \hyperref[tab:vil_summary]{ $\Uparrow$ Back to top }
+
+\noindent \textbf{Description}
 
 Subtract from operand at \texttt{[TOS]} an operand at \texttt{[TOS - pos]} saturating to $0$.
 
@@ -1126,14 +1167,11 @@ $$
     [TOS] \leftarrow \max([TOS] - [TOS - pos], 0)
 $$
 
-\noindent \textbf{Notes}
-
 \begin{itemize}
     \item Works with vectors and scalars.
     \item In-place updates operand on \texttt{[TOS]}.
     \item Does not consume the other operand.
 \end{itemize}
-
 
 \noindent \textbf{Operands}
 
@@ -1167,15 +1205,15 @@ $$
 Subtract $5.0$ from $3.0$ saturating at $0.0$, and replace $3.0$ with result of the saturating subtraction ($0.0$).
 
 \pagebreak
-\subsubsection{\texttt{MUL} --- Multiplication\label{inst:mul}}
+\subsubsection{\texttt{MUL} --- Multiplication\label{inst:mul}} \hyperref[tab:vil_summary]{ $\Uparrow$ Back to top }
+
+\noindent \textbf{Description}
 
 Multiply operand at \texttt{[TOS]} by operand at \texttt{[TOS - pos]}.
 
 $$
     [TOS] \leftarrow [TOS] \odot [TOS - pos]
 $$
-
-\noindent \textbf{Notes}
 
 \begin{itemize}
     \item Works with vectors and scalars.
@@ -1217,15 +1255,15 @@ $$
 Multiply $3.0$ by $5.0$, and replace $5.0$ with result of the multiplication ($15.0$).
 
 \pagebreak
-\subsubsection{\texttt{DIV} --- Division\label{inst:div}}
+\subsubsection{\texttt{DIV} --- Division\label{inst:div}} \hyperref[tab:vil_summary]{ $\Uparrow$ Back to top }
+
+\noindent \textbf{Description}
 
 Divide operand at \texttt{[TOS]} by operand at \texttt{[TOS - pos]}.
 
 $$
     [TOS] \leftarrow \frac{ [TOS] }{ [TOS - pos] }
 $$
-
-\noindent \textbf{Notes}
 
 \begin{itemize}
     \item Works with vectors and scalars.
@@ -1267,7 +1305,9 @@ $$
 Divide $15.0$ by $3.0$, and replace $15.0$ with result of the multiplication ($3.0$).
 
 \pagebreak
-\subsubsection{\texttt{SQRT} --- Square Root\label{inst:sqrt}}
+\subsubsection{\texttt{SQRT} --- Square Root\label{inst:sqrt}} \hyperref[tab:vil_summary]{ $\Uparrow$ Back to top }
+
+\noindent \textbf{Description}
 
 Take square root of \texttt{[TOS]}.
 
@@ -1275,7 +1315,6 @@ $$
     [TOS] \leftarrow \sqrt{[TOS]}
 $$
 
-\noindent \textbf{Note}
 \begin{itemize}
     \item Works with vectors and scalars. 
     \item Square root of two vector is performed component-wise.
@@ -1319,15 +1358,15 @@ Take square root of $4.0$, and replace $4.0$ with the result ($2.0$).
 \pagebreak
 \subsection{Logic \& Comparison (Opcode 60..61)}
 
-\subsubsection{\texttt{MIN} --- Minimum\label{inst:min}}
+\subsubsection{\texttt{MIN} --- Minimum\label{inst:min}} \hyperref[tab:vil_summary]{ $\Uparrow$ Back to top }
+
+\noindent \textbf{Description}
 
 Take minimum between operand at \texttt{[TOS]} and operand at \texttt{[TOS - pos]}.
 
 $$
     [TOS] \leftarrow \min{( [TOS], [TOS - pos] )}
 $$
-
-\noindent \textbf{Notes}
 
 \begin{itemize}
     \item Works with vectors and scalars.
@@ -1368,15 +1407,15 @@ $$
 
 Take minimum of $5.0$ and $3.0$, and replace $5.0$ with result of the minimum ($3.0$).
 
-\subsubsection{\texttt{MAX} --- Maximum\label{inst:max}}
+\subsubsection{\texttt{MAX} --- Maximum\label{inst:max}} \hyperref[tab:vil_summary]{ $\Uparrow$ Back to top }
+
+\noindent \textbf{Description}
 
 Take maximum between operand at \texttt{[TOS]} and operand at \texttt{[TOS - pos]}.
 
 $$
     [TOS] \leftarrow \max{( [TOS], [TOS - pos] )}
 $$
-
-\noindent \textbf{Notes}
 
 \begin{itemize}
     \item Works with vectors and scalars.
@@ -1421,15 +1460,15 @@ Take minimum of $5.0$ and $3.0$, and replace $5.0$ with result of the minimum ($
 \pagebreak
 \subsection{Vector Aggregation (Opcode 70..72)}
 
-\subsubsection{\texttt{VSUM} --- Sum of Vector components\label{inst:vsum}}
+\subsubsection{\texttt{VSUM} --- Sum of Vector components\label{inst:vsum}} \hyperref[tab:vil_summary]{ $\Uparrow$ Back to top }
+
+\noindent \textbf{Description}
 
 Sum of all vector components.
 
 $$
     [TOS] \leftarrow \sum_{i=0}^{len([TOS])} \left( [TOS][i] \right)
 $$
-
-\noindent \textbf{Operands}
 
 \begin{itemize}
 \item (no operands)
@@ -1460,15 +1499,15 @@ Load from storage a $Vector$ with ID `asset\_weights\_id', and compute sum of al
 i.e. sum of all weights, and place result on \texttt{[TOS]}.
 
 \pagebreak
-\subsubsection{\texttt{VMIN} --- Minimum component of a Vector\label{inst:vmin}}
+\subsubsection{\texttt{VMIN} --- Minimum component of a Vector\label{inst:vmin}} \hyperref[tab:vil_summary]{ $\Uparrow$ Back to top }
+
+\noindent \textbf{Description}
 
 Minimum value found within vector components.
 
 $$
     [TOS] \leftarrow \min_{i=0}^{len([TOS])} \left( [TOS][i] \right)
 $$
-
-\noindent \textbf{Operands}
 
 \begin{itemize}
 \item (no operands)
@@ -1499,15 +1538,15 @@ Load from storage a $Vector$ with ID `asset\_weights\_id', find minimum weight, 
 
 
 \pagebreak
-\subsubsection{\texttt{VMAX} --- Maximum component of a Vector\label{inst:vmax}}
+\subsubsection{\texttt{VMAX} --- Maximum component of a Vector\label{inst:vmax}} \hyperref[tab:vil_summary]{ $\Uparrow$ Back to top }
+
+\noindent \textbf{Description}
 
 Maximum value found within vector components.
 
 $$
     [TOS] \leftarrow \max_{i=0}^{len([TOS])} \left( [TOS][i] \right)
 $$
-
-\noindent \textbf{Operands}
 
 \begin{itemize}
 \item (no operands)
@@ -1540,7 +1579,9 @@ Load from storage a $Vector$ with ID `asset\_weights\_id', find maximum weight, 
 \pagebreak
 \subsection{Immediate Values \& Vector Creation (Opcode 80..83)}
 
-\subsubsection{\texttt{IMMS} --- Push Scalar on Stack\label{inst:imms}}
+\subsubsection{\texttt{IMMS} --- Push Scalar on Stack\label{inst:imms}} \hyperref[tab:vil_summary]{ $\Uparrow$ Back to top }
+
+\noindent \textbf{Description}
 
 Push immediate $Scalar$ value on stack.
 
@@ -1573,7 +1614,9 @@ Push immediate $Scalar$ value on stack.
 Push constant value $4.0$ on \texttt{[TOS]}.
 
 \pagebreak
-\subsubsection{\texttt{IMML} --- Push Label on Stack\label{inst:imml}}
+\subsubsection{\texttt{IMML} --- Push Label on Stack\label{inst:imml}} \hyperref[tab:vil_summary]{ $\Uparrow$ Back to top }
+
+\noindent \textbf{Description}
 
 Push immediate $Label$ value on stack.
 
@@ -1606,11 +1649,12 @@ Push immediate $Label$ value on stack.
 Push constant label value `btc\_label' from Rust code onto stack.
 
 \pagebreak
-\subsubsection{\texttt{ZEROS} --- Zero Vector\label{inst:zeros}}
+\subsubsection{\texttt{ZEROS} --- Zero Vector\label{inst:zeros}} \hyperref[tab:vil_summary]{ $\Uparrow$ Back to top }
+
+\noindent \textbf{Description}
 
 Create Vector of zeros matching length of the operand at \texttt{[TOS - pos]}.
 
-\noindent \textbf{Notes}
 \begin{itemize}
     \item Works for $Vector$ and $Labels$ type of operands.
     \item Pushes new zero $Vector$ on \texttt{[TOS]}.
@@ -1647,11 +1691,12 @@ Create Vector of zeros matching length of the operand at \texttt{[TOS - pos]}.
 Load from storage $Labels$ with ID `asset\_names\_id', and then create zero $Vector$ of same length.
 
 \pagebreak
-\subsubsection{\texttt{ONES} --- Unit Vector\label{inst:ones}}
+\subsubsection{\texttt{ONES} --- Unit Vector\label{inst:ones}} \hyperref[tab:vil_summary]{ $\Uparrow$ Back to top }
+
+\noindent \textbf{Description}
 
 Create Vector of ones matching length of the operand at \texttt{[TOS - pos]}.
 
-\noindent \textbf{Notes}
 \begin{itemize}
     \item Works for $Vector$ and $Labels$ type of operands.
     \item Pushes new unit $Vector$ on \texttt{[TOS]}.
@@ -1691,7 +1736,9 @@ Load from storage $Labels$ with ID `asset\_names\_id', and then create unit $Vec
 \pagebreak
 \subsection{Stack Control \& Program Flow (Opcode 90..94)}
 
-\subsubsection{\texttt{POPN} --- Pop N levels from Stack\label{inst:popn}}
+\subsubsection{\texttt{POPN} --- Pop N levels from Stack\label{inst:popn}} \hyperref[tab:vil_summary]{ $\Uparrow$ Back to top }
+
+\noindent \textbf{Description}
 
 Pop $count$ values from the stack.
 
@@ -1731,7 +1778,9 @@ Pop $count$ values from the stack.
 Pop $3$ levels from stack, i.e. poped elements are \textsl{2.0, 3.0, 4.0}, leaving $1.0$ on stack at \texttt{[TOS]}.
 
 \pagebreak
-\subsubsection{\texttt{SWAP} --- Swap levels on Stack\label{inst:swap}}
+\subsubsection{\texttt{SWAP} --- Swap levels on Stack\label{inst:swap}} \hyperref[tab:vil_summary]{ $\Uparrow$ Back to top }
+
+\noindent \textbf{Description}
 
 Swap TOS with operand at \texttt{[TOS - pos]}.
 
@@ -1774,7 +1823,9 @@ Swap TOS with operand at \texttt{[TOS - pos]}.
 Swap $4.0$ with $2.0$, which results in stack \texttt{[1.0, 4.0, 3.0, 2.0]}, where $2.0$ is at \texttt{[TOS]}.
 
 \pagebreak
-\subsubsection{\texttt{B} --- Branch into stored procedure\label{inst:b}}
+\subsubsection{\texttt{B} --- Branch into stored procedure\label{inst:b}} \hyperref[tab:vil_summary]{ $\Uparrow$ Back to top }
+
+\noindent \textbf{Description}
 
 Call sub-routine stored as $Code$ at `prg\_id`, supplying `N` inputs and taking `M` outputs from stack. 
 
@@ -1822,15 +1873,15 @@ loaded from storage with ID `solve\_quadratic\_id'. Function returns single valu
 registry as `\_IndexQuantity'.
 
 \pagebreak
-\subsubsection{\texttt{FOLD} --- Apply stored procedure to all components\label{inst:fold}}
+\subsubsection{\texttt{FOLD} --- Apply stored procedure to all components\label{inst:fold}} \hyperref[tab:vil_summary]{ $\Uparrow$ Back to top }
+
+\noindent \textbf{Description}
 
 Fold (iterate) over vector/label operands.
 
 The behaviour of the operation is the same as \texttt{B} except sub-routine is called repeatedly over components of Vector at \texttt{[TOS]}.
 
-\noindent \textbf{Notice}
-
-This is gas-efficient method of innovation of stored procedure multiple times for batch of items.
+This is gas-efficient method of stored procedure invocation multiple times for batch of items.
 
 \noindent \textbf{Operands}
 

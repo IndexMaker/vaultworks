@@ -30,6 +30,7 @@
 The execution of financial primitives involving baskets of underlying assets poses a significant computational challenge in constrained smart contract environments. This paper formalizes a novel, high-dimensional algorithm, implemented on a $\text{VM}^2$ environment, which is a Virtual Machine deployed as a smart contract (Stylus/WASM). This $\text{VM}^2$ is optimized for vector processing using its \textbf{Vector Intermediate Language (VIL)}, designed to execute complex index order primitives (Buy, Sell, Rebalance) and dynamically update the index quote and margin parameters. The complete system operation integrates six key steps: (1) dynamically deriving the index quote (Price, Slope, Capacity), (2) updating the Vendor's net supply and market delta, (3) solving a vector-based quadratic pricing equation, (4) determining a systemic margin capacity limit, (5) performing complex market demand rebalancing, and (6) updating final net exposure (Delta). Furthermore, we detail the maintenance VIL routines essential for robust, continuous operation, including market data integration, margin limit updates, and asset list expansion. A crucial component of this low-cost execution is the selection of the VIL's Join-operation implementation, which is formally justified by comparative gas cost analysis, ensuring $\mathbf{O(N_I + N_M)}$ complexity and cost predictability. We demonstrate that this approach successfully manages a flexible Index structure (e.g., a 50-asset index) against a 150-asset Market, utilizing the VIL's labels manipulation to handle various index sizes (e.g., top 20, top 100). This capability is crucial to quantifying the operational cost and providing a blueprint for efficient, high-fidelity vector arithmetic on a blockchain.
 \end{abstract}
 
+\pagebreak
 \section{Introduction to the Problem}
 
 Decentralized finance protocols increasingly rely on complex, multi-asset products. An index, composed of $N_I$ assets (e.g., $N_I \in \{20, 50, 100\}$), must interact with a broader market environment of $N_M$ assets (where $N_M=150$). The specific case where $N_I=50$ is used throughout this analysis as an illustrative example of an index being a portion of the total market. The core difficulty lies in processing high-dimensional vectors (up to $N_M$ components) entirely on-chain, where computation is constrained and expensive. Traditional Ethereum Virtual Machine (EVM) operations struggle with loop-based, element-wise vector arithmetic, leading to prohibitive gas costs for products requiring continuous rebalancing.
@@ -38,6 +39,7 @@ This challenge is overcome by deploying a separate, custom $\text{VM}^2$ environ
 
 It is critical to note that the internal execution complexity of these Label Manipulation instructions is linear, specifically $O(N_I + N_M)$ where $N_I$ is the index size and $N_M$ is the market size. However, this contained $O(N_I + N_M)$ complexity within the highly optimized VIL VM represents a transformative gas saving compared to an EVM implementation. The alternative's gas cost is dominated by the necessity of performing high-cost storage operations ($\text{SLOAD}$ \& $\text{SSTORE}$) on the underlying blockchain, which makes it prohibitively expensive. By performing this alignment in a single VIL operation, the overall transaction maintains a flat, low gas cost profile. The goal is to define an algorithm that is computationally efficient and mathematically sound, ensuring the transaction satisfies pricing, collateral, and systemic (Margin) constraints simultaneously.
 
+\pagebreak
 \section{Decentralized Architecture and Thematic Roles (DeIndex)}
 
 The system is formally known as the \textbf{Decentralised Index Maker (DeIndex)}. Its design is composed of several smart contract components and an off-chain coordinator, each assigned a thematic role to simplify the system's conceptual framework.
@@ -62,6 +64,7 @@ The system is formally known as the \textbf{Decentralised Index Maker (DeIndex)}
 
 Throughout the paper, references to the \textbf{Vendor} refer to the entity responsible for coordinating asset transfers (as detailed in Section \ref{sec:vendor_role}) and committing new market data (Section \ref{sec:maintenance_routines}), while the \textbf{Market} refers to the immutable on-chain state vectors themselves.
 
+\pagebreak
 \section{Quote Determination via Vector Processing}\label{sec:quote_determination}
 
 Before any order execution can take place, the core pricing and capacity parameters of the index must be derived from the underlying market data. This process is handled by the VIL function \texttt{update\_quote} and is critical for ensuring the index price accurately reflects the sum of its components and that the system capacity respects underlying asset liquidity. The Index Quote comprises the Price ($P$), the Slope ($S$), and the Market Capacity ($C$).
@@ -98,7 +101,6 @@ C = \min_{i} \left( \frac{\mathbf{L}_i}{\mathbf{W}_i} \right)
 \]
 where $\mathbf{L}_i$ is the market liquidity of asset $i$. The VIL efficiently computes this using $\text{DIV}$ (component-wise) and $\text{VMIN}$ (vector-wide minimum).
 
-\pagebreak
 \subsection{VIL Code}
 
 \noindent Load asset weights, names, and makret asset names:        
@@ -167,6 +169,7 @@ where $\mathbf{L}_i$ is the market liquidity of asset $i$. The VIL efficiently c
     
 \end{verbatim}
 
+\pagebreak
 \section{The Vendor's Role and Market State Update}
 \label{sec:vendor_role}
 
@@ -320,6 +323,7 @@ The $\text{SSB}$ operation is critical here, as it ensures that for any asset $i
         STV         delta_long_id
 \end{verbatim}
 
+\pagebreak
 \section{Market Data Integrity and Maintenance Routines}\label{sec:maintenance_routines}
 
 For the system to maintain a continuous, accurate, and solvent state, several maintenance routines must be executed periodically. These operations are also implemented as specialized VIL routines to ensure vector integrity and computational efficiency. They primarily rely on the VIL's `JUPD` (Join-Update) instruction to merge new data vectors with existing market vectors ($\mathbf{V}_{\text{old}}$) based on the asset label space, which is critical for the $N_M=150$ assets.
@@ -434,6 +438,7 @@ One of the most powerful VIL operations is the atomic expansion of the Market As
 \end{verbatim}
 
 
+\pagebreak
 \section{Mathematical Framework for Index Acquisition}
 
 The execution algorithm is an atomic, six-step process. Variables denoted in bold ($\mathbf{V}$) are vectors, while italic variables ($s$) are scalars. Operations $\oplus, \ominus, \odot, \oslash$ represent vector addition, saturating subtraction, component-wise multiplication, and component-wise division, respectively. $\min(\mathbf{V})$ denotes the minimum value across all vector components. \textbf{Note: When a scalar ($s$) is used in a vector operation (e.g., $\min(\mathbf{V}, s)$ or $s \odot \mathbf{W}$), it implies a component-wise operation where the scalar is broadcast to a vector of matching dimension.}
@@ -850,6 +855,7 @@ The final net exposures ($\Delta_L, \Delta_S$) are updated based on the new dema
         STV         executed_index_quantities_id
 \end{verbatim}
 
+\pagebreak
 \section{Performance Analysis and Efficiency}
 
 The efficiency of this vectorized execution, even with the complex $50 \rightarrow 150$ vector alignment, is quantified by the observed gas cost.
@@ -918,8 +924,13 @@ The analysis proved that deterministic, predictable performance is non-negotiabl
 
 The implementation of the VIL's core instructions with the \textbf{Hybrid Solution (d)} appeared most optimal, enabling the complex, 6-step Index Buy Execution algorithm to maintain an extremely low, predictable overall transaction cost of $\approx \mathbf{\$1.25}$. This choice fundamentally guarantees that vector alignment overhead will not compromise the system's economic viability.
 
+\pagebreak
 \section{Conclusion}
 
 The Vectorized Index Buy Order Execution Algorithm provides a mathematically sound and highly performant mechanism for executing high-dimensional financial derivatives on-chain. The formalism highlights the balancing act between quote determination (Section \ref{sec:quote_determination}), Vendor state management (Section \ref{sec:vendor_role}), data integrity (Section \ref{sec:maintenance_routines}), pricing constraints ($Q_{\text{max, pricing}}$), systemic stability ($CL$), and market dynamics ($\mathbf{D}_{S, new}, \mathbf{D}_{L, new}$). By offloading vector operations and data alignment to the optimized VIS layer, underpinned by the empirically validated \textbf{Hybrid Solution (d)} for Label Manipulation, the system achieves a transaction cost of $\approx \mathbf{\$1.25}$ for a complex 50/150 asset trade, confirming the viability of vector-based financial primitives in decentralized ecosystems.
+
+
+\subsection{Project Location}
+The complete project can be found at: \href{https://github.com/IndexMaker/deindex/tree/main}{\texttt{github.com/IndexMaker/deindex}}
 
 \end{document}
