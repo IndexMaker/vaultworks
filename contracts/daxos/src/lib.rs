@@ -11,7 +11,7 @@ use alloy_primitives::{Address, U128};
 use alloy_sol_types::{sol, SolCall};
 use deli::labels::Labels;
 use icore::vil::{
-    execute_buy_order::execute_buy_order, update_assets::update_assets,
+    execute_buy_order::execute_buy_order, add_market_assets::add_market_assets,
     update_margin::update_margin, update_market_data::update_market_data,
     update_quote::update_quote, update_supply::update_supply,
 };
@@ -203,7 +203,7 @@ impl Daxos {
         // - extends supply, demand, and delta vectors
         // - extends prices, slopes, liquidity vectors
         //
-        let update = update_assets(
+        let update = add_market_assets(
             new_market_asset_names_id,
             market_asset_names_id,
             market_asset_prices_id,

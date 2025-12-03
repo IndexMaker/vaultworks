@@ -1,11 +1,15 @@
 use amount_macros::amount;
-use deli::{labels::Labels, log_msg, vector::Vector};
+use deli::{
+    labels::{self, Labels},
+    log_msg,
+    vector::Vector,
+};
 use devil_macros::devil;
 use ethers::types::Address;
 
 use decon::{contracts::Devil, tx_sender::TxClient};
 use icore::vil::{
-    update_assets::update_assets, update_margin::update_margin,
+    add_market_assets::add_market_assets, update_margin::update_margin,
     update_market_data::update_market_data, update_quote::update_quote,
     update_supply::update_supply,
 };
@@ -58,30 +62,20 @@ pub async fn run_scenario(client: &TxClient, devil_address: Address) -> eyre::Re
         .send()
         .await?;
 
-    log_msg!("Submit Inputs");
+    log_msg!("Update Assets (1)");
     client
         .begin_tx()
         .add(devil.submit(
             new_market_asset_names_id,
-            label_vec![101, 102, 103, 104, 105, 106].to_vec(),
+            label_vec![101, 103, 104].to_vec(),
         ))
-        .add(devil.submit(asset_names_id, label_vec![101, 103, 104].to_vec()))
-        .add(devil.submit(asset_prices_id, amount_vec![500.0, 1000.0, 100.0].to_vec()))
-        .add(devil.submit(asset_slopes_id, amount_vec![5.0, 10.0, 1.0].to_vec()))
-        .add(devil.submit(asset_liquidity_id, amount_vec![20.0, 10.0, 100.0].to_vec()))
-        .add(devil.submit(asset_margin_id, amount_vec![10.0, 10.0, 50.0].to_vec()))
-        .add(devil.submit(asset_quantities_long_id, amount_vec![1.0, 0, 5.0].to_vec()))
-        .add(devil.submit(asset_quantities_short_id, amount_vec![0, 2.0, 0].to_vec()))
-        .add(devil.submit(weights_id, amount_vec![4.0, 8.0, 20.0].to_vec()))
-        .add(devil.submit(quote_id, amount_vec![0, 0, 0].to_vec()))
         .send()
         .await?;
 
-    log_msg!("Update Assets");
     client
         .begin_tx()
         .add(devil.execute(
-            update_assets(
+            add_market_assets(
                 new_market_asset_names_id,
                 market_asset_names_id,
                 market_asset_prices_id,
@@ -97,6 +91,59 @@ pub async fn run_scenario(client: &TxClient, devil_address: Address) -> eyre::Re
             ),
             16,
         ))
+        .send()
+        .await?;
+
+    log_msg!("Update Assets (2)");
+    client
+        .begin_tx()
+        .add(devil.submit(
+            new_market_asset_names_id,
+            label_vec![102, 104, 105, 106].to_vec(),
+        ))
+        .send()
+        .await?;
+
+    client
+        .begin_tx()
+        .add(devil.execute(
+            add_market_assets(
+                new_market_asset_names_id,
+                market_asset_names_id,
+                market_asset_prices_id,
+                market_asset_slopes_id,
+                market_asset_liquidity_id,
+                supply_long_id,
+                supply_short_id,
+                demand_long_id,
+                demand_short_id,
+                delta_long_id,
+                delta_short_id,
+                margin_id,
+            ),
+            16,
+        ))
+        .send()
+        .await?;
+
+    let new_assset_names = Labels::from_vec(devil.get(market_asset_names_id).call().await?);
+    assert_eq!(
+        new_assset_names.data,
+        label_vec![101, 102, 103, 104, 105, 106].data
+    );
+
+    log_msg!("Submit Inputs");
+    client
+        .begin_tx()
+        .add(devil.submit(asset_names_id, label_vec![101, 103, 104].to_vec()))
+        .add(devil.submit(asset_prices_id, amount_vec![500.0, 1000.0, 100.0].to_vec()))
+        .add(devil.submit(asset_slopes_id, amount_vec![5.0, 10.0, 1.0].to_vec()))
+        .add(devil.submit(asset_liquidity_id, amount_vec![20.0, 10.0, 100.0].to_vec()))
+        .add(devil.submit(asset_margin_id, amount_vec![10.0, 10.0, 50.0].to_vec()))
+        .add(devil.submit(asset_quantities_long_id, amount_vec![1.0, 0, 5.0].to_vec()))
+        .add(devil.submit(asset_quantities_short_id, amount_vec![0, 2.0, 0].to_vec()))
+        .add(devil.submit(weights_id, amount_vec![4.0, 8.0, 20.0].to_vec()))
+        .add(devil.submit(quote_id, amount_vec![0, 0, 0].to_vec()))
         .send()
         .await?;
 
@@ -281,7 +328,7 @@ pub async fn run_scenario(client: &TxClient, devil_address: Address) -> eyre::Re
     let new_quote = Vector::from_vec(devil.get(quote_id).call().await?);
     assert_eq!(
         new_quote.data,
-        amount_vec![1.000000000, 12000.000000000, 1120.000000000].data
+        amount_vec![1.250000000, 12000.000000000, 1120.000000000].data
     );
 
     Ok(())

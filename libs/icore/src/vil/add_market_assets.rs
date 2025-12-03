@@ -1,9 +1,15 @@
 use devil_macros::devil;
 
-/// Update assets and extend all market vectors
+/// Add assets and extend all market vectors
 /// 
-pub fn update_assets(
-    new_market_asset_names_id: u128,
+/// We only support adding new assets to market vectors.
+/// 
+/// Note: Any potential implementation of the removal
+/// of assets from market vectors would need to check
+/// whether: |Supply| + |Demand| == 0.
+/// 
+pub fn add_market_assets(
+    asset_names_added_id: u128,
     market_asset_names_id: u128,
     market_asset_prices_id: u128,
     market_asset_slopes_id: u128,
@@ -21,8 +27,10 @@ pub fn update_assets(
         // * * * (TRY) COMPUTE NEW VALUES * * *
         // ====================================
 
-        LDL         new_market_asset_names_id       // Stack [AN_new = NewMarketAssetNames]
-        LDL         market_asset_names_id           // Stack [AN_new, AN_old = MarketAssetNames]
+        LDL         market_asset_names_id           // Stack [AN_old = MarketAssetNames]
+        LDL         asset_names_added_id            // Stack [AN_old, AN_extra = AssetNamesAdded]
+        LUNION      1                               // Stack [AN_old, AN_new = AN_old U AN_extra]
+        SWAP        1                               // Stack [AN_new, AN_old]
 
         LDD         1                               // Stack [AN_new, AN_old, AN_new]
         STR         _AssetNames                     // Stack [AN_new, AN_old]

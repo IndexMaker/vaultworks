@@ -1,7 +1,7 @@
 pub mod vil {
+    pub mod add_market_assets;
     pub mod execute_buy_order;
     pub mod solve_quadratic;
-    pub mod update_assets;
     pub mod update_margin;
     pub mod update_market_data;
     pub mod update_quote;
