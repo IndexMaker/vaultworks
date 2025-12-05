@@ -20,4 +20,4 @@ fi
 
 cd $WORKSPACE_ROOT && cargo stylus deploy --wasm-file "./$WASM_FILE_PATH" \
     --endpoint="$RPC_URL" \
-    --private-key="$DEPLOY_PRIVATE_KEY"
+    --private-key="$DEPLOY_PRIVATE_KEY" ${@:2}

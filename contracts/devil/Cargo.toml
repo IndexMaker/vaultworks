@@ -2,7 +2,7 @@
 name = "devil"
 version = "0.1.0"
 edition = "2021"
-description = "Arbitrum Stylus Decentralised Vector Intermediate Language"
+description = "IndexMaker High-Dimensional Vector Algebra"
 
 [dependencies]
 alloy-primitives = { workspace = true }

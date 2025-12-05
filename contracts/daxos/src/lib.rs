@@ -16,8 +16,7 @@ use icore::vil::{
     update_quote::update_quote, update_supply::update_supply,
 };
 use stylus_sdk::{
-    prelude::*,
-    storage::{StorageAddress, StorageMap},
+    prelude::*, storage::{StorageAddress, StorageMap}
 };
 
 sol! {
@@ -452,6 +451,7 @@ impl Daxos {
         if vault_address.is_zero() {
             Err(b"Vault Not Found")?;
         }
+
         let submit = IVault::submitOrderCall {
             user,
             collateral_amount,

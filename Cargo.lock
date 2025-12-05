@@ -1011,6 +1011,28 @@ dependencies = [
 ]
 
 [[package]]
+name = "castle"
+version = "0.1.0"
+dependencies = [
+ "alloy-primitives",
+ "alloy-sol-types",
+ "amount-macros",
+ "deli",
+ "devil-macros",
+ "dotenv",
+ "ethers",
+ "eyre",
+ "hex",
+ "icore",
+ "labels-macros",
+ "openzeppelin-stylus",
+ "openzeppelin-stylus-proc",
+ "stylus-sdk",
+ "tokio",
+ "vector-macros",
+]
+
+[[package]]
 name = "cc"
 version = "1.2.24"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2229,6 +2251,28 @@ dependencies = [
 ]
 
 [[package]]
+name = "gate"
+version = "0.1.0"
+dependencies = [
+ "alloy-primitives",
+ "alloy-sol-types",
+ "amount-macros",
+ "deli",
+ "devil-macros",
+ "dotenv",
+ "ethers",
+ "eyre",
+ "hex",
+ "icore",
+ "labels-macros",
+ "openzeppelin-stylus",
+ "openzeppelin-stylus-proc",
+ "stylus-sdk",
+ "tokio",
+ "vector-macros",
+]
+
+[[package]]
 name = "generic-array"
 version = "0.14.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3234,6 +3278,34 @@ dependencies = [
  "libc",
  "pkg-config",
  "vcpkg",
+]
+
+[[package]]
+name = "openzeppelin-stylus"
+version = "0.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "cef3971d2d38f992397ed222826d213489f19a4b1936ac482fb5fa23926a4fd4"
+dependencies = [
+ "alloy-primitives",
+ "alloy-sol-macro",
+ "alloy-sol-macro-expander",
+ "alloy-sol-macro-input",
+ "alloy-sol-types",
+ "keccak-const",
+ "openzeppelin-stylus-proc",
+ "stylus-sdk",
+]
+
+[[package]]
+name = "openzeppelin-stylus-proc"
+version = "0.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e070fcdfd2bc4cd6dcd32d61797467439277d7cc8e7eea73dd42c7ccd22b0e1d"
+dependencies = [
+ "convert_case",
+ "proc-macro2",
+ "quote",
+ "syn 2.0.110",
 ]
 
 [[package]]
@@ -5095,6 +5167,22 @@ checksum = "97d095ae15e245a057c8e8451bab9b3ee1e1f68e9ba2b4fbc18d0ac5237835f2"
 dependencies = [
  "pin-project",
  "tracing",
+]
+
+[[package]]
+name = "treasury"
+version = "0.1.0"
+dependencies = [
+ "alloy-primitives",
+ "alloy-sol-types",
+ "deli",
+ "dotenv",
+ "ethers",
+ "eyre",
+ "openzeppelin-stylus",
+ "openzeppelin-stylus-proc",
+ "stylus-sdk",
+ "tokio",
 ]
 
 [[package]]

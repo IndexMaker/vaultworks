@@ -1,24 +1,25 @@
 [package]
-name = "market"
+name = "treasury"
 version = "0.1.0"
 edition = "2021"
-description = "IndexMaker Market"
+description = "IndexMaker Treasury"
 
 [dependencies]
 alloy-primitives = { workspace = true }
 alloy-sol-types = { workspace = true }
-stylus-sdk = { workspace = true }
-hex = { workspace = true }
 deli = { workspace = true, features = ["stylus"] }
+openzeppelin-stylus = { workspace = true }
+openzeppelin-stylus-proc = { workspace = true }
+stylus-sdk = { workspace = true }
 
 [dev-dependencies]
 alloy-primitives = { workspace = true, features = ["sha3-keccak"] }
-tokio = { workspace = true, features = ["full"] }
+deli = { workspace = true, features = ["stylus"] }
+dotenv = { workspace = true }
 ethers = { workspace = true }
 eyre = { workspace = true }
 stylus-sdk = { workspace = true, features = ["stylus-test"] }
-dotenv = { workspace = true }
-deli = { workspace = true, features = ["stylus"] }
+tokio = { workspace = true, features = ["full"] }
 
 [features]
 default = ["mini-alloc"]
@@ -27,7 +28,7 @@ test-debug = ["stylus-sdk/debug", "deli/debug", "deli/stylus-test"]
 mini-alloc = ["stylus-sdk/mini-alloc"]
 
 [[bin]]
-name = "market"
+name = "dior"
 path = "src/main.rs"
 
 [lib]
@@ -35,10 +36,14 @@ crate-type = ["lib", "cdylib"]
 
 [profile.release]
 codegen-units = 1
+panic = "abort"
+opt-level = "z"
 strip = true
 lto = true
-panic = "abort"
+debug = false
+rpath = false
+debug-assertions = false
+incremental = false
 
-# If you need to reduce the binary size, it is advisable to try other
-# optimization levels, such as "s" and "z"
-opt-level = "s"
+[profile.dev]
+panic = "abort"

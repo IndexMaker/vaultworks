@@ -1,24 +1,31 @@
 [package]
-name = "market"
+name = "castle"
 version = "0.1.0"
 edition = "2021"
-description = "IndexMaker Market"
+description = "IndexMaker Castle"
 
 [dependencies]
 alloy-primitives = { workspace = true }
 alloy-sol-types = { workspace = true }
-stylus-sdk = { workspace = true }
-hex = { workspace = true }
+amount-macros = { workspace = true }
 deli = { workspace = true, features = ["stylus"] }
+devil-macros = { workspace = true }
+hex = { workspace = true }
+icore = { workspace = true }
+labels-macros = { workspace = true }
+openzeppelin-stylus = { workspace = true }
+openzeppelin-stylus-proc = { workspace = true }
+stylus-sdk = { workspace = true }
+vector-macros = { workspace = true }
 
 [dev-dependencies]
 alloy-primitives = { workspace = true, features = ["sha3-keccak"] }
-tokio = { workspace = true, features = ["full"] }
+deli = { workspace = true, features = ["stylus"] }
+dotenv = { workspace = true }
 ethers = { workspace = true }
 eyre = { workspace = true }
 stylus-sdk = { workspace = true, features = ["stylus-test"] }
-dotenv = { workspace = true }
-deli = { workspace = true, features = ["stylus"] }
+tokio = { workspace = true, features = ["full"] }
 
 [features]
 default = ["mini-alloc"]
@@ -27,7 +34,7 @@ test-debug = ["stylus-sdk/debug", "deli/debug", "deli/stylus-test"]
 mini-alloc = ["stylus-sdk/mini-alloc"]
 
 [[bin]]
-name = "market"
+name = "dior"
 path = "src/main.rs"
 
 [lib]

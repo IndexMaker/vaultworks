@@ -2,7 +2,7 @@
 name = "daxos"
 version = "0.1.0"
 edition = "2021"
-description = "Arbitrum Stylus Decentralised Orchestrator"
+description = "IndexMaker Hero"
 
 [dependencies]
 alloy-primitives = { workspace = true }
