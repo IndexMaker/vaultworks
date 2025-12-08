@@ -7,7 +7,7 @@ extern crate alloc;
 
 use alloc::vec::Vec;
 
-use alloy_primitives::{aliases::B32, Address, B256, U256};
+use alloy_primitives::{aliases::B32, Address, B256, U256, U8};
 
 use alloy_sol_types::{sol, SolEvent};
 use deli::log_msg;
@@ -22,7 +22,7 @@ use openzeppelin_stylus::{
 use stylus_sdk::{
     keccak_const,
     prelude::*,
-    storage::{StorageAddress, StorageB256, StorageMap},
+    storage::{StorageAddress, StorageB256, StorageMap, StorageU8},
     ArbResult,
 };
 
@@ -50,8 +50,13 @@ impl From<control::Error> for Error {
 #[storage]
 struct Role {
     implementation: StorageAddress,
-    hash_or_zero: StorageB256,
+    hash: StorageB256,
+    mode: StorageU8,
 }
+
+pub const ACCESS_MODE_NONE: u8 = 0;
+pub const ACCESS_MODE_INCLUDE: u8 = 1;
+// Note: Exclude makes no sense as if your address is excluded, you can always use different one.
 
 pub const SET_ROLES_ROLE: [u8; 32] = keccak_const::Keccak256::new()
     .update(b"Castle.SET_ROLES_ROLE")
@@ -74,25 +79,23 @@ impl Castle {
         &mut self,
         implementation: Address,
         role_ids: &Vec<B32>,
-        with_access_control: bool,
+        mode: U8,
     ) -> Result<(), Vec<u8>> {
         self.access.only_role(SET_ROLES_ROLE.into())?;
         for role_id in role_ids {
-            let hash_or_zero = if with_access_control {
-                self.vm().native_keccak256(role_id.as_slice())
-            } else {
-                B256::ZERO
-            };
+            let hash = self.vm().native_keccak256(role_id.as_slice());
             let mut role = self.roles.setter(*role_id);
             log_msg!(
-                "Replacing implementation: {} => {} for role: {} ({})",
+                "Replacing implementation: {} => {} for role: {} ({} {})",
                 role.implementation.get(),
                 address,
                 role_id,
-                hash
+                hash,
+                mode
             );
             role.implementation.set(implementation);
-            role.hash_or_zero.set(hash_or_zero);
+            role.hash.set(hash);
+            role.mode.set(mode);
         }
         Ok(())
     }
@@ -120,12 +123,14 @@ impl Castle {
     /// - implementation: An address of the contract implementing the functions
     /// - role_ids: A list of function selectors (first 4 bytes of EVM ABI call encoding)
     ///
+    /// Only users added to the role will be able to access listed functions.
+    ///
     pub fn set_protected_roles(
         &mut self,
         implementation: Address,
         role_ids: Vec<B32>,
     ) -> Result<(), Vec<u8>> {
-        self._set_roles(implementation, &role_ids, true)?;
+        self._set_roles(implementation, &role_ids, U8::from(ACCESS_MODE_INCLUDE))?;
         self.vm().emit_log(
             &CastleProtectedRolesSet {
                 _address: implementation,
@@ -145,12 +150,14 @@ impl Castle {
     /// - implementation: An address of the contract implementing the functions
     /// - role_ids: A list of function selectors (first 4 bytes of EVM ABI call encoding)
     ///
+    /// Everyone will be able to access listed functions.
+    ///
     pub fn set_public_roles(
         &mut self,
         implementation: Address,
         role_ids: Vec<B32>,
     ) -> Result<(), Vec<u8>> {
-        self._set_roles(implementation, &role_ids, false)?;
+        self._set_roles(implementation, &role_ids, U8::from(ACCESS_MODE_NONE))?;
         self.vm().emit_log(
             &CastlePublicRolesSet {
                 _address: implementation,
@@ -169,7 +176,7 @@ impl Castle {
     /// - role_ids: A list of function selectors (first 4 bytes of EVM ABI call encoding)
     ///
     pub fn unset_roles(&mut self, role_ids: Vec<B32>) -> Result<(), Vec<u8>> {
-        self._set_roles(Address::ZERO, &role_ids, false)?;
+        self._set_roles(Address::ZERO, &role_ids, U8::from(ACCESS_MODE_NONE))?;
         self.vm()
             .emit_log(&CastleRolesUnset { roles: role_ids }.encode_data(), 1);
         Ok(())
@@ -187,10 +194,18 @@ impl Castle {
             Err(b"Role not found")?;
         }
 
-        let hash_or_zero = role.hash_or_zero.get();
-        if !hash_or_zero.is_zero() {
-            self.access.only_role(hash_or_zero)?;
-        }
+        let mode = role.mode.get();
+        match mode.to::<u8>() {
+            ACCESS_MODE_INCLUDE => {
+                // Role is protected, only select addresses can access.
+                let hash = role.hash.get();
+                self.access.only_role(hash)?
+            }
+            ACCESS_MODE_NONE => {
+                // Role is public.
+            }
+            _ => Err(b"Invalid access mode")?,
+        };
 
         log_msg!("Delegate to: {} for role: {}", role_address, role_id);
         unsafe { Ok(self.vm().delegate_call(&self, implementation, calldata)?) }
