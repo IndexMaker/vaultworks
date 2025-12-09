@@ -7,10 +7,10 @@ extern crate alloc;
 
 use alloc::vec::Vec;
 
-use alloy_primitives::{aliases::B32, Address, B256, U8};
+use alloy_primitives::{aliases::B32, uint, Address, B256, U256, U8};
 
 use alloy_sol_types::{SolCall, SolEvent};
-use deli::{contracts::ICastle, log_msg};
+use deli::{contracts::ICastle, log_msg, storage::StorageSlot};
 use stylus_sdk::{
     keccak_const,
     prelude::*,
@@ -21,6 +21,13 @@ use stylus_sdk::{
 pub const CASTLE_ADMIN_ROLE: [u8; 32] = keccak_const::Keccak256::new()
     .update(b"Castle.ADMIN_ROLE")
     .finalize();
+
+pub const CASTLE_STORAGE_SLOT: U256 = {
+    const HASH: [u8; 32] = keccak_const::Keccak256::new()
+        .update(b"Castle.STORAGE_SLOT")
+        .finalize();
+    U256::from_be_bytes(HASH).wrapping_sub(uint!(1_U256))
+};
 
 pub const ACCESS_MODE_NONE: u8 = 0;
 pub const ACCESS_MODE_PROTECTED: u8 = 1;
@@ -151,6 +158,12 @@ struct Delegate {
     access_mode: StorageU8,
 }
 
+#[storage]
+struct CastleStorage {
+    delegates: StorageMap<B32, Delegate>,
+    acl: AccessControlList,
+}
+
 /// Lightweight One-To-Many Proxy (aka Diamond)
 ///
 /// This is Castle, where you are assigned roles to access functions.
@@ -163,16 +176,35 @@ struct Delegate {
 ///
 /// Use of ACL at the Castle level partly removes the necessity to control
 /// access by delegates.
-/// 
+///
 ///
 #[entrypoint]
 #[storage]
-struct Castle {
-    delegates: StorageMap<B32, Delegate>,
-    acl: AccessControlList,
+struct Castle;
+
+struct CastleInstanceMut<'a> {
+    castle: &'a mut Castle,
+    storage: CastleStorage,
 }
 
 impl Castle {
+    fn _storage() -> CastleStorage {
+        StorageSlot::get_slot::<CastleStorage>(CASTLE_STORAGE_SLOT)
+    }
+
+    fn _with_storage_mut<'a>(&'a mut self) -> CastleInstanceMut<'a> {
+        CastleInstanceMut {
+            castle: self,
+            storage: Self::_storage(),
+        }
+    }
+}
+
+impl<'a> CastleInstanceMut<'a> {
+    fn vm(&self) -> &dyn Host {
+        self.castle.vm()
+    }
+
     fn _publish_event<T>(&self, event: T)
     where
         T: SolEvent,
@@ -190,7 +222,7 @@ impl Castle {
     }
 
     fn _only_role(&self, role: &[u8; 32]) -> Result<(), Vec<u8>> {
-        if !self.acl._has_role(role, self._attendee()) {
+        if !self.storage.acl._has_role(role, self._attendee()) {
             Err(b"Unauthorised access")?
         }
         Ok(())
@@ -232,16 +264,21 @@ impl Castle {
             if self._is_prohibited_function(fun_sel) {
                 Err(b"Function cannot be delegated")?
             }
-            let mut delegate = self.delegates.setter(*fun_sel);
-            log_msg!(
-                "Assigning function {} delegation to {} (previously assigned to {})",
-                fun_sel,
-                contract_address,
-                role.contract_address.get(),
-            );
+            let mut delegate = self.storage.delegates.setter(*fun_sel);
             if let Some(contract_address) = contract_address {
+                log_msg!(
+                    "Assigning function {} delegation to {} (previously assigned to {})",
+                    fun_sel,
+                    contract_address,
+                    delegate.contract_address.get()
+                );
                 delegate.contract_address.set(contract_address);
             } else {
+                log_msg!(
+                    "Removing function {} delegation (previously assigned to {})",
+                    fun_sel,
+                    delegate.contract_address.get()
+                );
                 delegate.contract_address.erase();
             }
             if let Some(required_role) = required_role {
@@ -261,7 +298,10 @@ impl Castle {
     #[constructor]
     pub fn constructor(&mut self, admin: Address) -> Result<(), Vec<u8>> {
         log_msg!("Castle administrated by {}", admin);
-        self.acl._set_role(admin, CASTLE_ADMIN_ROLE.into())?;
+        self._with_storage_mut()
+            .storage
+            .acl
+            ._set_role(admin, CASTLE_ADMIN_ROLE.into())?;
         Ok(())
     }
 
@@ -279,9 +319,10 @@ impl Castle {
         contract_address: Address,
         function_selectors: Vec<B32>,
     ) -> Result<(), Vec<u8>> {
-        self._only_admin()?;
-        self._set_functions(Some(contract_address), None, &function_selectors)?;
-        self._publish_event(ICastle::PublicFunctionsCreated {
+        let mut with_storage = self._with_storage_mut();
+        with_storage._only_admin()?;
+        with_storage._set_functions(Some(contract_address), None, &function_selectors)?;
+        with_storage._publish_event(ICastle::PublicFunctionsCreated {
             contract_address,
             function_selectors,
         });
@@ -294,7 +335,7 @@ impl Castle {
     /// ----------
     /// - contract_address: An address of the contract implementing the functions.
     /// - fun_selectors: A list of function selectors (first 4 bytes of EVM ABI call encoding).
-    /// - required_rold: A role required to invoke any of the listed functions.
+    /// - required_role: A role required to invoke any of the listed functions.
     ///
     /// Only users added to the role will be able to access listed functions.
     ///
@@ -304,13 +345,14 @@ impl Castle {
         function_selectors: Vec<B32>,
         required_role: B256,
     ) -> Result<(), Vec<u8>> {
-        self._only_admin()?;
-        self._set_functions(
+        let mut with_storage = self._with_storage_mut();
+        with_storage._only_admin()?;
+        with_storage._set_functions(
             Some(contract_address),
             Some(required_role),
             &function_selectors,
         )?;
-        self._publish_event(ICastle::ProtectedFunctionsCreated {
+        with_storage._publish_event(ICastle::ProtectedFunctionsCreated {
             contract_address,
             function_selectors,
         });
@@ -324,9 +366,10 @@ impl Castle {
     /// - fun_selectors: A list of function selectors (first 4 bytes of EVM ABI call encoding).
     ///
     pub fn remove_functions(&mut self, function_selectors: Vec<B32>) -> Result<(), Vec<u8>> {
-        self._only_admin()?;
-        self._set_functions(None, None, &function_selectors)?;
-        self._publish_event(ICastle::FunctionsRemoved { function_selectors });
+        let mut with_storage = self._with_storage_mut();
+        with_storage._only_admin()?;
+        with_storage._set_functions(None, None, &function_selectors)?;
+        with_storage._publish_event(ICastle::FunctionsRemoved { function_selectors });
         Ok(())
     }
 
@@ -337,9 +380,10 @@ impl Castle {
     /// - fun_selectors: A list of function selectors (first 4 bytes of EVM ABI call encoding).
     ///
     pub fn get_function_delegates(&self, fun_selectors: Vec<B32>) -> Result<Vec<Address>, Vec<u8>> {
+        let storage = Self::_storage();
         let mut delegates = Vec::new();
         for fun_sel in &fun_selectors {
-            let role = self.delegates.get(*fun_sel);
+            let role = storage.delegates.get(*fun_sel);
             delegates.push(role.contract_address.get());
         }
         Ok(delegates)
@@ -347,14 +391,15 @@ impl Castle {
 
     /// IAccessControl::hasRole()
     pub fn has_role(&mut self, role: B256, attendee: Address) -> bool {
-        self.acl._has_role(&role, attendee)
+        Self::_storage().acl._has_role(&role, attendee)
     }
 
     // IAccessControl::grantRole()
     pub fn grant_role(&mut self, role: B256, attendee: Address) -> Result<(), Vec<u8>> {
-        self._only_admin()?;
-        self.acl._set_role(attendee, role)?;
-        self._publish_event(ICastle::RoleGranted {
+        let mut with_storage = self._with_storage_mut();
+        with_storage._only_admin()?;
+        with_storage.storage.acl._set_role(attendee, role)?;
+        with_storage._publish_event(ICastle::RoleGranted {
             role,
             assignee_address: attendee,
         });
@@ -363,9 +408,10 @@ impl Castle {
 
     // IAccessControl::revokeRole()
     pub fn revoke_role(&mut self, role: B256, attendee: Address) -> Result<(), Vec<u8>> {
-        self._only_admin()?;
-        self.acl._unset_role(attendee, role)?;
-        self._publish_event(ICastle::RoleRevoked {
+        let mut with_storage = self._with_storage_mut();
+        with_storage._only_admin()?;
+        with_storage.storage.acl._unset_role(attendee, role)?;
+        with_storage._publish_event(ICastle::RoleRevoked {
             role,
             assignee_address: attendee,
         });
@@ -374,11 +420,12 @@ impl Castle {
 
     // IAccessControl::renounceRole()
     pub fn renounce_role(&mut self, role: B256, attendee: Address) -> Result<(), Vec<u8>> {
-        if self._attendee().ne(&attendee) {
+        let mut with_storage = self._with_storage_mut();
+        if with_storage._attendee().ne(&attendee) {
             Err(b"Bad confirmation")?;
         }
-        self.acl._unset_role(attendee, role)?;
-        self._publish_event(ICastle::RoleRenounced {
+        with_storage.storage.acl._unset_role(attendee, role)?;
+        with_storage._publish_event(ICastle::RoleRenounced {
             role,
             assignee_address: attendee,
         });
@@ -387,9 +434,10 @@ impl Castle {
 
     /// Remove role completely with all asignees
     pub fn delete_role(&mut self, role: B256) -> Result<(), Vec<u8>> {
-        self._only_admin()?;
-        self.acl._remove_role(role)?;
-        self._publish_event(ICastle::RoleDeleted { role });
+        let mut with_storage = self._with_storage_mut();
+        with_storage._only_admin()?;
+        with_storage.storage.acl._remove_role(role)?;
+        with_storage._publish_event(ICastle::RoleDeleted { role });
         Ok(())
     }
 
@@ -400,19 +448,20 @@ impl Castle {
 
     /// List roles assigned to attendee
     pub fn get_assigned_roles(&self, attendee: Address) -> Result<Vec<B256>, Vec<u8>> {
-        self.acl._get_assigned_roles(attendee)
+        Self::_storage().acl._get_assigned_roles(attendee)
     }
 
     /// List assignees of the role
     pub fn get_role_assignees(&self, role: B256) -> Result<Vec<Address>, Vec<u8>> {
-        self.acl._get_role_assignees(role)
+        Self::_storage().acl._get_role_assignees(role)
     }
 
     #[payable]
     #[fallback]
     fn fallback(&mut self, calldata: &[u8]) -> ArbResult {
+        let with_storage = self._with_storage_mut();
         let fun_sel = B32::from_slice(calldata.get(0..4).ok_or_else(|| b"Calldata invalid")?);
-        let delegate = self.delegates.get(fun_sel);
+        let delegate = with_storage.storage.delegates.get(fun_sel);
 
         let contract_address = delegate.contract_address.get();
         if contract_address == Address::ZERO {
@@ -425,7 +474,7 @@ impl Castle {
             ACCESS_MODE_PROTECTED => {
                 let required_role = delegate.required_role.get();
                 log_msg!("Required role {} to access {}", required_role, fun_sel);
-                self._only_role(&required_role)?
+                with_storage._only_role(&required_role)?
             }
             ACCESS_MODE_NONE => {
                 // Role is public.
