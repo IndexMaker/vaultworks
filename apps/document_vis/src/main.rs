@@ -1,10 +1,9 @@
 use clap::Parser;
-use eyre::OptionExt;
 use itertools::Itertools;
 use regex::Regex;
 use std::error::Error;
 use std::fmt::{self, Display, Formatter, Write};
-use std::{fs, usize};
+use std::fs;
 
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about = None)]

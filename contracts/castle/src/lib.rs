@@ -27,9 +27,9 @@ use stylus_sdk::{
 };
 
 sol! {
-    event CastleProtectedRolesSet(address _address, bytes4[] roles);
-    event CastlePublicRolesSet(address _address, bytes4[] roles);
-    event CastleRolesUnset(bytes4[] roles);
+    event CastleProtectedFunctionsCreated(address _address, bytes4[] roles);
+    event CastlePublicFunctionsCreated(address _address, bytes4[] roles);
+    event CastleFunctionsRemoved(bytes4[] roles);
 }
 
 #[derive(SolidityError, Debug)]
@@ -48,78 +48,62 @@ impl From<control::Error> for Error {
 }
 
 #[storage]
-struct Role {
-    implementation: StorageAddress,
-    hash: StorageB256,
-    mode: StorageU8,
+struct Delegate {
+    contract_address: StorageAddress,
+    required_role: StorageB256,
+    access_mode: StorageU8,
 }
 
-// Role is:
-// * protected ==> ACCESS_MODE_INCLUDE : because we need to check if user is included in the role
-// * public ==> ACCESS_MODE_NONE : because we will not do any checks
-// * unset ==> ACCESS_MODE_NONE : because we will not do any checks (skipped by implementation == ZERO)
-// Note: Exclude makes no sense as if your address is excluded, you can always use different one.
 pub const ACCESS_MODE_NONE: u8 = 0;
-pub const ACCESS_MODE_INCLUDE: u8 = 1;
-
-pub const SET_ROLES_ROLE: [u8; 32] = keccak_const::Keccak256::new()
-    .update(b"Castle.SET_ROLES_ROLE")
-    .finalize();
+pub const ACCESS_MODE_PROTECTED: u8 = 1;
 
 /// One to Many proxy (aka Diamond)
 ///
 /// All calls go through access control check.
-/// 
-/// Note: This is lightweight variant of ERC2535.
-/// 
-/// * ADMIN ==> assigns roles to the users,
-/// * SET_ROLES_ROLE ==> assigns implementations to the roles.
 ///
-/// We don't implement complex loupe interface, and we provide three methods to
-/// managing available roles:
-/// 
-/// * `setProtectedRoles(address implementation, bytes4[] roleIds)` ==> these roles must have users assigned to them
-/// * `setPublicRoles(address implementation, bytes4[] roleIds)` ==> these roles are publicly available
-/// * `unsetRoles(bytes4[] roleIds)` ==> roles can be removed
-/// 
-/// Additionally we support only listing of the implementations assigned to
-/// specific roles:
-/// 
-/// * `getRoleAssingees(bytes4[] roleIds) view (address[])` ==> list implementations for the specific roles
+/// Note: This is lightweight variant of ERC2535.
 ///
 #[entrypoint]
 #[storage]
 struct Castle {
     access: AccessControl,
     access_enumerable: AccessControlEnumerable,
-    roles: StorageMap<B32, Role>,
+    delegates: StorageMap<B32, Delegate>,
 }
 
 impl Castle {
-    fn _set_roles(
+    fn _set_functions(
         &mut self,
-        implementation: Address,
-        role_ids: &Vec<B32>,
-        mode: U8,
+        contract_address: Option<Address>,
+        required_role: Option<B256>,
+        fun_selectors: &Vec<B32>,
     ) -> Result<(), Vec<u8>> {
-        self.access.only_role(SET_ROLES_ROLE.into())?;
-        if implementation == self.vm().contract_address() {
-            Err(b"Expected implementation address")?;
+        self.only_role(AccessControl::DEFAULT_ADMIN_ROLE.into())?;
+        if contract_address.map_or(false, |x| x == self.vm().contract_address()) {
+            Err(b"Expected delegate address")?;
         }
-        for role_id in role_ids {
-            let hash = self.vm().native_keccak256(role_id.as_slice());
-            let mut role = self.roles.setter(*role_id);
+        for fun_sel in fun_selectors {
+            let mut delegate = self.delegates.setter(*fun_sel);
             log_msg!(
-                "Replacing implementation: {} => {} for role: {} ({} {})",
-                role.implementation.get(),
-                address,
-                role_id,
-                hash,
-                mode
+                "Assigning function {} delegation to {} (previously assigned to {})",
+                fun_sel,
+                contract_address,
+                role.contract_address.get(),
             );
-            role.implementation.set(implementation);
-            role.hash.set(hash);
-            role.mode.set(mode);
+            if let Some(contract_address) = contract_address {
+                delegate.contract_address.set(contract_address);
+            }
+            else {
+                delegate.contract_address.erase();
+            }
+            if let Some(required_role) = required_role {
+                delegate.access_mode.set(U8::from(ACCESS_MODE_PROTECTED));
+                delegate.required_role.set(required_role);
+            }
+            else {
+                delegate.access_mode.set(U8::from(ACCESS_MODE_NONE));
+                delegate.required_role.erase();
+            }
         }
         Ok(())
     }
@@ -130,40 +114,36 @@ impl Castle {
 impl Castle {
     #[constructor]
     pub fn constructor(&mut self, admin: Address) -> Result<(), Vec<u8>> {
+        log_msg!("Castle administrated by {}", admin);
         self.access_enumerable._grant_role(
             AccessControl::DEFAULT_ADMIN_ROLE.into(),
             admin,
             &mut self.access,
         );
-        self.access_enumerable._grant_role(
-            SET_ROLES_ROLE.into(),
-            admin,
-            &mut self.access,
-        );
-        log_msg!("Set initial owner to: {}", initial_owner);
         Ok(())
     }
 
-    /// Associate function selectors with implementation address
-    /// adding access control based on hash of the selector (**protected**).
+    /// Associate function selectors with delegate setting **protected** access.
     ///
     /// Parameters
     /// ----------
-    /// - implementation: An address of the contract implementing the functions
-    /// - role_ids: A list of function selectors (first 4 bytes of EVM ABI call encoding)
+    /// - contract_address: An address of the contract implementing the functions.
+    /// - fun_selectors: A list of function selectors (first 4 bytes of EVM ABI call encoding).
+    /// - required_rold: A role required to invoke any of the listed functions.
     ///
     /// Only users added to the role will be able to access listed functions.
     ///
-    pub fn set_protected_roles(
+    pub fn set_protected_functions(
         &mut self,
-        implementation: Address,
-        role_ids: Vec<B32>,
+        contract_address: Address,
+        fun_selectors: Vec<B32>,
+        required_role: B256,
     ) -> Result<(), Vec<u8>> {
-        self._set_roles(implementation, &role_ids, U8::from(ACCESS_MODE_INCLUDE))?;
+        self._set_functions(Some(contract_address), Some(required_role), &fun_selectors)?;
         self.vm().emit_log(
-            &CastleProtectedRolesSet {
-                _address: implementation,
-                roles: role_ids,
+            &CastleProtectedFunctionsCreated {
+                _address: contract_address,
+                roles: fun_selectors,
             }
             .encode_data(),
             1,
@@ -171,26 +151,25 @@ impl Castle {
         Ok(())
     }
 
-    /// Associate function selectors with implementation address
-    /// adding access control based on hash of the selector (**public**).
+    /// Associate function selectors with delegate setting **public** access.
     ///
     /// Parameters
     /// ----------
-    /// - implementation: An address of the contract implementing the functions
-    /// - role_ids: A list of function selectors (first 4 bytes of EVM ABI call encoding)
+    /// - contract_address: An address of the contract implementing the functions.
+    /// - fun_selectors: A list of function selectors (first 4 bytes of EVM ABI call encoding).
     ///
     /// Everyone will be able to access listed functions.
     ///
-    pub fn set_public_roles(
+    pub fn set_public_functions(
         &mut self,
-        implementation: Address,
-        role_ids: Vec<B32>,
+        contract_address: Address,
+        fun_selectors: Vec<B32>,
     ) -> Result<(), Vec<u8>> {
-        self._set_roles(implementation, &role_ids, U8::from(ACCESS_MODE_NONE))?;
+        self._set_functions(Some(contract_address), None, &fun_selectors)?;
         self.vm().emit_log(
-            &CastlePublicRolesSet {
-                _address: implementation,
-                roles: role_ids,
+            &CastlePublicFunctionsCreated {
+                _address: contract_address,
+                roles: fun_selectors,
             }
             .encode_data(),
             1,
@@ -198,52 +177,52 @@ impl Castle {
         Ok(())
     }
 
-    /// Disassociate function selectors with implementation address.
+    /// Disassociate function selectors from delegates.
     ///
     /// Parameters
     /// ----------
-    /// - role_ids: A list of function selectors (first 4 bytes of EVM ABI call encoding)
+    /// - fun_selectors: A list of function selectors (first 4 bytes of EVM ABI call encoding).
     ///
-    pub fn unset_roles(&mut self, role_ids: Vec<B32>) -> Result<(), Vec<u8>> {
-        self._set_roles(Address::ZERO, &role_ids, U8::from(ACCESS_MODE_NONE))?;
+    pub fn remove_functions(&mut self, fun_selectors: Vec<B32>) -> Result<(), Vec<u8>> {
+        self._set_functions(None, None, &fun_selectors)?;
         self.vm()
-            .emit_log(&CastleRolesUnset { roles: role_ids }.encode_data(), 1);
+            .emit_log(&CastleFunctionsRemoved { roles: fun_selectors }.encode_data(), 1);
         Ok(())
     }
 
     /// Obtain list of implementations assigned to specific roles.
-    /// 
+    ///
     /// Parameters
     /// ----------
-    /// - role_ids: A list of function selectors (first 4 bytes of EVM ABI call encoding)
-    /// 
-    pub fn get_role_assignees(&self, role_ids: Vec<B32>) -> Result<Vec<Address>, Vec<u8>> {
-        let mut roles = Vec::new();
-        for role_id in &role_ids {
-            let role = self.roles.get(*role_id);
-            roles.push(role.implementation.get());
+    /// - fun_selectors: A list of function selectors (first 4 bytes of EVM ABI call encoding).
+    ///
+    pub fn get_delegates(&self, fun_selectors: Vec<B32>) -> Result<Vec<Address>, Vec<u8>> {
+        let mut delegates = Vec::new();
+        for fun_sel in &fun_selectors {
+            let role = self.delegates.get(*fun_sel);
+            delegates.push(role.contract_address.get());
         }
-        Ok(roles)
+        Ok(delegates)
     }
 
     #[payable]
     #[fallback]
     fn fallback(&mut self, calldata: &[u8]) -> ArbResult {
-        let role_id = B32::from_slice(calldata.get(0..4).ok_or_else(|| b"Calldata invalid")?);
-        let role = self.roles.get(role_id);
+        let fun_sel = B32::from_slice(calldata.get(0..4).ok_or_else(|| b"Calldata invalid")?);
+        let delegate = self.delegates.get(fun_sel);
 
-        let implementation = role.implementation.get();
-        if implementation == Address::ZERO {
-            log_msg!("Address not found for role: {}", role_id);
-            Err(b"Role not found")?;
+        let contract_address = delegate.contract_address.get();
+        if contract_address == Address::ZERO {
+            log_msg!("Function {} not found", fun_sel);
+            Err(b"Function not found")?;
         }
 
-        let mode = role.mode.get();
+        let mode = delegate.access_mode.get();
         match mode.to::<u8>() {
-            ACCESS_MODE_INCLUDE => {
-                // Role is protected, only select addresses can access.
-                let hash = role.hash.get();
-                self.access.only_role(hash)?
+            ACCESS_MODE_PROTECTED => {
+                let required_role = delegate.required_role.get();
+                log_msg!("Required role {} to access {}", required_role, fun_sel);
+                self.access.only_role(required_role)?
             }
             ACCESS_MODE_NONE => {
                 // Role is public.
@@ -251,8 +230,8 @@ impl Castle {
             _ => Err(b"Invalid access mode")?,
         };
 
-        log_msg!("Delegate to: {} for role: {}", role_address, role_id);
-        unsafe { Ok(self.vm().delegate_call(&self, implementation, calldata)?) }
+        log_msg!("Delegating function {} to {}", fun_sel, contract_address);
+        unsafe { Ok(self.vm().delegate_call(&self, contract_address, calldata)?) }
     }
 }
 
