@@ -1025,8 +1025,6 @@ dependencies = [
  "hex",
  "icore",
  "labels-macros",
- "openzeppelin-stylus",
- "openzeppelin-stylus-proc",
  "stylus-sdk",
  "tokio",
  "vector-macros",

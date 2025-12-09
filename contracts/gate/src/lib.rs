@@ -19,6 +19,10 @@ struct Gate {
     erc1967: Erc1967Proxy,
 }
 
+/// One to one delegating proxy
+/// 
+/// All calls are delegated to implementation
+/// 
 #[public]
 impl Gate {
     #[constructor]

@@ -1,5 +1,10 @@
 #!/bin/bash
 
+if [ "$#" -le 0 ]; then
+  echo "check.sh CONTRACT_NAME [OPTIONAL ARGS...]"
+  exit 1
+fi
+
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 
 . $SCRIPT_DIR/vars.sh
