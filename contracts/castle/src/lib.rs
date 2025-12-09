@@ -15,7 +15,7 @@ use stylus_sdk::{
     keccak_const,
     prelude::*,
     storage::{
-        StorageAddress, StorageB256, StorageBool, StorageMap, StorageU256, StorageU8, StorageVec,
+        StorageAddress, StorageB256, StorageMap, StorageU256, StorageU8, StorageVec,
     },
     ArbResult,
 };
@@ -117,7 +117,7 @@ impl AccessControlList {
     const MAX_LEN: usize = 256;
 
     fn _set_role(&mut self, attendee: Address, role: B256) -> Result<(), Vec<u8>> {
-        self.roles.setter(role)._assign(attendee);
+        self.roles.setter(role)._assign(attendee)?;
         Ok(())
     }
 
@@ -126,7 +126,7 @@ impl AccessControlList {
     }
 
     fn _unset_role(&mut self, attendee: Address, role: B256) -> Result<(), Vec<u8>> {
-        self.roles.setter(role)._unassign(attendee);
+        self.roles.setter(role)._unassign(attendee)?;
         Ok(())
     }
 
