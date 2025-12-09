@@ -13,8 +13,6 @@ devil-macros = { workspace = true }
 hex = { workspace = true }
 icore = { workspace = true }
 labels-macros = { workspace = true }
-openzeppelin-stylus = { workspace = true }
-openzeppelin-stylus-proc = { workspace = true }
 stylus-sdk = { workspace = true }
 vector-macros = { workspace = true }
 
