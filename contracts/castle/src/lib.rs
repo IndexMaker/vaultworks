@@ -54,9 +54,13 @@ struct Role {
     mode: StorageU8,
 }
 
+// Role is:
+// * protected ==> ACCESS_MODE_INCLUDE : because we need to check if user is included in the role
+// * public ==> ACCESS_MODE_NONE : because we will not do any checks
+// * unset ==> ACCESS_MODE_NONE : because we will not do any checks (skipped by implementation == ZERO)
+// Note: Exclude makes no sense as if your address is excluded, you can always use different one.
 pub const ACCESS_MODE_NONE: u8 = 0;
 pub const ACCESS_MODE_INCLUDE: u8 = 1;
-// Note: Exclude makes no sense as if your address is excluded, you can always use different one.
 
 pub const SET_ROLES_ROLE: [u8; 32] = keccak_const::Keccak256::new()
     .update(b"Castle.SET_ROLES_ROLE")
@@ -65,6 +69,23 @@ pub const SET_ROLES_ROLE: [u8; 32] = keccak_const::Keccak256::new()
 /// One to Many proxy (aka Diamond)
 ///
 /// All calls go through access control check.
+/// 
+/// Note: This is lightweight variant of ERC2535.
+/// 
+/// * ADMIN ==> assigns roles to the users,
+/// * SET_ROLES_ROLE ==> assigns implementations to the roles.
+///
+/// We don't implement complex loupe interface, and we provide three methods to
+/// managing available roles:
+/// 
+/// * `setProtectedRoles(address implementation, bytes4[] roleIds)` ==> these roles must have users assigned to them
+/// * `setPublicRoles(address implementation, bytes4[] roleIds)` ==> these roles are publicly available
+/// * `unsetRoles(bytes4[] roleIds)` ==> roles can be removed
+/// 
+/// Additionally we support only listing of the implementations assigned to
+/// specific roles:
+/// 
+/// * `getRoleAssingees(bytes4[] roleIds) view (address[])` ==> list implementations for the specific roles
 ///
 #[entrypoint]
 #[storage]
@@ -82,6 +103,9 @@ impl Castle {
         mode: U8,
     ) -> Result<(), Vec<u8>> {
         self.access.only_role(SET_ROLES_ROLE.into())?;
+        if implementation == self.vm().contract_address() {
+            Err(b"Expected implementation address")?;
+        }
         for role_id in role_ids {
             let hash = self.vm().native_keccak256(role_id.as_slice());
             let mut role = self.roles.setter(*role_id);
@@ -108,6 +132,11 @@ impl Castle {
     pub fn constructor(&mut self, admin: Address) -> Result<(), Vec<u8>> {
         self.access_enumerable._grant_role(
             AccessControl::DEFAULT_ADMIN_ROLE.into(),
+            admin,
+            &mut self.access,
+        );
+        self.access_enumerable._grant_role(
+            SET_ROLES_ROLE.into(),
             admin,
             &mut self.access,
         );
@@ -180,6 +209,21 @@ impl Castle {
         self.vm()
             .emit_log(&CastleRolesUnset { roles: role_ids }.encode_data(), 1);
         Ok(())
+    }
+
+    /// Obtain list of implementations assigned to specific roles.
+    /// 
+    /// Parameters
+    /// ----------
+    /// - role_ids: A list of function selectors (first 4 bytes of EVM ABI call encoding)
+    /// 
+    pub fn get_role_assignees(&self, role_ids: Vec<B32>) -> Result<Vec<Address>, Vec<u8>> {
+        let mut roles = Vec::new();
+        for role_id in &role_ids {
+            let role = self.roles.get(*role_id);
+            roles.push(role.implementation.get());
+        }
+        Ok(roles)
     }
 
     #[payable]
