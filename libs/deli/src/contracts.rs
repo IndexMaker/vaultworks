@@ -30,7 +30,7 @@ sol! {
 
         function removeFunctions(bytes4[] memory function_selectors) external;
 
-        function getFunctionDelegates(bytes4[] memory function_selectors) external view returns (address[] memory);
+        function getFunctionDelegates(bytes4[] memory fun_selectors) external view returns (address[] memory);
 
         function hasRole(bytes32 role, address attendee) external returns (bool);
 
@@ -40,13 +40,13 @@ sol! {
 
         function renounceRole(bytes32 role, address attendee) external;
 
-        function deleteRole(bytes32 role) external;
+        function deleteRole(bytes32 role) external returns (bool);
 
         function getAdminRole() external view returns (bytes32);
 
-        function getAssignedRoles(address attendee) external view returns (bytes32[] memory);
+        function getRoleAssigneeCount(bytes32 role) external view returns (uint256);
 
-        function getRoleAssignees(bytes32 role) external view returns (address[] memory);
+        function getRoleAssignees(bytes32 role, uint256 start_from, uint256 max_len) external view returns (address[] memory);
     }
 
 }

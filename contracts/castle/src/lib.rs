@@ -14,7 +14,9 @@ use deli::{contracts::ICastle, log_msg, storage::StorageSlot};
 use stylus_sdk::{
     keccak_const,
     prelude::*,
-    storage::{StorageAddress, StorageB256, StorageMap, StorageU8, StorageVec},
+    storage::{
+        StorageAddress, StorageB256, StorageBool, StorageMap, StorageU256, StorageU8, StorageVec,
+    },
     ArbResult,
 };
 
@@ -32,6 +34,71 @@ pub const CASTLE_STORAGE_SLOT: U256 = {
 pub const ACCESS_MODE_NONE: u8 = 0;
 pub const ACCESS_MODE_PROTECTED: u8 = 1;
 
+#[storage]
+struct Role {
+    assignees: StorageVec<StorageAddress>,
+    positions: StorageMap<Address, StorageU256>,
+}
+
+impl Role {
+    fn _assign(&mut self, address: Address) -> Result<(), Vec<u8>> {
+        let mut pos_setter = self.positions.setter(address);
+        if pos_setter.get().is_zero() {
+            self.assignees.push(address);
+            let last_pos = self.assignees.len();
+            pos_setter.set(U256::from(last_pos));
+        } else {
+            Err(b"Role already set")?;
+        }
+        Ok(())
+    }
+
+    fn _unassign(&mut self, address: Address) -> Result<(), Vec<u8>> {
+        let mut pos_setter = self.positions.setter(address);
+        let pos = pos_setter.get();
+        if pos.is_zero() {
+            Err(b"Role not assigned")?;
+        }
+        pos_setter.erase();
+        let last_index = U256::from(self.assignees.len());
+        if U256::ONE < last_index && pos != last_index {
+            let last = self.assignees.get(last_index - U256::ONE).unwrap();
+            self.assignees.setter(pos - U256::ONE).unwrap().set(last);
+            self.positions.setter(last).set(pos);
+        }
+        self.assignees.erase_last();
+        Ok(())
+    }
+
+    fn _erase_next(&mut self, max_len: usize) -> bool {
+        let assignees = self._get_assignees(0, max_len);
+        for address in assignees {
+            self._unassign(address).unwrap();
+        }
+        self.assignees.is_empty()
+    }
+
+    fn _contains(&self, address: Address) -> bool {
+        !self.positions.get(address).is_zero()
+    }
+
+    fn _get_assignee_count(&self) -> usize {
+        self.assignees.len()
+    }
+
+    fn _get_assignees(&self, start_from: usize, max_len: usize) -> Vec<Address> {
+        let mut result = Vec::with_capacity(max_len);
+        let last_index = self.assignees.len();
+        if start_from < last_index {
+            for index in start_from..last_index {
+                let assignee = self.assignees.get(index).unwrap();
+                result.push(assignee);
+            }
+        }
+        result
+    }
+}
+
 /// Lightweight Access Control List (ACL)
 ///
 /// This is constructed from two mappings:
@@ -43,111 +110,36 @@ pub const ACCESS_MODE_PROTECTED: u8 = 1;
 ///
 #[storage]
 struct AccessControlList {
-    roles: StorageMap<B256, StorageVec<StorageAddress>>,
-    assignees: StorageMap<Address, StorageVec<StorageB256>>,
+    roles: StorageMap<B256, Role>,
 }
 
 impl AccessControlList {
+    const MAX_LEN: usize = 256;
+
     fn _set_role(&mut self, attendee: Address, role: B256) -> Result<(), Vec<u8>> {
-        let mut role_assignees = self.roles.setter(role);
-        for index in 0..role_assignees.len() {
-            let assignee = role_assignees.get(index).unwrap();
-            if assignee.eq(&attendee) {
-                Err(b"Role already assigned")?;
-            }
-        }
-        role_assignees.push(attendee);
-        self.assignees.setter(attendee).push(role);
+        self.roles.setter(role)._assign(attendee);
         Ok(())
     }
 
-    fn _remove_assignee_from_role(&mut self, role: B256, attendee: Address) -> Result<(), Vec<u8>> {
-        let mut role_assignees = self.roles.setter(role);
-        let assignee_count = role_assignees.len();
-        if 0 == assignee_count {
-            Err(b"Role does not exist")?;
-        }
-        let last_assignee = role_assignees.get(assignee_count - 1).unwrap();
-        for index in 0..assignee_count {
-            let mut assignee_setter = role_assignees.setter(index).unwrap();
-            if assignee_setter.get().eq(&attendee) {
-                if index < assignee_count - 1 {
-                    assignee_setter.set(last_assignee);
-                }
-                role_assignees.erase_last();
-                break;
-            }
-        }
-        Ok(())
-    }
-
-    fn _remove_role_from_assignee(&mut self, attendee: Address, role: B256) -> Result<(), Vec<u8>> {
-        let mut assignee_roles = self.assignees.setter(attendee);
-        let role_count = assignee_roles.len();
-        if 0 == role_count {
-            Err(b"Attendee has no roles assigned")?;
-        }
-        let last_role = assignee_roles.get(role_count - 1).unwrap();
-        for index in 0..role_count {
-            let mut role_setter = assignee_roles.setter(index).unwrap();
-            if role_setter.get().eq(&role) {
-                if index < role_count - 1 {
-                    role_setter.set(last_role);
-                }
-                assignee_roles.erase_last();
-            }
-        }
-        Ok(())
-    }
-
-    fn _get_role_assignees(&self, role: B256) -> Result<Vec<Address>, Vec<u8>> {
-        let role_assignees = self.roles.getter(role);
-        let assignee_count = role_assignees.len();
-        if 0 == assignee_count {
-            Err(b"Role does not exist")?;
-        }
-        let mut assignees = Vec::with_capacity(assignee_count);
-        for index in 0..assignee_count {
-            let role_assignee = role_assignees.get(index).unwrap();
-            assignees.push(role_assignee);
-        }
-        Ok(assignees)
-    }
-
-    fn _get_assigned_roles(&self, attendee: Address) -> Result<Vec<B256>, Vec<u8>> {
-        let assigned_roles = self.assignees.getter(attendee);
-        let role_count = assigned_roles.len();
-        let mut roles = Vec::with_capacity(role_count);
-        for index in 0..role_count {
-            let role = assigned_roles.get(index).unwrap();
-            roles.push(role);
-        }
-        Ok(roles)
-    }
-
-    fn _has_role(&self, role: &[u8; 32], attendee: Address) -> bool {
-        let assigned_roles = self.assignees.get(attendee);
-        for index in 0..assigned_roles.len() {
-            let assigned_role = assigned_roles.get(index).unwrap();
-            if assigned_role.eq(role) {
-                return true;
-            }
-        }
-        false
+    fn _has_role(&self, role: B256, attendee: Address) -> bool {
+        self.roles.get(role)._contains(attendee)
     }
 
     fn _unset_role(&mut self, attendee: Address, role: B256) -> Result<(), Vec<u8>> {
-        self._remove_assignee_from_role(role, attendee)?;
-        self._remove_role_from_assignee(attendee, role)?;
+        self.roles.setter(role)._unassign(attendee);
         Ok(())
     }
 
-    fn _remove_role(&mut self, role: B256) -> Result<(), Vec<u8>> {
-        let assignees = self._get_role_assignees(role)?;
-        for assignee in assignees {
-            self._remove_role_from_assignee(assignee, role)?;
-        }
-        Ok(())
+    fn _delete_role(&mut self, role: B256) -> bool {
+        self.roles.setter(role)._erase_next(Self::MAX_LEN)
+    }
+
+    fn _get_role_assignee_count(&self, role: B256) -> usize {
+        self.roles.get(role)._get_assignee_count()
+    }
+
+    fn _get_role_assignees(&self, role: B256, start_from: usize, max_len: usize) -> Vec<Address> {
+        self.roles.get(role)._get_assignees(start_from, max_len.min(Self::MAX_LEN))
     }
 }
 
@@ -217,11 +209,11 @@ impl<'a> CastleInstanceMut<'a> {
     }
 
     fn _only_admin(&self) -> Result<(), Vec<u8>> {
-        self._only_role(&CASTLE_ADMIN_ROLE)?;
+        self._only_role(CASTLE_ADMIN_ROLE.into())?;
         Ok(())
     }
 
-    fn _only_role(&self, role: &[u8; 32]) -> Result<(), Vec<u8>> {
+    fn _only_role(&self, role: B256) -> Result<(), Vec<u8>> {
         if !self.storage.acl._has_role(role, self._attendee()) {
             Err(b"Unauthorised access")?
         }
@@ -247,7 +239,7 @@ impl<'a> CastleInstanceMut<'a> {
             | &ICastle::renounceRoleCall::SELECTOR
             | &ICastle::deleteRoleCall::SELECTOR
             | &ICastle::getAdminRoleCall::SELECTOR
-            | &ICastle::getAssignedRolesCall::SELECTOR
+            | &ICastle::getRoleAssigneeCountCall::SELECTOR
             | &ICastle::getRoleAssigneesCall::SELECTOR => true,
             _ => false,
         }
@@ -391,7 +383,7 @@ impl Castle {
 
     /// IAccessControl::hasRole()
     pub fn has_role(&mut self, role: B256, attendee: Address) -> bool {
-        Self::_storage().acl._has_role(&role, attendee)
+        Self::_storage().acl._has_role(role, attendee)
     }
 
     // IAccessControl::grantRole()
@@ -433,12 +425,14 @@ impl Castle {
     }
 
     /// Remove role completely with all asignees
-    pub fn delete_role(&mut self, role: B256) -> Result<(), Vec<u8>> {
+    pub fn delete_role(&mut self, role: B256) -> Result<bool, Vec<u8>> {
         let mut with_storage = self._with_storage_mut();
         with_storage._only_admin()?;
-        with_storage.storage.acl._remove_role(role)?;
-        with_storage._publish_event(ICastle::RoleDeleted { role });
-        Ok(())
+        let deleted = with_storage.storage.acl._delete_role(role);
+        if deleted {
+            with_storage._publish_event(ICastle::RoleDeleted { role });
+        }
+        Ok(deleted)
     }
 
     /// Return role of the Castle admin
@@ -446,14 +440,23 @@ impl Castle {
         CASTLE_ADMIN_ROLE.into()
     }
 
-    /// List roles assigned to attendee
-    pub fn get_assigned_roles(&self, attendee: Address) -> Result<Vec<B256>, Vec<u8>> {
-        Self::_storage().acl._get_assigned_roles(attendee)
+    pub fn get_role_assignee_count(&self, role: B256) -> Result<U256, Vec<u8>> {
+        let assignee_count = Self::_storage().acl._get_role_assignee_count(role);
+        Ok(U256::from(assignee_count))
     }
 
     /// List assignees of the role
-    pub fn get_role_assignees(&self, role: B256) -> Result<Vec<Address>, Vec<u8>> {
-        Self::_storage().acl._get_role_assignees(role)
+    pub fn get_role_assignees(
+        &self,
+        role: B256,
+        start_from: U256,
+        max_len: U256,
+    ) -> Result<Vec<Address>, Vec<u8>> {
+        let assignees =
+            Self::_storage()
+                .acl
+                ._get_role_assignees(role, start_from.to(), max_len.to());
+        Ok(assignees)
     }
 
     #[payable]
@@ -474,7 +477,7 @@ impl Castle {
             ACCESS_MODE_PROTECTED => {
                 let required_role = delegate.required_role.get();
                 log_msg!("Required role {} to access {}", required_role, fun_sel);
-                with_storage._only_role(&required_role)?
+                with_storage._only_role(required_role)?
             }
             ACCESS_MODE_NONE => {
                 // Role is public.
