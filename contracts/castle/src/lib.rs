@@ -61,7 +61,7 @@ impl Role {
         }
         pos_setter.erase();
         let last_index = U256::from(self.assignees.len());
-        if U256::ONE < last_index && pos != last_index {
+        if pos < last_index {
             let last = self.assignees.get(last_index - U256::ONE).unwrap();
             self.assignees.setter(pos - U256::ONE).unwrap().set(last);
             self.positions.setter(last).set(pos);
