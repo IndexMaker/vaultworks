@@ -10,6 +10,7 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 . $SCRIPT_DIR/vars.sh
 
 RPC_URL=${RPC_URL:-"http://localhost:8547"}
+MAX_FEE_PER_GAS_GWEI=${MAX_FEE_PER_GAS_GWEI:-30}
 
 echo "PACKAGE_PATH = $PACKAGE_PATH"
 echo "WASM_FILE_PATH = $WASM_FILE_PATH"
@@ -28,4 +29,5 @@ fi
 
 cd $WORKSPACE_ROOT && cargo stylus deploy --wasm-file "./$WASM_FILE_PATH" \
     --endpoint="$RPC_URL" \
+    --max-fee-per-gas-gwei=$MAX_FEE_PER_GAS_GWEI \
     --private-key="$DEPLOY_PRIVATE_KEY" ${@:2}

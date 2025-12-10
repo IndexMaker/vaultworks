@@ -7,6 +7,7 @@ extern crate alloc;
 
 const TOKEN_NAME: &str = "IndexMaker Token";
 const TOKEN_SYMBOL: &str = "IM";
+const TOKEN_WEBSITE: &str = "https://www.indexmaker.global/";
 
 use alloc::{string::String, vec::Vec};
 
@@ -39,6 +40,7 @@ use openzeppelin_stylus::{
         storage_slot::StorageSlot,
     },
 };
+use stylus_sdk::storage::StorageString;
 #[allow(deprecated)]
 use stylus_sdk::{
     abi::Bytes,
@@ -96,7 +98,20 @@ impl From<ownable::Error> for Error {
     }
 }
 
-pub const VERSION_NUMBER: U32 = uups_upgradeable::VERSION_NUMBER.wrapping_add(uint!(1_U32));
+pub const VERSION_NUMBER: U32 = uint!(4_U32);
+
+#[storage]
+struct ExtraMetadata {
+    website_url: StorageString,
+}
+
+#[public]
+impl ExtraMetadata {
+    #[constructor]
+    fn constructor(&mut self, website_url: String) {
+        self.website_url.set_str(website_url);
+    }
+}
 
 #[entrypoint]
 #[storage]
@@ -105,6 +120,7 @@ struct Treasury {
     erc20_medatada: Erc20Metadata,
     ownable: Ownable,
     version: StorageU32,
+    extra_metadata: ExtraMetadata,
 }
 
 #[public]
@@ -119,8 +135,10 @@ impl Treasury {
         Ok(())
     }
 
-    fn mint(&mut self, to: Address, value: U256) -> Result<(), erc20::Error> {
-        self.erc20._mint(to, value)
+    fn mint(&mut self, to: Address, value: U256) -> Result<(), Vec<u8>> {
+        self.ownable.only_owner()?;
+        self.erc20._mint(to, value)?;
+        Ok(())
     }
 
     fn name(&self) -> String {
@@ -133,6 +151,10 @@ impl Treasury {
 
     fn decimals(&self) -> U8 {
         self.erc20_medatada.decimals()
+    }
+
+    fn website_url(&self) -> String {
+        self.extra_metadata.website_url.get_string()
     }
 
     // --- without these the methods don't show up in exported ABI
@@ -193,6 +215,8 @@ impl Treasury {
         self.ownable.constructor(owner)?;
         self.erc20_medatada
             .constructor(String::from(TOKEN_NAME), String::from(TOKEN_SYMBOL));
+        self.extra_metadata
+            .constructor(String::from(TOKEN_WEBSITE));
         Ok(())
     }
 
