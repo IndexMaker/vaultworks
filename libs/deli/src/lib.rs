@@ -5,9 +5,11 @@ extern crate alloc;
 
 pub mod amount;
 pub mod asset;
+pub mod contracts;
 pub mod labels;
 pub mod log;
 pub mod math;
+pub mod storage;
 pub mod uint;
 pub mod vector;
 pub mod vis;

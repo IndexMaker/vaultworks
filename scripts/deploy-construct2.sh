@@ -1,7 +1,7 @@
 #!/bin/bash
 
-if [ "$#" -le 0 ]; then
-  echo "deploy.sh CONTRACT_NAME [OPTIONAL ARGS...]"
+if [ "$#" -le 2 ]; then
+  echo "deploy-constructor.sh CONTRACT_NAME CONSTRUCTOR_SIGNATURE CONSTRUCTOR_ARGS [OPTIONAL ARGS...]"
   exit 1
 fi
 
@@ -23,9 +23,11 @@ if [ ! -f "./$WASM_FILE_PATH" ]; then
   $SCRIPT_DIR/check.sh $PACKAGE_NAME
 fi
 
-# Deploying with constructor args:
-# ./scripts/deploy.sh treasury --no-verify --constructor-signature="constructor(address)" --constructor-args="0x3f1Eae7D46d88F08fc2F8ed27FCb2AB183EB2d0E"
-
 cd $WORKSPACE_ROOT && cargo stylus deploy --wasm-file "./$WASM_FILE_PATH" \
     --endpoint="$RPC_URL" \
-    --private-key="$DEPLOY_PRIVATE_KEY" ${@:2}
+    --private-key="$DEPLOY_PRIVATE_KEY" \
+    --no-verify \
+    --constructor-signature="$2" \
+    --constructor-args="$3" \
+    --constructor-args="$4" \
+    ${@:5}

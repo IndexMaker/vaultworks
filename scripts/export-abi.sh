@@ -12,4 +12,4 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 
 echo "PACKAGE_PATH = $PACKAGE_PATH"
 
-cd $PACKAGE_PATH && RUST_BACKTRACE=1 cargo stylus export-abi
+cd $PACKAGE_PATH && RUST_BACKTRACE=1 cargo stylus export-abi ${@:2}

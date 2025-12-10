@@ -2,7 +2,7 @@
 name = "daxos"
 version = "0.1.0"
 edition = "2021"
-description = "Arbitrum Stylus Decentralised Orchestrator"
+description = "IndexMaker Hero"
 
 [dependencies]
 alloy-primitives = { workspace = true }
@@ -27,7 +27,7 @@ deli = { workspace = true, features = ["stylus"] }
 
 [features]
 default = ["mini-alloc"]
-export-abi = ["stylus-sdk/export-abi"]
+export-abi = ["stylus-sdk/export-abi", "deli/export-abi"]
 test-debug = ["stylus-sdk/debug", "deli/debug", "deli/stylus-test"]
 mini-alloc = ["stylus-sdk/mini-alloc"]
 
