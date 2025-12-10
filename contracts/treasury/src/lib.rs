@@ -5,11 +5,13 @@
 #[macro_use]
 extern crate alloc;
 
+const TOKEN_NAME: &str = "IndexMaker Token";
+const TOKEN_SYMBOL: &str = "IM";
+
 use alloc::{string::String, vec::Vec};
 
 use alloy_primitives::{uint, U32, U8};
 use alloy_sol_types::SolCall;
-use deli::contracts::IERC20Metadata;
 use openzeppelin_stylus::{
     access::ownable::{self, IOwnable, Ownable},
     proxy::{
@@ -27,7 +29,11 @@ use openzeppelin_stylus::{
             },
         },
     },
-    token::erc20::{self, Erc20, IErc20},
+    token::erc20::{
+        self,
+        extensions::{Erc20Metadata, IErc20Metadata},
+        Erc20, IErc20,
+    },
     utils::{
         address::{self, AddressUtils},
         storage_slot::StorageSlot,
@@ -96,6 +102,7 @@ pub const VERSION_NUMBER: U32 = uups_upgradeable::VERSION_NUMBER.wrapping_add(ui
 #[storage]
 struct Treasury {
     erc20: Erc20,
+    erc20_medatada: Erc20Metadata,
     ownable: Ownable,
     version: StorageU32,
 }
@@ -116,9 +123,76 @@ impl Treasury {
         self.erc20._mint(to, value)
     }
 
+    fn name(&self) -> String {
+        self.erc20_medatada.name()
+    }
+
+    fn symbol(&self) -> String {
+        self.erc20_medatada.symbol()
+    }
+
+    fn decimals(&self) -> U8 {
+        self.erc20_medatada.decimals()
+    }
+
+    // --- without these the methods don't show up in exported ABI
+
+    fn balance_of(&self, account: Address) -> U256 {
+        <Self as IErc20>::balance_of(self, account)
+    }
+
+    fn total_supply(&self) -> U256 {
+        <Self as IErc20>::total_supply(self)
+    }
+
+    fn transfer(&mut self, to: Address, value: U256) -> Result<bool, erc20::Error> {
+        <Self as IErc20>::transfer(self, to, value)
+    }
+
+    fn transfer_from(
+        &mut self,
+        from: Address,
+        to: Address,
+        value: U256,
+    ) -> Result<bool, erc20::Error> {
+        <Self as IErc20>::transfer_from(self, from, to, value)
+    }
+
+    fn allowance(&self, owner: Address, spender: Address) -> U256 {
+        <Self as IErc20>::allowance(self, owner, spender)
+    }
+
+    fn approve(&mut self, spender: Address, value: U256) -> Result<bool, erc20::Error> {
+        <Self as IErc20>::approve(self, spender, value)
+    }
+
+    fn upgrade_to_and_call(
+        &mut self,
+        new_implementation: Address,
+        data: Bytes,
+    ) -> Result<(), Vec<u8>> {
+        <Self as IUUPSUpgradeable>::upgrade_to_and_call(self, new_implementation, data)
+    }
+
+    fn owner(&self) -> Address {
+        <Self as IOwnable>::owner(self)
+    }
+
+    fn transfer_ownership(&mut self, new_owner: Address) -> Result<(), Vec<u8>> {
+        <Self as IOwnable>::transfer_ownership(self, new_owner)
+    }
+
+    fn renounce_ownership(&mut self) -> Result<(), Vec<u8>> {
+        <Self as IOwnable>::renounce_ownership(self)
+    }
+
+    // ---
+
     fn initialize(&mut self, owner: Address) -> Result<(), Error> {
         self.set_version()?;
         self.ownable.constructor(owner)?;
+        self.erc20_medatada
+            .constructor(String::from(TOKEN_NAME), String::from(TOKEN_SYMBOL));
         Ok(())
     }
 
@@ -238,21 +312,6 @@ impl Treasury {
 }
 
 #[public]
-impl IERC20Metadata for Treasury {
-    fn name(&self) -> String {
-        String::from("IndexMaker Token")
-    }
-    
-    fn symbol(&self) -> String {
-        String::from("IM")
-    }
-
-    fn decimals(&self) -> U8 {
-        U8::from(18)
-    }
-}
-
-#[public]
 impl IErc20 for Treasury {
     type Error = erc20::Error;
 
@@ -264,7 +323,7 @@ impl IErc20 for Treasury {
         self.erc20.total_supply()
     }
 
-    fn transfer(&mut self, to: Address, value: U256) -> Result<bool, Self::Error> {
+    fn transfer(&mut self, to: Address, value: U256) -> Result<bool, erc20::Error> {
         self.erc20.transfer(to, value)
     }
 
@@ -273,7 +332,7 @@ impl IErc20 for Treasury {
         from: Address,
         to: Address,
         value: U256,
-    ) -> Result<bool, Self::Error> {
+    ) -> Result<bool, erc20::Error> {
         self.erc20.transfer_from(from, to, value)
     }
 
@@ -281,7 +340,7 @@ impl IErc20 for Treasury {
         self.erc20.allowance(owner, spender)
     }
 
-    fn approve(&mut self, spender: Address, value: U256) -> Result<bool, Self::Error> {
+    fn approve(&mut self, spender: Address, value: U256) -> Result<bool, erc20::Error> {
         self.erc20.approve(spender, value)
     }
 }

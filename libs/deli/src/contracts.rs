@@ -2,12 +2,6 @@ use alloc::string::String;
 use alloy_primitives::U8;
 use alloy_sol_types::sol;
 
-pub trait IERC20Metadata {
-    fn name(&self) -> String;
-    fn symbol(&self) -> String;
-    fn decimals(&self) -> U8;
-}
-
 sol! {
     interface ICastle  {
         event ProtectedFunctionsCreated(address contract_address, bytes4[] function_selectors);

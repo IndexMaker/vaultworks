@@ -23,5 +23,7 @@ TREASURY_ADDRESS=`$SCRIPT_DIR/deploy-construct1.sh treasury "constructor(address
     print $2
 }'`
 
+echo "Treasury deployed at: $TREASURY_ADDRESS"
+
 $SCRIPT_DIR/deploy-construct2.sh gate "constructor(address,bytes)" "$TREASURY_ADDRESS" "$INIT_DATA"
 
