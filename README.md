@@ -44,6 +44,15 @@ the results can be found **[here...](./apps/scenarios/README.md)**
 
 <img src="./docs/Castle.jpg">
 
+### Access Control List (ACL)
+
+|Role|Persona|Responsibilities (Functions)|Thematic Logic|
+| --- | --- | --- | --- |
+|Issuer Role|Guildmaster|submitIndex, submitVote|Governance: Decides what products (Indexes) exist.|
+|Vendor Role|Banker|submitAssets, submitMargin, submitSupply|Inventory: Manages the physical stock and risk limits.|
+|Keeper Role|Factor|submitMarketData, updateIndexQuote|Pricing: Manages the value of the stock (Oracle/Market Maker).|
+|Public|Trader|submitBuyOrder|Execution: Consumes the liquidity.|
+
 ### Previous Layout
 
 This layout is not sucerceeded by Castle implementing Diamond pattern.

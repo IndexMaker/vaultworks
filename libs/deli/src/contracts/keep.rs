@@ -28,6 +28,7 @@ pub struct Vault {
 
 #[storage]
 pub struct Account {
+    owner: StorageAddress,
     // TODO: These will be very long vectors, e.g. 2M components.
     // We will optimise Granary and Clerk to provide partial load/store
     // and we'll store chunks in mapping.
@@ -44,6 +45,23 @@ pub struct Account {
     pub liquidity: StorageU128,    // Vector = [Liquidity; num_assets]
     pub prices: StorageU128,       // Vector = [Price; num_assets]
     pub slopes: StorageU128,       // Vector = [Slope; num_assets]
+}
+
+impl Account {
+    pub fn is_owner(&self, address: Address) -> bool {
+        self.owner.get() == address
+    } 
+
+    pub fn set_only_owner(&mut self, address: Address) -> Result<(), Vec<u8>> {
+        let owner = self.owner.get();
+        if owner.is_zero() {
+            self.owner.set(address);
+        }
+        else if owner != address {
+            Err(b"Unauthorized access")?;
+        }
+        Ok(())
+    }
 }
 
 #[storage]

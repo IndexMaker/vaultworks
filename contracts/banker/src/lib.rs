@@ -67,9 +67,11 @@ impl Banker {
         vendor_id: U128,
         market_asset_names: Vec<u8>,
     ) -> Result<(), Vec<u8>> {
-        let storage = Keep::storage();
+        let mut storage = Keep::storage();
 
-        let account = storage.accounts.get(vendor_id);
+        let mut account = storage.accounts.setter(vendor_id);
+        account.set_only_owner(self._attendee())?;
+        
         let gate_to_granary = storage.granary.get_granary_address();
 
         let new_market_asset_names_id = Granary::SCRATCH_1;
@@ -122,9 +124,11 @@ impl Banker {
         asset_names: Vec<u8>,
         asset_margin: Vec<u8>,
     ) -> Result<(), Vec<u8>> {
-        let storage = Keep::storage();
+        let mut storage = Keep::storage();
 
-        let account = storage.accounts.get(vendor_id);
+        let mut account = storage.accounts.setter(vendor_id);
+        account.set_only_owner(self._attendee())?;
+
         let gate_to_granary = storage.granary.get_granary_address();
 
         let new_asset_names_id = Granary::SCRATCH_1;
@@ -181,9 +185,11 @@ impl Banker {
         asset_quantities_short: Vec<u8>,
         asset_quantities_long: Vec<u8>,
     ) -> Result<(), Vec<u8>> {
-        let storage = Keep::storage();
+        let mut storage = Keep::storage();
 
-        let account = storage.accounts.get(vendor_id);
+        let mut account = storage.accounts.setter(vendor_id);
+        account.set_only_owner(self._attendee())?;
+
         let gate_to_granary = storage.granary.get_granary_address();
 
         let new_asset_names_id = Granary::SCRATCH_1;

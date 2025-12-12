@@ -30,6 +30,10 @@ pub const CASTLE_VENDOR_ROLE: [u8; 32] = keccak_const::Keccak256::new()
     .update(b"Castle.VENDOR_ROLE")
     .finalize();
 
+pub const CASTLE_KEEPER_ROLE: [u8; 32] = keccak_const::Keccak256::new()
+    .update(b"Castle.KEEPER_ROLE")
+    .finalize();
+
 #[storage]
 #[entrypoint]
 pub struct Constable;
@@ -82,17 +86,24 @@ impl Constable {
             ],
             required_role: CASTLE_VENDOR_ROLE.into(),
         };
-        let trader_role = ICastle::createPublicFunctionsCall {
+        let keeper_role = ICastle::createProtectedFunctionsCall{
             contract_address: factor,
             function_selectors: vec![
-                IFactor::submitBuyOrderCall::SELECTOR.into(),
                 IFactor::submitMarketDataCall::SELECTOR.into(),
                 IFactor::updateIndexQuoteCall::SELECTOR.into(),
                 IFactor::updateMultipleIndexQuotesCall::SELECTOR.into(),
             ],
+            required_role: CASTLE_KEEPER_ROLE.into(),
+        };
+        let trader_role = ICastle::createPublicFunctionsCall {
+            contract_address: factor,
+            function_selectors: vec![
+                IFactor::submitBuyOrderCall::SELECTOR.into(),
+            ],
         };
         self._dispatch(castle, issuer_role)?;
         self._dispatch(castle, vendor_role)?;
+        self._dispatch(castle, keeper_role)?;
         self._dispatch(castle, trader_role)?;
         Ok(())
     }
