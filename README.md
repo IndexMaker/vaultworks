@@ -44,7 +44,7 @@ the results can be found **[here...](./apps/scenarios/README.md)**
 
 <img src="./docs/Castle.jpg">
 
-### Previous Layout
+### Previous Layout
 
 This layout is not sucerceeded by Castle implementing Diamond pattern.
 

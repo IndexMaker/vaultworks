@@ -86,7 +86,7 @@ impl CastleStorage {
             let mut delegate = self.delegates.setter(*fun_sel);
             if let Some(contract_address) = contract_address {
                 log_msg!(
-                    "Assigning function {} delegation to {} (previously assigned to {})",
+                    "Assigning function {} delegation to {:?} (previously assigned to {:?})",
                     fun_sel,
                     contract_address,
                     delegate.get_contract_address()
@@ -94,7 +94,7 @@ impl CastleStorage {
                 delegate.initialize(contract_address, required_role);
             } else {
                 log_msg!(
-                    "Removing function {} delegation (previously assigned to {})",
+                    "Removing function {} delegation (previously assigned to {:?})",
                     fun_sel,
                     delegate.get_contract_address()
                 );

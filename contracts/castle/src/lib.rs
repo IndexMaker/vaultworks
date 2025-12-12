@@ -64,7 +64,8 @@ impl Castle {
 
     fn _is_prohibited_function(&self, fun_sel: &[u8; 4]) -> bool {
         match fun_sel {
-            &ICastle::createProtectedFunctionsCall::SELECTOR
+            &ICastle::appointConstableCall::SELECTOR
+            | &ICastle::createProtectedFunctionsCall::SELECTOR
             | &ICastle::createPublicFunctionsCall::SELECTOR
             | &ICastle::removeFunctionsCall::SELECTOR
             | &ICastle::getFunctionDelegatesCall::SELECTOR

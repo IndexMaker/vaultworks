@@ -16,6 +16,8 @@ sol! {
 
         event RoleDeleted(bytes32 role);
 
+        function appointConstable(address constable) external;
+
         function createPublicFunctions(address contract_address, bytes4[] memory function_selectors) external;
 
         function createProtectedFunctions(address contract_address, bytes4[] memory function_selectors, bytes32 required_role) external;
