@@ -17,6 +17,7 @@ use deli::contracts::{
         constable::IConstable,
         factor::IFactor,
         guildmaster::IGuildmaster,
+        scribe::IScribe::{self, IScribeCalls},
         worksman::IWorksman,
     },
     keep::Keep,
@@ -81,6 +82,23 @@ impl Constable {
             required_role: CASTLE_ISSUER_ROLE.into(),
         };
         self._dispatch(castle, build_vault_role)?;
+        Ok(())
+    }
+
+    pub fn appoint_scribe(&mut self, scribe: Address) -> Result<(), Vec<u8>> {
+        let storage = Keep::storage();
+        let castle = storage.castle.get();
+        if castle.is_zero() {
+            Err(b"Constable was not appointed")?;
+        }
+        let calldata = IScribe::acceptAppointmentCall { castle }.abi_encode();
+        unsafe { self.vm().delegate_call(&self, scribe, &calldata) }?;
+        let scribe_role = ICastle::createProtectedFunctionsCall {
+            contract_address: castle,
+            function_selectors: vec![IScribe::verifySignatureCall::SELECTOR.into()],
+            required_role: CASTLE_ISSUER_ROLE.into(),
+        };
+        self._dispatch(castle, scribe_role)?;
         Ok(())
     }
 

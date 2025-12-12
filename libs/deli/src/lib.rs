@@ -14,6 +14,7 @@ pub mod contracts {
         pub mod factor;
         pub mod granary;
         pub mod guildmaster;
+        pub mod scribe;
         pub mod worksman;
     }
     pub mod acl;

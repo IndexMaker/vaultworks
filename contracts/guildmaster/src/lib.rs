@@ -7,10 +7,10 @@ extern crate alloc;
 
 use alloc::vec::Vec;
 
-use alloy_primitives::{Address, U128};
+use alloy_primitives::{Address, U8, U128};
 use alloy_sol_types::SolCall;
 use deli::contracts::{
-    interfaces::{clerk::IClerk, granary::IGranary, worksman::IWorksman},
+    interfaces::{clerk::IClerk, granary::IGranary, scribe::IScribe, worksman::IWorksman},
     keep::Keep,
 };
 use stylus_sdk::prelude::*;
@@ -90,9 +90,10 @@ impl Guildmaster {
             info,
         };
 
-        let gate_to_vault_bytes =
+        let gate_to_vault_bytes = unsafe {
             self.vm()
-                .call(&self, worksman, &build_vault_calldata.abi_encode())?;
+                .delegate_call(&self, worksman, &build_vault_calldata.abi_encode())
+        }?;
 
         vault
             .gate_to_vault
@@ -113,9 +114,21 @@ impl Guildmaster {
             Err(b"Vault not found")?;
         }
 
-        let _ = vault.gate_to_vault;
-        let _ = vote;
-        //TODO: Send vote to Vault contract
+        let scribe = storage.scribe.get();
+        let verify_signature_calldata = IScribe::verifySignatureCall { data: vote };
+
+        let verification_result_bytes = unsafe {
+            self.vm()
+                .delegate_call(&self, scribe, &verify_signature_calldata.abi_encode())
+        }?;
+
+        let verfication_result = U8::from_be_slice(&verification_result_bytes);
+
+        if verfication_result.is_zero() {
+            Err(b"Couldn't verify vote")?;
+        }
+
+        //TODO: Send vote to Vault contract to activate
 
         Ok(())
     }

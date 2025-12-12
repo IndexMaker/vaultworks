@@ -102,6 +102,7 @@ pub struct Keep {
     pub castle: StorageAddress,
     pub constable: StorageAddress,
     pub worksman: StorageAddress,
+    pub scribe: StorageAddress,
 }
 
 impl Keep {
