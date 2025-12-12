@@ -1,8 +1,8 @@
 [package]
-name = "market"
+name = "constable"
 version = "0.1.0"
 edition = "2021"
-description = "IndexMaker Market"
+description = "IndexMaker Constable (Manages the Castle: Configures facets of a Diamond)"
 
 [dependencies]
 alloy-primitives = { workspace = true }
@@ -27,7 +27,7 @@ test-debug = ["stylus-sdk/debug", "deli/debug", "deli/stylus-test"]
 mini-alloc = ["stylus-sdk/mini-alloc"]
 
 [[bin]]
-name = "market"
+name = "constable"
 path = "src/main.rs"
 
 [lib]

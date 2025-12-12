@@ -1,5 +1,3 @@
-use alloc::string::String;
-use alloy_primitives::U8;
 use alloy_sol_types::sol;
 
 sol! {
@@ -43,27 +41,4 @@ sol! {
         function getRoleAssignees(bytes32 role, uint256 start_from, uint256 max_len) external view returns (address[] memory);
     }
 
-}
-
-
-sol! {
-    /// Vector IL (VIL) virtual machine
-    ///
-    /// Performs operations on vectors stored on-chain as opaque blobs.  By
-    /// using dedicated VIL for vector processing we save on (de)serialisation
-    /// of blobs and also on SLOAD/SSTORE operations, because we have all vector
-    /// operations integrated with storage of vectors as the blobs, meaning that
-    /// we can submit VIL program that will perform number of vector
-    /// instructions on vectors using only one SLOAD for each vector load, and
-    /// one SSTORE, as well as we don't need to SSTORE intermediate results as
-    /// they are stored on internal stack of the virtual machine.
-    interface IDevil  {
-        function setup(address owner) external;
-
-        function submit(uint128 id, uint8[] memory data) external;
-
-        function get(uint128 id) external view returns (uint8[] memory);
-
-        function execute(uint8[] memory code, uint128 num_registry) external;
-    }
 }

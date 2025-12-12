@@ -5,7 +5,22 @@ extern crate alloc;
 
 pub mod amount;
 pub mod asset;
-pub mod contracts;
+pub mod contracts {
+    pub mod interfaces {
+        pub mod banker;
+        pub mod castle;
+        pub mod clerk;
+        pub mod constable;
+        pub mod factor;
+        pub mod granary;
+        pub mod guildmaster;
+    }
+    pub mod acl;
+    pub mod castle;
+    pub mod delegate;
+    pub mod granary;
+    pub mod keep;
+}
 pub mod labels;
 pub mod log;
 pub mod math;

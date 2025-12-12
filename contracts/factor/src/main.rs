@@ -6,5 +6,5 @@ pub extern "C" fn main() {}
 
 #[cfg(feature = "export-abi")]
 fn main() {
-    daxos::print_from_args();
+    factor::print_from_args();
 }

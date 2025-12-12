@@ -1,8 +1,8 @@
 [package]
-name = "vault"
+name = "guildmaster"
 version = "0.1.0"
 edition = "2021"
-description = "Arbitrum Stylus Decentralised Vault (ITP Index)"
+description = "IndexMaker Guildmaster (Summons vaults: Deploys Vault contracts and facilitates voting)"
 
 [dependencies]
 alloy-primitives = { workspace = true }
@@ -10,6 +10,11 @@ alloy-sol-types = { workspace = true }
 stylus-sdk = { workspace = true }
 hex = { workspace = true }
 deli = { workspace = true, features = ["stylus"] }
+amount-macros = { workspace = true }
+devil-macros = { workspace = true }
+labels-macros = { workspace = true }
+vector-macros = { workspace = true }
+icore = { workspace = true }
 
 [dev-dependencies]
 alloy-primitives = { workspace = true, features = ["sha3-keccak"] }
@@ -27,7 +32,7 @@ test-debug = ["stylus-sdk/debug", "deli/debug", "deli/stylus-test"]
 mini-alloc = ["stylus-sdk/mini-alloc"]
 
 [[bin]]
-name = "vault"
+name = "dior"
 path = "src/main.rs"
 
 [lib]

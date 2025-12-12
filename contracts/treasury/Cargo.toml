@@ -2,7 +2,7 @@
 name = "treasury"
 version = "0.1.0"
 edition = "2021"
-description = "IndexMaker Treasury"
+description = "IndexMaker Treasury (Stores coin of the Kingdom: Gas token, and ERC20 Token deployed to parent network)"
 
 [dependencies]
 alloy-primitives = { workspace = true }

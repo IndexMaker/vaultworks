@@ -1,8 +1,8 @@
 [package]
-name = "daxos"
+name = "factor"
 version = "0.1.0"
 edition = "2021"
-description = "IndexMaker Hero"
+description = "IndexMaker Factor (Intermediary between Traders and Vendors: Facilitates trading)"
 
 [dependencies]
 alloy-primitives = { workspace = true }
