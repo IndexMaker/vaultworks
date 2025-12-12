@@ -2,13 +2,17 @@
 resolver = "2"
 members = [
     # Stylus Contract Packages
+    "contracts/banker",
     "contracts/castle",
-    "contracts/daxos",
-    "contracts/devil",
+    "contracts/clerk",
+    "contracts/constable",
+    "contracts/factor",
     "contracts/gate",
-    "contracts/market",
+    "contracts/granary",
+    "contracts/guildmaster",
+    "contracts/scribe",
     "contracts/treasury",
-    "contracts/vault",
+    "contracts/worksman",
 
     # Library Packages
     "libs/decon",

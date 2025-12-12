@@ -1,0 +1,243 @@
+// Allow `cargo stylus export-abi` to generate a main function.
+#![cfg_attr(not(any(test, feature = "export-abi")), no_main)]
+#![cfg_attr(not(any(test, feature = "export-abi")), no_std)]
+
+#[macro_use]
+extern crate alloc;
+
+use alloc::vec::Vec;
+
+use alloy_primitives::{Address, U128};
+use alloy_sol_types::SolCall;
+use deli::contracts::{
+    interfaces::{clerk::IClerk, granary::IGranary},
+    keep::{Granary, Keep},
+};
+use icore::vil::{
+    add_market_assets::add_market_assets, update_margin::update_margin,
+    update_supply::update_supply,
+};
+use stylus_sdk::prelude::*;
+
+#[storage]
+#[entrypoint]
+pub struct Banker;
+
+impl Banker {
+    fn _attendee(&self) -> Address {
+        self.vm().msg_sender()
+    }
+
+    fn _send_to_granary(
+        &mut self,
+        gate_to_granary: Address,
+        call: impl SolCall,
+    ) -> Result<Vec<u8>, Vec<u8>> {
+        let calldata = call.abi_encode();
+        let result = self.vm().call(&self, gate_to_granary, &calldata)?;
+        Ok(result)
+    }
+
+    fn send_to_clerk(&mut self, code: Vec<u8>, num_registry: u128) -> Result<(), Vec<u8>> {
+        let storage = Keep::storage();
+        let gate_to_granary = storage.granary.get_granary_address();
+
+        let call = IClerk::executeCall { code, num_registry };
+        self.vm().call(&self, gate_to_granary, &call.abi_encode())?;
+        Ok(())
+    }
+}
+
+#[public]
+impl Banker {
+    /// Submit list of all available assets
+    ///
+    /// Full list of assets must be submitted prior any Index or Market
+    /// operation. List can be updated using multiple submit_assets call.
+    ///
+    /// Note that the new list must be a superset of current list or call will
+    /// fail. Delisting assets is not possible. To support delisting we would
+    /// need to have a process in place to first reduce supply and delta for the
+    /// delisted assets to zero, and then check they are zero using JFLT, VMAX,
+    /// and SUB operations, i.e. JFLT delisted assets, VMAX to find any non-zero
+    /// value, and SUB to fail if non-zero value is found.
+    ///
+    pub fn submit_assets(
+        &mut self,
+        vendor_id: U128,
+        market_asset_names: Vec<u8>,
+    ) -> Result<(), Vec<u8>> {
+        let mut storage = Keep::storage();
+
+        let mut account = storage.accounts.setter(vendor_id);
+        account.set_only_owner(self._attendee())?;
+        
+        let gate_to_granary = storage.granary.get_granary_address();
+
+        let new_market_asset_names_id = Granary::SCRATCH_1;
+
+        let new_market_asset_names = IGranary::storeCall {
+            id: new_market_asset_names_id.to(),
+            data: market_asset_names,
+        };
+
+        self._send_to_granary(gate_to_granary, new_market_asset_names)?;
+
+        // Compile VIL program, which we will send to DeVIL for execution.
+        //
+        // The program:
+        // - updates market asset names
+        // - extends supply, demand, and delta vectors
+        // - extends prices, slopes, liquidity vectors
+        //
+        let update = add_market_assets(
+            new_market_asset_names_id.to(),
+            account.assets.get().to(),
+            account.prices.get().to(),
+            account.slopes.get().to(),
+            account.liquidity.get().to(),
+            account.supply_long.get().to(),
+            account.supply_short.get().to(),
+            account.demand_long.get().to(),
+            account.demand_short.get().to(),
+            account.delta_long.get().to(),
+            account.delta_short.get().to(),
+            account.margin.get().to(),
+        );
+        let num_registry = 16;
+        self.send_to_clerk(update, num_registry)?;
+        Ok(())
+    }
+
+    /// Submit Margin
+    ///
+    /// Vendor submits Margin, which limits how much of each asset we can
+    /// allocate to new Index orders.
+    ///
+    /// Asset Capacity = MIN(Market Liquidity, Margin - MAX(Delta Short, Delta Long))
+    ///
+    /// Index Capacity = VMIN(Asset Capacity / Asset Weight)
+    ///
+    pub fn submit_margin(
+        &mut self,
+        vendor_id: U128,
+        asset_names: Vec<u8>,
+        asset_margin: Vec<u8>,
+    ) -> Result<(), Vec<u8>> {
+        let mut storage = Keep::storage();
+
+        let mut account = storage.accounts.setter(vendor_id);
+        account.set_only_owner(self._attendee())?;
+
+        let gate_to_granary = storage.granary.get_granary_address();
+
+        let new_asset_names_id = Granary::SCRATCH_1;
+        let new_asset_margin_id = Granary::SCRATCH_2;
+
+        let new_asset_names = IGranary::storeCall {
+            id: new_asset_names_id.to(),
+            data: asset_names,
+        };
+
+        let new_asset_margin = IGranary::storeCall {
+            id: new_asset_margin_id.to(),
+            data: asset_margin,
+        };
+
+        self._send_to_granary(gate_to_granary, new_asset_names)?;
+        self._send_to_granary(gate_to_granary, new_asset_margin)?;
+
+        // Compile VIL program, which we will send to DeVIL for execution.
+        //
+        // The program:
+        // - updates margin by overwriting with supplied values
+        //
+        let update = update_margin(
+            new_asset_names_id.to(),
+            new_asset_margin_id.to(),
+            account.assets.get().to(),
+            account.margin.get().to(),
+        );
+        let num_registry = 16;
+        self.send_to_clerk(update, num_registry)?;
+        Ok(())
+    }
+
+    /// Submit supply
+    ///
+    /// Vendor submits new supply of assets. This new supply is an absolute
+    /// quantity of assets and not delta.  However the supply is a sub-set of
+    /// all assets stored in supply vector, so that Vendor does not need to send
+    /// whole supply all the time, and only quantities of assets that have
+    /// changed, e.g. as a result of fill. Vendor would accumulate fills over
+    /// time period so that it doesn't call submit_supply() too often to save on
+    /// gas, and in that time period Vendor would accumulate several fills for
+    /// various assets, and absolute quantities of those assets after applying
+    /// those fills would be submitted.
+    ///
+    /// Note that it is Vendor deciding how much of their internal inventory
+    /// they are exposing to our transactions.
+    ///
+    pub fn submit_supply(
+        &mut self,
+        vendor_id: U128,
+        asset_names: Vec<u8>,
+        asset_quantities_short: Vec<u8>,
+        asset_quantities_long: Vec<u8>,
+    ) -> Result<(), Vec<u8>> {
+        let mut storage = Keep::storage();
+
+        let mut account = storage.accounts.setter(vendor_id);
+        account.set_only_owner(self._attendee())?;
+
+        let gate_to_granary = storage.granary.get_granary_address();
+
+        let new_asset_names_id = Granary::SCRATCH_1;
+        let new_asset_quantities_short_id = Granary::SCRATCH_2;
+        let new_asset_quantities_long_id = Granary::SCRATCH_3;
+
+        let new_asset_names = IGranary::storeCall {
+            id: new_asset_names_id.to(),
+            data: asset_names,
+        };
+
+        let new_asset_quantities_short = IGranary::storeCall {
+            id: new_asset_quantities_short_id.to(),
+            data: asset_quantities_short,
+        };
+
+        let new_asset_quantities_long = IGranary::storeCall {
+            id: new_asset_quantities_long_id.to(),
+            data: asset_quantities_long,
+        };
+
+        self._send_to_granary(gate_to_granary, new_asset_names)?;
+        self._send_to_granary(gate_to_granary, new_asset_quantities_short)?;
+        self._send_to_granary(gate_to_granary, new_asset_quantities_long)?;
+
+        // Compile VIL program, which we will send to DeVIL for execution.
+        //
+        // The program:
+        // - updates supply long and short by overwriting with supplied values
+        // - computes delta long and short
+        //
+        let update = update_supply(
+            new_asset_names_id.to(),
+            new_asset_quantities_short_id.to(),
+            new_asset_quantities_long_id.to(),
+            account.assets.get().to(),
+            account.supply_long.get().to(),
+            account.supply_short.get().to(),
+            account.demand_long.get().to(),
+            account.demand_short.get().to(),
+            account.delta_long.get().to(),
+            account.delta_short.get().to(),
+        );
+        let num_registry = 16;
+        self.send_to_clerk(update, num_registry)?;
+        Ok(())
+    }
+}
+
+#[cfg(test)]
+mod test {}

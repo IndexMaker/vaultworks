@@ -787,6 +787,26 @@ dependencies = [
 ]
 
 [[package]]
+name = "banker"
+version = "0.1.0"
+dependencies = [
+ "alloy-primitives",
+ "alloy-sol-types",
+ "amount-macros",
+ "deli",
+ "devil-macros",
+ "dotenv",
+ "ethers",
+ "eyre",
+ "hex",
+ "icore",
+ "labels-macros",
+ "stylus-sdk",
+ "tokio",
+ "vector-macros",
+]
+
+[[package]]
 name = "base16ct"
 version = "0.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1111,6 +1131,26 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f46ad14479a25103f283c0f10005961cf086d8dc42205bb44c46ac563475dca6"
 
 [[package]]
+name = "clerk"
+version = "0.1.0"
+dependencies = [
+ "alloy-primitives",
+ "alloy-sol-types",
+ "amount-macros",
+ "deli",
+ "devil-macros",
+ "dotenv",
+ "ethers",
+ "eyre",
+ "hex",
+ "icore",
+ "labels-macros",
+ "stylus-sdk",
+ "tokio",
+ "vector-macros",
+]
+
+[[package]]
 name = "coins-bip32"
 version = "0.8.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1205,6 +1245,21 @@ dependencies = [
  "proc-macro2",
  "quote",
  "unicode-xid",
+]
+
+[[package]]
+name = "constable"
+version = "0.1.0"
+dependencies = [
+ "alloy-primitives",
+ "alloy-sol-types",
+ "deli",
+ "dotenv",
+ "ethers",
+ "eyre",
+ "hex",
+ "stylus-sdk",
+ "tokio",
 ]
 
 [[package]]
@@ -1354,26 +1409,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "2a2330da5de22e8a3cb63252ce2abb30116bf5265e89c0e01bc17015ce30a476"
 
 [[package]]
-name = "daxos"
-version = "0.1.0"
-dependencies = [
- "alloy-primitives",
- "alloy-sol-types",
- "amount-macros",
- "deli",
- "devil-macros",
- "dotenv",
- "ethers",
- "eyre",
- "hex",
- "icore",
- "labels-macros",
- "stylus-sdk",
- "tokio",
- "vector-macros",
-]
-
-[[package]]
 name = "decon"
 version = "0.1.0"
 dependencies = [
@@ -1453,26 +1488,6 @@ dependencies = [
  "quote",
  "syn 2.0.110",
  "unicode-xid",
-]
-
-[[package]]
-name = "devil"
-version = "0.1.0"
-dependencies = [
- "alloy-primitives",
- "alloy-sol-types",
- "amount-macros",
- "deli",
- "devil-macros",
- "dotenv",
- "ethers",
- "eyre",
- "hex",
- "icore",
- "labels-macros",
- "stylus-sdk",
- "tokio",
- "vector-macros",
 ]
 
 [[package]]
@@ -2007,6 +2022,26 @@ dependencies = [
 ]
 
 [[package]]
+name = "factor"
+version = "0.1.0"
+dependencies = [
+ "alloy-primitives",
+ "alloy-sol-types",
+ "amount-macros",
+ "deli",
+ "devil-macros",
+ "dotenv",
+ "ethers",
+ "eyre",
+ "hex",
+ "icore",
+ "labels-macros",
+ "stylus-sdk",
+ "tokio",
+ "vector-macros",
+]
+
+[[package]]
 name = "fastrand"
 version = "2.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2329,6 +2364,26 @@ dependencies = [
 ]
 
 [[package]]
+name = "granary"
+version = "0.1.0"
+dependencies = [
+ "alloy-primitives",
+ "alloy-sol-types",
+ "amount-macros",
+ "deli",
+ "devil-macros",
+ "dotenv",
+ "ethers",
+ "eyre",
+ "hex",
+ "icore",
+ "labels-macros",
+ "stylus-sdk",
+ "tokio",
+ "vector-macros",
+]
+
+[[package]]
 name = "group"
 version = "0.13.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2337,6 +2392,26 @@ dependencies = [
  "ff",
  "rand_core 0.6.4",
  "subtle",
+]
+
+[[package]]
+name = "guildmaster"
+version = "0.1.0"
+dependencies = [
+ "alloy-primitives",
+ "alloy-sol-types",
+ "amount-macros",
+ "deli",
+ "devil-macros",
+ "dotenv",
+ "ethers",
+ "eyre",
+ "hex",
+ "icore",
+ "labels-macros",
+ "stylus-sdk",
+ "tokio",
+ "vector-macros",
 ]
 
 [[package]]
@@ -3020,21 +3095,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "227748d55f2f0ab4735d87fd623798cb6b664512fe979705f829c9f81c934465"
 dependencies = [
  "hashbrown 0.15.3",
-]
-
-[[package]]
-name = "market"
-version = "0.1.0"
-dependencies = [
- "alloy-primitives",
- "alloy-sol-types",
- "deli",
- "dotenv",
- "ethers",
- "eyre",
- "hex",
- "stylus-sdk",
- "tokio",
 ]
 
 [[package]]
@@ -4252,6 +4312,21 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "94143f37725109f92c262ed2cf5e59bce7498c01bcc1502d7b9afe439a4e9f49"
 
 [[package]]
+name = "scribe"
+version = "0.1.0"
+dependencies = [
+ "alloy-primitives",
+ "alloy-sol-types",
+ "deli",
+ "dotenv",
+ "ethers",
+ "eyre",
+ "hex",
+ "stylus-sdk",
+ "tokio",
+]
+
+[[package]]
 name = "scrypt"
 version = "0.10.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -5330,21 +5405,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ba73ea9cf16a25df0c8caa16c51acb937d5712a8429db78a3ee29d5dcacd3a65"
 
 [[package]]
-name = "vault"
-version = "0.1.0"
-dependencies = [
- "alloy-primitives",
- "alloy-sol-types",
- "deli",
- "dotenv",
- "ethers",
- "eyre",
- "hex",
- "stylus-sdk",
- "tokio",
-]
-
-[[package]]
 name = "vcpkg"
 version = "0.2.15"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -5872,6 +5932,21 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6f42320e61fe2cfd34354ecb597f86f413484a798ba44a8ca1165c58d42da6c1"
 dependencies = [
  "bitflags 2.9.1",
+]
+
+[[package]]
+name = "worksman"
+version = "0.1.0"
+dependencies = [
+ "alloy-primitives",
+ "alloy-sol-types",
+ "deli",
+ "dotenv",
+ "ethers",
+ "eyre",
+ "hex",
+ "stylus-sdk",
+ "tokio",
 ]
 
 [[package]]

@@ -1,34 +1,33 @@
 [package]
-name = "treasury"
+name = "constable"
 version = "0.1.0"
 edition = "2021"
-description = "IndexMaker Treasury (Stores coin of the Kingdom: Gas token, and ERC20 Token deployed to parent network)"
+description = "IndexMaker Constable (Manages the Castle: Configures facets of a Diamond)"
 
 [dependencies]
 alloy-primitives = { workspace = true }
 alloy-sol-types = { workspace = true }
-deli = { workspace = true, features = ["stylus"] }
-openzeppelin-stylus = { workspace = true }
-openzeppelin-stylus-proc = { workspace = true }
 stylus-sdk = { workspace = true }
+hex = { workspace = true }
+deli = { workspace = true, features = ["stylus"] }
 
 [dev-dependencies]
 alloy-primitives = { workspace = true, features = ["sha3-keccak"] }
-deli = { workspace = true, features = ["stylus"] }
-dotenv = { workspace = true }
+tokio = { workspace = true, features = ["full"] }
 ethers = { workspace = true }
 eyre = { workspace = true }
 stylus-sdk = { workspace = true, features = ["stylus-test"] }
-tokio = { workspace = true, features = ["full"] }
+dotenv = { workspace = true }
+deli = { workspace = true, features = ["stylus"] }
 
 [features]
 default = ["mini-alloc"]
-export-abi = ["stylus-sdk/export-abi", "openzeppelin-stylus/export-abi", "deli/export-abi"]
+export-abi = ["stylus-sdk/export-abi", "deli/export-abi"]
 test-debug = ["stylus-sdk/debug", "deli/debug", "deli/stylus-test"]
 mini-alloc = ["stylus-sdk/mini-alloc"]
 
 [[bin]]
-name = "dior"
+name = "constable"
 path = "src/main.rs"
 
 [lib]
@@ -36,14 +35,10 @@ crate-type = ["lib", "cdylib"]
 
 [profile.release]
 codegen-units = 1
-panic = "abort"
-opt-level = "z"
 strip = true
 lto = true
-debug = false
-rpath = false
-debug-assertions = false
-incremental = false
-
-[profile.dev]
 panic = "abort"
+
+# If you need to reduce the binary size, it is advisable to try other
+# optimization levels, such as "s" and "z"
+opt-level = "s"
