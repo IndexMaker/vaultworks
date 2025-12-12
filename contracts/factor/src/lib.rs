@@ -79,9 +79,11 @@ impl Factor {
         asset_prices: Vec<u8>,
         asset_slopes: Vec<u8>,
     ) -> Result<(), Vec<u8>> {
-        let storage = Keep::storage();
+        let mut storage = Keep::storage();
 
-        let account = storage.accounts.get(vendor_id);
+        let mut account = storage.accounts.setter(vendor_id);
+        account.set_only_owner(self._attendee())?;
+
         let gate_to_granary = storage.granary.get_granary_address();
 
         let asset_names_id = Granary::SCRATCH_1;

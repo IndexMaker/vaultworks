@@ -99,7 +99,9 @@ pub struct Keep {
     pub vaults: StorageMap<U128, Vault>,
     pub accounts: StorageMap<U128, Account>,
     pub granary: Granary,
+    pub castle: StorageAddress,
     pub constable: StorageAddress,
+    pub worksman: StorageAddress,
 }
 
 impl Keep {
@@ -107,8 +109,8 @@ impl Keep {
         StorageSlot::get_slot::<Keep>(KEEP_STORAGE_SLOT)
     }
 
-    pub fn initialize(&mut self, constable: Address, gate_to_granary: Address) {
+    pub fn initialize(&mut self, castle: Address, constable: Address) {
+        self.castle.set(castle);
         self.constable.set(constable);
-        self.granary.initialize(gate_to_granary);
     }
 }

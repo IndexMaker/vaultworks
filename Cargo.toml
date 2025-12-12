@@ -11,6 +11,7 @@ members = [
     "contracts/granary",
     "contracts/guildmaster",
     "contracts/treasury",
+    "contracts/worksman",
 
     # Library Packages
     "libs/decon",

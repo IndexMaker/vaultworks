@@ -10,7 +10,7 @@ use alloc::vec::Vec;
 use alloy_primitives::{Address, U128};
 use alloy_sol_types::SolCall;
 use deli::contracts::{
-    interfaces::{clerk::IClerk, granary::IGranary},
+    interfaces::{clerk::IClerk, granary::IGranary, worksman::IWorksman},
     keep::Keep,
 };
 use stylus_sdk::prelude::*;
@@ -84,10 +84,19 @@ impl Guildmaster {
         vault.assets.set(asset_names_id);
         vault.weights.set(asset_weights_id);
 
-        let _ = info;
+        let worksman = storage.worksman.get();
+        let build_vault_calldata = IWorksman::buildVaultCall {
+            index: index.to(),
+            info,
+        };
+
+        let gate_to_vault_bytes =
+            self.vm()
+                .call(&self, worksman, &build_vault_calldata.abi_encode())?;
+
         vault
             .gate_to_vault
-            .set(todo!("Deploy Gate and Vault contracts..."));
+            .set(Address::from_slice(&gate_to_vault_bytes));
 
         Ok(())
     }
@@ -106,7 +115,7 @@ impl Guildmaster {
 
         let _ = vault.gate_to_vault;
         let _ = vote;
-        todo!("Send vote to Vault contract");
+        //TODO: Send vote to Vault contract
 
         Ok(())
     }
