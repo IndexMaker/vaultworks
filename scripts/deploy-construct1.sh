@@ -26,7 +26,7 @@ fi
 
 echo -en "cd $WORKSPACE_ROOT && cargo stylus deploy --wasm-file \"./$WASM_FILE_PATH\" \
     --endpoint=\"$RPC_URL\" \
-    --private-key=\"$DEPLOY_PRIVATE_KEY\" \
+    --private-key=\"\$DEPLOY_PRIVATE_KEY\" \
     --no-verify \
     --max-fee-per-gas-gwei=$MAX_FEE_PER_GAS_GWEI \
     --constructor-signature=\"$2\" \

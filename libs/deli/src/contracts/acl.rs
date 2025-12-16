@@ -100,7 +100,7 @@ impl AccessControlList {
 
     pub fn only_role(&self, role: B256, attendee: Address) -> Result<(), Vec<u8>> {
         if !self.has_role(role, attendee) {
-            Err(b"Unauthorsed access")?;
+            Err(b"Unauthorised access")?;
         }
         Ok(())
     }

@@ -11,6 +11,7 @@ use alloy_primitives::{uint, Address, U128, U256};
 use alloy_sol_types::SolCall;
 use deli::{
     contracts::{
+        calls::InnerCall,
         castle::CASTLE_ADMIN_ROLE,
         interfaces::{castle::ICastle, worksman::IWorksman},
         keep::Keep,
@@ -56,31 +57,21 @@ impl Worksman {
     fn _storage() -> WorksmanStorage {
         StorageSlot::get_slot::<WorksmanStorage>(WORKSMAN_STORAGE_SLOT)
     }
-
-    fn _dispatch(&mut self, castle: Address, call: impl SolCall) -> Result<Vec<u8>, Vec<u8>> {
-        let calldata = call.abi_encode();
-        let result = unsafe { self.vm().delegate_call(&self, castle, &calldata) }?;
-        Ok(result)
-    }
 }
 
 #[public]
 impl Worksman {
-    pub fn accept_appointment(&mut self, castle: Address) -> Result<(), Vec<u8>> {
+    pub fn accept_appointment(&mut self, worksman: Address) -> Result<(), Vec<u8>> {
         let mut storage = Keep::storage();
-        if !storage.castle.get() != castle {
-            Err(b"Wrong Castle")?;
-        }
         if !storage.worksman.get().is_zero() {
             Err(b"Worksman already appointed")?;
         }
-        storage.worksman.set(self.vm().contract_address());
-        let add_vault_role = ICastle::createProtectedFunctionsCall {
-            contract_address: castle,
+        storage.worksman.set(worksman);
+        self.top_level_call(ICastle::createProtectedFunctionsCall {
+            contract_address: worksman,
             function_selectors: vec![IWorksman::addVaultCall::SELECTOR.into()],
             required_role: CASTLE_ADMIN_ROLE.into(),
-        };
-        self._dispatch(castle, add_vault_role)?;
+        })?;
         Ok(())
     }
 

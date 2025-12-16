@@ -27,9 +27,13 @@ impl GranaryStorage {
         StorageSlot::get_slot::<GranaryStorage>(GRANARY_STORAGE_SLOT)
     }
 
-    pub fn initialize(&mut self, owner: Address, clerk: Address) {
+    pub fn initialize(&mut self, owner: Address, clerk: Address) -> Result<(), Vec<u8>> {
+        if !self.owner.get().is_zero() {
+            Err(b"Granary already has an owner")?;
+        }
         self.owner.set(owner);
         self.clerk.set(clerk);
+        Ok(())
     }
 
     pub fn is_owner(&self, attendee: Address) -> bool {

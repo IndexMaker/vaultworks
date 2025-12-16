@@ -7,18 +7,14 @@ extern crate alloc;
 
 use alloc::vec::Vec;
 
-use alloy_primitives::Address;
+use alloy_primitives::{Address, B256};
 use alloy_sol_types::SolCall;
 use deli::contracts::{
+    calls::InnerCall,
     castle::CASTLE_ADMIN_ROLE,
     interfaces::{
-        banker::IBanker,
-        castle::ICastle::{self},
-        constable::IConstable,
-        factor::IFactor,
-        guildmaster::IGuildmaster,
-        scribe::IScribe::{self, IScribeCalls},
-        worksman::IWorksman,
+        banker::IBanker, castle::ICastle, constable::IConstable, factor::IFactor,
+        guildmaster::IGuildmaster, scribe::IScribe, worksman::IWorksman,
     },
     keep::Keep,
 };
@@ -40,65 +36,51 @@ pub const CASTLE_KEEPER_ROLE: [u8; 32] = keccak_const::Keccak256::new()
 #[entrypoint]
 pub struct Constable;
 
-impl Constable {
-    fn _dispatch(&mut self, castle: Address, call: impl SolCall) -> Result<Vec<u8>, Vec<u8>> {
-        let calldata = call.abi_encode();
-        let result = unsafe { self.vm().delegate_call(&self, castle, &calldata) }?;
-        Ok(result)
-    }
-}
-
 #[public]
 impl Constable {
-    pub fn accept_appointment(&mut self, castle: Address) -> Result<(), Vec<u8>> {
+    pub fn accept_appointment(&mut self, constable: Address) -> Result<(), Vec<u8>> {
         let mut storage = Keep::storage();
         if !storage.constable.get().is_zero() {
             Err(b"Constable already appointed")?;
         }
-        storage.initialize(castle, self.vm().contract_address());
-        let constable_role = ICastle::createProtectedFunctionsCall {
-            contract_address: castle,
+        storage.initialize(constable);
+        self.top_level_call(ICastle::createProtectedFunctionsCall {
+            contract_address: constable,
             function_selectors: vec![
                 IConstable::appointWorksmanCall::SELECTOR.into(),
+                IConstable::appointScribeCall::SELECTOR.into(),
                 IConstable::castRolesCall::SELECTOR.into(),
             ],
             required_role: CASTLE_ADMIN_ROLE.into(),
-        };
-        self._dispatch(castle, constable_role)?;
+        })?;
         Ok(())
     }
 
     pub fn appoint_worksman(&mut self, worksman: Address) -> Result<(), Vec<u8>> {
         let storage = Keep::storage();
-        let castle = storage.castle.get();
-        if castle.is_zero() {
+        if storage.constable.get().is_zero() {
             Err(b"Constable was not appointed")?;
         }
-        let calldata = IWorksman::acceptAppointmentCall { castle }.abi_encode();
-        unsafe { self.vm().delegate_call(&self, worksman, &calldata) }?;
-        let build_vault_role = ICastle::createProtectedFunctionsCall {
-            contract_address: castle,
+        self.inner_call(worksman, IWorksman::acceptAppointmentCall { worksman })?;
+        self.top_level_call(ICastle::createProtectedFunctionsCall {
+            contract_address: worksman,
             function_selectors: vec![IWorksman::buildVaultCall::SELECTOR.into()],
             required_role: CASTLE_ISSUER_ROLE.into(),
-        };
-        self._dispatch(castle, build_vault_role)?;
+        })?;
         Ok(())
     }
 
     pub fn appoint_scribe(&mut self, scribe: Address) -> Result<(), Vec<u8>> {
         let storage = Keep::storage();
-        let castle = storage.castle.get();
-        if castle.is_zero() {
+        if storage.constable.get().is_zero() {
             Err(b"Constable was not appointed")?;
         }
-        let calldata = IScribe::acceptAppointmentCall { castle }.abi_encode();
-        unsafe { self.vm().delegate_call(&self, scribe, &calldata) }?;
-        let scribe_role = ICastle::createProtectedFunctionsCall {
-            contract_address: castle,
+        self.inner_call(scribe, IScribe::acceptAppointmentCall { scribe })?;
+        self.top_level_call(ICastle::createProtectedFunctionsCall {
+            contract_address: scribe,
             function_selectors: vec![IScribe::verifySignatureCall::SELECTOR.into()],
             required_role: CASTLE_ISSUER_ROLE.into(),
-        };
-        self._dispatch(castle, scribe_role)?;
+        })?;
         Ok(())
     }
 
@@ -110,12 +92,8 @@ impl Constable {
         gate_to_granary: Address,
     ) -> Result<(), Vec<u8>> {
         let mut storage = Keep::storage();
-        let castle = storage.castle.get();
-        if castle.is_zero() {
+        if storage.constable.get().is_zero() {
             Err(b"Constable was not appointed")?;
-        }
-        if storage.constable.get() != self.vm().contract_address() {
-            Err(b"Wrong Castle")?;
         }
         if !storage.granary.get_granary_address().is_zero() {
             Err(b"Granary already cast")?;
@@ -156,11 +134,23 @@ impl Constable {
             contract_address: factor,
             function_selectors: vec![IFactor::submitBuyOrderCall::SELECTOR.into()],
         };
-        self._dispatch(castle, issuer_role)?;
-        self._dispatch(castle, vendor_role_1)?;
-        self._dispatch(castle, vendor_role_2)?;
-        self._dispatch(castle, keeper_role)?;
-        self._dispatch(castle, trader_role)?;
+        self.top_level_call(issuer_role)?;
+        self.top_level_call(vendor_role_1)?;
+        self.top_level_call(vendor_role_2)?;
+        self.top_level_call(keeper_role)?;
+        self.top_level_call(trader_role)?;
         Ok(())
+    }
+    
+    pub fn get_issuer_role(&self) -> B256 {
+        CASTLE_ISSUER_ROLE.into()
+    }
+    
+    pub fn get_vendor_role(&self) -> B256 {
+        CASTLE_VENDOR_ROLE.into()
+    }
+    
+    pub fn get_keeper_role(&self) -> B256 {
+        CASTLE_KEEPER_ROLE.into()
     }
 }

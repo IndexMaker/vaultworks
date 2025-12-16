@@ -22,6 +22,7 @@ vec-u8 = []
 amount-sqrt = []
 stylus = ["stylus-sdk"]
 stylus-test = ["stylus", "debug"]
+reentrant = ["stylus-sdk/reentrant"]
 export-abi = ["stylus-sdk/export-abi"]
 with-ethers = ["ethers"]
 

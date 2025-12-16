@@ -26,10 +26,10 @@ impl Granary {
 impl Granary {
     // TODO: Add UUPS (ERC-1967) so that Granary can be behind the Gate
 
-    #[constructor]
-    pub fn constructor(&mut self, owner: Address, clerk: Address) {
+    pub fn initialize(&mut self, owner: Address, clerk: Address) -> Result<(), Vec<u8>>{
         let mut storage = GranaryStorage::storage();
-        storage.initialize(owner, clerk);
+        storage.initialize(owner, clerk)?;
+        Ok(())
     }
 
     pub fn store(&mut self, id: U128, data: Vec<u8>) -> Result<(), Vec<u8>> {

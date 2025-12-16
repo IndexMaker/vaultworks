@@ -8,12 +8,12 @@ description = "IndexMaker Castle (A Diamond w/ Access Control List)"
 alloy-primitives = { workspace = true }
 alloy-sol-types = { workspace = true }
 amount-macros = { workspace = true }
-deli = { workspace = true, features = ["stylus"] }
+deli = { workspace = true, features = ["stylus", "reentrant"] }
 devil-macros = { workspace = true }
 hex = { workspace = true }
 icore = { workspace = true }
 labels-macros = { workspace = true }
-stylus-sdk = { workspace = true }
+stylus-sdk = { workspace = true, features = ["reentrant"] }
 vector-macros = { workspace = true }
 
 [dev-dependencies]

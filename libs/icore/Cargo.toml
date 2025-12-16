@@ -17,4 +17,5 @@ vector-macros = { workspace = true }
 [features]
 debug = ["deli/debug"]
 stylus = ["deli/stylus"]
+reentrant = ["deli/reentrant"]
 stylus-test = ["stylus", "deli/stylus-test", "debug"]

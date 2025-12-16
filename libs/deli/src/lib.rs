@@ -18,10 +18,12 @@ pub mod contracts {
         pub mod worksman;
     }
     pub mod acl;
+    pub mod calls;
     pub mod castle;
     pub mod delegate;
     pub mod granary;
     pub mod keep;
+    pub mod keep_calls;
 }
 pub mod labels;
 pub mod log;

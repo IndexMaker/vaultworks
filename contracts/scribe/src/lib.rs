@@ -17,15 +17,12 @@ pub struct Scribe;
 
 #[public]
 impl Scribe {
-    pub fn accept_appointment(&mut self, castle: Address) -> Result<(), Vec<u8>> {
+    pub fn accept_appointment(&mut self, scribe: Address) -> Result<(), Vec<u8>> {
         let mut storage = Keep::storage();
-        if !storage.castle.get() != castle {
-            Err(b"Wrong Castle")?;
-        }
         if !storage.scribe.get().is_zero() {
             Err(b"Scribe already appointed")?;
         }
-        storage.scribe.set(self.vm().contract_address());
+        storage.scribe.set(scribe);
         Ok(())
     }
 

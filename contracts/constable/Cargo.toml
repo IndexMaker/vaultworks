@@ -7,9 +7,9 @@ description = "IndexMaker Constable (Manages the Castle: Configures facets of a 
 [dependencies]
 alloy-primitives = { workspace = true }
 alloy-sol-types = { workspace = true }
-stylus-sdk = { workspace = true }
+stylus-sdk = { workspace = true, features = ["reentrant"] }
 hex = { workspace = true }
-deli = { workspace = true, features = ["stylus"] }
+deli = { workspace = true, features = ["stylus", "reentrant"] }
 
 [dev-dependencies]
 alloy-primitives = { workspace = true, features = ["sha3-keccak"] }

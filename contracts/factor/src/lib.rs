@@ -7,16 +7,11 @@ extern crate alloc;
 
 use alloc::vec::Vec;
 
-use alloy_primitives::{Address, U128};
-use alloy_sol_types::SolCall;
+use alloy_primitives::U128;
 use amount_macros::amount;
-use deli::{
-    contracts::{
-        granary,
-        interfaces::{clerk::IClerk, granary::IGranary},
-        keep::{Granary, Keep},
-    },
-    vector::Vector,
+use deli::contracts::{
+    keep::{Granary, Keep},
+    keep_calls::KeepCalls,
 };
 use icore::vil::{
     execute_buy_order::execute_buy_order, update_market_data::update_market_data,
@@ -27,31 +22,6 @@ use stylus_sdk::prelude::*;
 #[storage]
 #[entrypoint]
 pub struct Factor;
-
-impl Factor {
-    fn _attendee(&self) -> Address {
-        self.vm().msg_sender()
-    }
-
-    fn _send_to_granary(
-        &mut self,
-        gate_to_granary: Address,
-        call: impl SolCall,
-    ) -> Result<Vec<u8>, Vec<u8>> {
-        let calldata = call.abi_encode();
-        let result = self.vm().call(&self, gate_to_granary, &calldata)?;
-        Ok(result)
-    }
-
-    fn send_to_clerk(&mut self, code: Vec<u8>, num_registry: u128) -> Result<(), Vec<u8>> {
-        let storage = Keep::storage();
-        let gate_to_granary = storage.granary.get_granary_address();
-
-        let call = IClerk::executeCall { code, num_registry };
-        self.vm().call(&self, gate_to_granary, &call.abi_encode())?;
-        Ok(())
-    }
-}
 
 #[public]
 impl Factor {
@@ -82,7 +52,7 @@ impl Factor {
         let mut storage = Keep::storage();
 
         let mut account = storage.accounts.setter(vendor_id);
-        account.set_only_owner(self._attendee())?;
+        account.set_only_owner(self.attendee())?;
 
         let gate_to_granary = storage.granary.get_granary_address();
 
@@ -91,30 +61,10 @@ impl Factor {
         let asset_prices_id = Granary::SCRATCH_3;
         let asset_slopes_id = Granary::SCRATCH_4;
 
-        let store_asset_names = IGranary::storeCall {
-            id: asset_names_id.to(),
-            data: asset_names,
-        };
-
-        let store_asset_liquidity = IGranary::storeCall {
-            id: asset_liquidity_id.to(),
-            data: asset_liquidity,
-        };
-
-        let store_asset_prices = IGranary::storeCall {
-            id: asset_prices_id.to(),
-            data: asset_prices,
-        };
-
-        let store_asset_slopes = IGranary::storeCall {
-            id: asset_slopes_id.to(),
-            data: asset_slopes,
-        };
-
-        self._send_to_granary(gate_to_granary, store_asset_names)?;
-        self._send_to_granary(gate_to_granary, store_asset_liquidity)?;
-        self._send_to_granary(gate_to_granary, store_asset_prices)?;
-        self._send_to_granary(gate_to_granary, store_asset_slopes)?;
+        self.submit_vector_bytes(gate_to_granary, asset_names_id.to(), asset_names)?;
+        self.submit_vector_bytes(gate_to_granary, asset_liquidity_id.to(), asset_liquidity)?;
+        self.submit_vector_bytes(gate_to_granary, asset_prices_id.to(), asset_prices)?;
+        self.submit_vector_bytes(gate_to_granary, asset_slopes_id.to(), asset_slopes)?;
 
         // Compile VIL program, which we will send to DeVIL for execution.
         let update = update_market_data(
@@ -128,7 +78,7 @@ impl Factor {
             account.liquidity.get().to(),
         );
         let num_registry = 16;
-        self.send_to_clerk(update, num_registry)?;
+        self.execute_vector_program(gate_to_granary, update, num_registry)?;
         Ok(())
     }
 
@@ -141,6 +91,7 @@ impl Factor {
         let storage = Keep::storage();
         let vault = storage.vaults.get(index);
         let account = storage.accounts.get(vendor_id);
+        let gate_to_granary = storage.granary.get_granary_address();
 
         // Compile VIL program, which we will send to DeVIL for execution
         //
@@ -159,7 +110,7 @@ impl Factor {
             account.liquidity.get().to(),
         );
         let num_registry = 16;
-        self.send_to_clerk(update, num_registry)?;
+        self.execute_vector_program(gate_to_granary, update, num_registry)?;
         Ok(())
     }
 
@@ -192,7 +143,7 @@ impl Factor {
         let mut vault = storage.vaults.setter(index);
         let account = storage.accounts.get(vendor_id);
         let gate_to_granary = storage.granary.get_granary_address();
-        let user = self._attendee();
+        let user = self.attendee();
 
         // TODO: We need to set these up. They are from Vault and Market.
         let executed_asset_quantities_id = Granary::SCRATCH_1;
@@ -247,41 +198,25 @@ impl Factor {
             solve_quadratic_id,
         );
         let num_registry = 16;
-        self.send_to_clerk(update, num_registry)?;
+        self.execute_vector_program(gate_to_granary, update, num_registry)?;
 
         // TODO: Fetch results
         // - executed and remaining Index quantity
         // - collateral remaining and spent
         // - mint token if fully executed
+        let executed_asset_quantities =
+            self.fetch_vector_from_granary(gate_to_granary, executed_asset_quantities_id.to())?;
 
-        let fetch_executed_index_quantities = IGranary::fetchCall {
-            id: executed_index_quantities_id.to(),
-        };
+        let executed_index_quantities =
+            self.fetch_vector_from_granary(gate_to_granary, executed_index_quantities_id.to())?;
 
-        let fetch_executed_asset_quantities = IGranary::fetchCall {
-            id: executed_asset_quantities_id.to(),
-        };
-
-        let fetch_index_order = IGranary::fetchCall {
-            id: index_order_id.to(),
-        };
-
-        let executed_asset_quantities = Vector::from_vec(
-            self._send_to_granary(gate_to_granary, fetch_executed_asset_quantities)?,
-        );
-
-        let executed_index_quantities = Vector::from_vec(
-            self._send_to_granary(gate_to_granary, fetch_executed_index_quantities)?,
-        );
-
-        let index_order =
-            Vector::from_vec(self._send_to_granary(gate_to_granary, fetch_index_order)?);
+        let index_order = self.fetch_vector_from_granary(gate_to_granary, index_order_id.to())?;
 
         let _ = executed_asset_quantities;
         let _ = executed_index_quantities;
         let _ = index_order;
 
-        todo!("Do something with results");
+        // TODO: Do something with results
 
         Ok(())
     }

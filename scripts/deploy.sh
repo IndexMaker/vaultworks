@@ -24,10 +24,8 @@ if [ ! -f "./$WASM_FILE_PATH" ]; then
   $SCRIPT_DIR/check.sh $PACKAGE_NAME
 fi
 
-# Deploying with constructor args:
-# ./scripts/deploy.sh treasury --no-verify --constructor-signature="constructor(address)" --constructor-args="0x3f1Eae7D46d88F08fc2F8ed27FCb2AB183EB2d0E"
-
 cd $WORKSPACE_ROOT && cargo stylus deploy --wasm-file "./$WASM_FILE_PATH" \
     --endpoint="$RPC_URL" \
+    --no-verify \
     --max-fee-per-gas-gwei=$MAX_FEE_PER_GAS_GWEI \
     --private-key="$DEPLOY_PRIVATE_KEY" ${@:2}

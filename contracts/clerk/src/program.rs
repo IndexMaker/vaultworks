@@ -839,7 +839,7 @@ pub(crate) fn log_stack_fun(stack: &Stack) {
 }
 
 #[cfg(test)]
-pub(crate) fn op_code_str_fun(op_code: u8) -> &'static str {
+pub(crate) fn _op_code_str_fun(op_code: u8) -> &'static str {
     match op_code {
         OP_LDL => "LDL",
         OP_LDV => "LDV",
@@ -912,7 +912,7 @@ macro_rules! op_code_str {
 #[macro_export]
 macro_rules! op_code_str {
     ($arg:expr) => {
-        $crate::program::op_code_str_fun($arg)
+        $crate::program::_op_code_str_fun($arg)
     };
 }
 
