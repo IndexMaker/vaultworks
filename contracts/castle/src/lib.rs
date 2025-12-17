@@ -355,7 +355,7 @@ impl Castle {
 
         if let Some(required_role) = required_role {
             if !required_role.contains(self._attendee()) {
-                log_msg!("Required role {} to access function", required_role);
+                log_msg!("Unauthorised access");
                 Err(b"Unauthorised access")?;
             }
         }

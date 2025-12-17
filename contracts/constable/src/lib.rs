@@ -9,7 +9,7 @@ use alloc::vec::Vec;
 
 use alloy_primitives::{Address, B256};
 use alloy_sol_types::SolCall;
-use deli::contracts::{
+use deli::{contracts::{
     calls::InnerCall,
     castle::CASTLE_ADMIN_ROLE,
     interfaces::{
@@ -17,7 +17,7 @@ use deli::contracts::{
         guildmaster::IGuildmaster, scribe::IScribe, worksman::IWorksman,
     },
     keep::Keep,
-};
+}, log_msg};
 use stylus_sdk::{keccak_const, prelude::*};
 
 pub const CASTLE_ISSUER_ROLE: [u8; 32] = keccak_const::Keccak256::new()
@@ -39,6 +39,7 @@ pub struct Constable;
 #[public]
 impl Constable {
     pub fn accept_appointment(&mut self, constable: Address) -> Result<(), Vec<u8>> {
+        log_msg!("Accepting appointment {}", constable);
         let mut storage = Keep::storage();
         if !storage.constable.get().is_zero() {
             Err(b"Constable already appointed")?;
@@ -53,10 +54,19 @@ impl Constable {
             ],
             required_role: CASTLE_ADMIN_ROLE.into(),
         })?;
+        self.top_level_call(ICastle::createPublicFunctionsCall {
+            contract_address: constable,
+            function_selectors: vec![
+                IConstable::getIssuerRoleCall::SELECTOR.into(),
+                IConstable::getKeeperRoleCall::SELECTOR.into(),
+                IConstable::getVendorRoleCall::SELECTOR.into(),
+            ],
+        })?;
         Ok(())
     }
 
     pub fn appoint_worksman(&mut self, worksman: Address) -> Result<(), Vec<u8>> {
+        log_msg!("Appointing worksman {}", worksman);
         let storage = Keep::storage();
         if storage.constable.get().is_zero() {
             Err(b"Constable was not appointed")?;
@@ -71,6 +81,7 @@ impl Constable {
     }
 
     pub fn appoint_scribe(&mut self, scribe: Address) -> Result<(), Vec<u8>> {
+        log_msg!("Appointing scribe {}", scribe);
         let storage = Keep::storage();
         if storage.constable.get().is_zero() {
             Err(b"Constable was not appointed")?;
@@ -141,15 +152,15 @@ impl Constable {
         self.top_level_call(trader_role)?;
         Ok(())
     }
-    
+
     pub fn get_issuer_role(&self) -> B256 {
         CASTLE_ISSUER_ROLE.into()
     }
-    
+
     pub fn get_vendor_role(&self) -> B256 {
         CASTLE_VENDOR_ROLE.into()
     }
-    
+
     pub fn get_keeper_role(&self) -> B256 {
         CASTLE_KEEPER_ROLE.into()
     }
