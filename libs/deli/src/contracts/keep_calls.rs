@@ -86,7 +86,7 @@ where
         gate_to_granary: Address,
         vector_id: u128,
     ) -> Result<Vec<u8>, Vec<u8>> {
-        let result = self.static_call(gate_to_granary, IGranary::fetchCall { id: vector_id })?;
+        let result = self.static_call(gate_to_granary, IGranary::loadCall { id: vector_id })?;
         Ok(result)
     }
 

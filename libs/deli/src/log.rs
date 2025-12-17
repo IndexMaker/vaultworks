@@ -3,18 +3,30 @@
 //! with SIGSEGV, or code doesn't link.
 //!
 
-#[cfg(all(feature = "debug", any(not(feature = "stylus"), feature = "stylus-test", feature = "export-abi")))]
+#[cfg(all(
+    feature = "debug",
+    any(
+        feature = "stylus-test",
+        not(any(feature = "stylus", feature = "export-abi"))
+    )
+))]
 pub fn print_msg(msg: &str) {
     println!("{}", msg);
 }
 
-#[cfg(not(feature = "debug"))]
+#[cfg(any(not(feature = "debug"), feature = "export-abi"))]
 #[macro_export]
 macro_rules! log_msg {
     ($($t:tt)*) => {};
 }
 
-#[cfg(all(feature = "debug", any(not(feature = "stylus"), feature = "stylus-test", feature = "export-abi")))]
+#[cfg(all(
+    feature = "debug",
+    any(
+        feature = "stylus-test",
+        not(any(feature = "stylus", feature = "export-abi"))
+    )
+))]
 #[macro_export]
 macro_rules! log_msg {
     ($fmt:literal $(, $args:expr)*) => {
@@ -22,7 +34,12 @@ macro_rules! log_msg {
     };
 }
 
-#[cfg(all(feature = "debug", not(all(not(feature = "stylus"), feature = "stylus-test", feature = "export-abi"))))]
+#[cfg(all(
+    feature = "debug",
+    feature = "stylus",
+    not(feature = "stylus-test"),
+    not(feature = "export-abi")
+))]
 #[macro_export]
 macro_rules! log_msg {
     ($($msg:tt)*) => {

@@ -57,6 +57,9 @@ impl Castle {
     }
 
     fn _prohibit_self(&self, contract_address: &Address) -> Result<(), Vec<u8>> {
+        if contract_address.is_zero() {
+            Err(b"Cannot reference null contract")?;
+        }
         if self.vm().contract_address().eq(contract_address) {
             Err(b"Cannot reference self")?;
         }
