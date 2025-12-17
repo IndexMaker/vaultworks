@@ -30,4 +30,5 @@ labels-macros = { workspace = true }
 vector-macros = { workspace = true }
 
 [features]
+default = ["debug"]
 debug = ["deli/debug", "decon/debug", "icore/debug"]

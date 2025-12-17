@@ -4,7 +4,7 @@ use clap::Parser;
 use deli::log_msg;
 use ethers::types::Address;
 
-use decon::{contracts::Devil, tx_sender::TxClient};
+use decon::{contracts::Granary, tx_sender::TxClient};
 use eyre::eyre;
 
 mod scenario_1;
@@ -19,7 +19,7 @@ struct Cli {
     rpc_url: Option<String>,
 
     #[arg(long)]
-    devil_address: String,
+    granary_address: String,
 
     #[arg(short, long, value_delimiter = ',')]
     scenario: Vec<String>,
@@ -33,36 +33,26 @@ fn get_private_key() -> String {
 async fn main() -> eyre::Result<()> {
     let cli = Cli::parse();
     let rpc_url = cli.rpc_url.unwrap_or("http://localhost:8547".to_owned());
-    let devil_address: Address = cli.devil_address.parse()?;
+    let granary_address: Address = cli.granary_address.parse()?;
     let scenario = cli.scenario;
 
     let client = TxClient::try_new_from_url(&rpc_url, get_private_key).await?;
 
-    let devil = Devil::new(devil_address, client.client());
+    let granary = Granary::new(granary_address, client.client());
 
     for s in scenario {
         match s.as_str() {
-            "setup" => {
-                log_msg!("Setting up...");
-                devil
-                    .setup(client.address())
-                    .send()
-                    .await
-                    .expect("Failed to send setup")
-                    .await
-                    .expect("Failed to obtain setup receipt");
-            }
             "scenario1" => {
-                scenario_1::run_scenario(&client, devil_address).await?;
+                scenario_1::run_scenario(&client, granary_address).await?;
             }
             "scenario2" => {
-                scenario_2::run_scenario(&client, devil_address).await?;
+                scenario_2::run_scenario(&client, granary_address).await?;
             }
             "scenario3" => {
-                scenario_3::run_scenario(&client, devil_address).await?;
+                scenario_3::run_scenario(&client, granary_address).await?;
             }
             "scenario4" => {
-                scenario_4::run_scenario(&client, devil_address).await?;
+                scenario_4::run_scenario(&client, granary_address).await?;
             }
             x => {
                 Err(eyre!("No such scenario: {}", x))?;

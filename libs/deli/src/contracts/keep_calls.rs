@@ -3,15 +3,8 @@ use alloc::vec::Vec;
 use alloy_primitives::{Address, U8};
 
 use crate::{
-    contracts::{
-        calls::InnerCall,
-        interfaces::{
-            clerk::IClerk,
-            granary::IGranary,
-            scribe::IScribe,
-            worksman::IWorksman,
-        },
-    },
+    contracts::calls::InnerCall,
+    interfaces::{clerk::IClerk, granary::IGranary, scribe::IScribe, worksman::IWorksman},
     vector::Vector,
 };
 

@@ -8,11 +8,9 @@ extern crate alloc;
 use alloc::vec::Vec;
 
 use alloy_primitives::{Address, U128};
-use alloy_sol_types::SolCall;
 use deli::{
-    contracts::{
-        calls::InnerCall, granary::GranaryStorage, interfaces::clerk::IClerk, keep_calls::KeepCalls,
-    },
+    contracts::{calls::InnerCall, granary::GranaryStorage, keep_calls::KeepCalls},
+    interfaces::clerk::IClerk,
     log_msg,
 };
 use stylus_sdk::prelude::*;

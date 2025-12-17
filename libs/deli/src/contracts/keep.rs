@@ -7,7 +7,7 @@ use stylus_sdk::{
     storage::{StorageAddress, StorageMap, StorageU128},
 };
 
-use crate::storage::StorageSlot;
+use crate::contracts::storage::StorageSlot;
 
 pub const KEEP_STORAGE_SLOT: U256 = {
     const HASH: [u8; 32] = keccak_const::Keccak256::new()

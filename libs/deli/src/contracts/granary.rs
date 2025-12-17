@@ -5,7 +5,7 @@ use stylus_sdk::{
     keccak_const, prelude::*, storage::{StorageAddress, StorageBool, StorageBytes, StorageMap}
 };
 
-use crate::storage::StorageSlot;
+use crate::contracts::storage::StorageSlot;
 
 #[storage]
 pub struct GranaryStorage {

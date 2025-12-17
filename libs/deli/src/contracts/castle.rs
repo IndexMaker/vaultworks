@@ -8,9 +8,9 @@ use stylus_sdk::{
     storage::{StorageAddress, StorageGuard, StorageMap},
 };
 
-use crate::{contracts::acl::Role, log_msg, storage::StorageSlot};
+use crate::{contracts::acl::Role, log_msg};
 
-use super::{acl::AccessControlList, delegate::Delegate};
+use super::{acl::AccessControlList, delegate::Delegate, storage::StorageSlot};
 
 pub const CASTLE_ADMIN_ROLE: [u8; 32] = keccak_const::Keccak256::new()
     .update(b"Castle.ADMIN_ROLE")
@@ -43,7 +43,7 @@ impl CastleStorage {
         Ok(())
     }
 
-    pub fn has_castle(&self) -> bool { 
+    pub fn has_castle(&self) -> bool {
         !self.castle.get().is_zero()
     }
 

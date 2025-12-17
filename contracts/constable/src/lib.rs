@@ -10,14 +10,10 @@ use alloc::vec::Vec;
 use alloy_primitives::{Address, B256};
 use alloy_sol_types::SolCall;
 use deli::{
-    contracts::{
-        calls::InnerCall,
-        castle::CASTLE_ADMIN_ROLE,
-        interfaces::{
-            banker::IBanker, castle::ICastle, constable::IConstable, factor::IFactor,
-            guildmaster::IGuildmaster, scribe::IScribe, worksman::IWorksman,
-        },
-        keep::Keep,
+    contracts::{calls::InnerCall, castle::CASTLE_ADMIN_ROLE, keep::Keep},
+    interfaces::{
+        banker::IBanker, castle::ICastle, constable::IConstable, factor::IFactor,
+        guildmaster::IGuildmaster, scribe::IScribe, worksman::IWorksman,
     },
     log_msg,
 };
@@ -114,7 +110,7 @@ impl Constable {
         })?;
         Ok(())
     }
-    
+
     pub fn appoint_guildmaster(&mut self, guildmaster: Address) -> Result<(), Vec<u8>> {
         log_msg!("Appointing guildmaster {}", guildmaster);
         let storage = Keep::storage();

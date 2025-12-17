@@ -10,13 +10,8 @@ use alloc::vec::Vec;
 use alloy_primitives::{uint, Address, U128, U256};
 use alloy_sol_types::SolCall;
 use deli::{
-    contracts::{
-        calls::InnerCall,
-        castle::CASTLE_ADMIN_ROLE,
-        interfaces::{castle::ICastle, worksman::IWorksman},
-        keep::Keep,
-    },
-    storage::StorageSlot,
+    contracts::{calls::InnerCall, castle::CASTLE_ADMIN_ROLE, keep::Keep, storage::StorageSlot},
+    interfaces::{castle::ICastle, worksman::IWorksman},
 };
 use stylus_sdk::{
     keccak_const,

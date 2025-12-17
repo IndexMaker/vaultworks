@@ -9,14 +9,15 @@ use alloc::vec::Vec;
 
 use alloy_primitives::{aliases::B32, Address, B256, U256};
 
-use alloy_sol_types::{SolCall, SolEvent};
+use alloy_sol_types::SolCall;
+use alloy_sol_types::SolEvent;
 use deli::{
     contracts::{
         acl::AccessControlList,
         calls::InnerCall,
         castle::{CastleStorage, CASTLE_ADMIN_ROLE},
-        interfaces::{castle::ICastle, constable::IConstable},
     },
+    interfaces::{castle::ICastle, constable::IConstable},
     log_msg,
 };
 use stylus_sdk::{prelude::*, ArbResult};
