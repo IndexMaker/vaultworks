@@ -6,6 +6,8 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 
 . $SCRIPT_DIR/vars.sh
 
+set_vars $1
+
 DEPLOYMENT_ADDRESS=$(deploy "$@" | tee /dev/stderr | parse_deployment_address)
 DEPLOYER_ADDRESS=$(deployer_address)
 
