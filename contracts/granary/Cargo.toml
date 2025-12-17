@@ -26,7 +26,7 @@ vector-macros = { workspace = true }
 icore = { workspace = true }
 
 [features]
-default = ["mini-alloc", "stylus-sdk/debug", "deli/debug"]
+default = ["mini-alloc"]
 export-abi = ["stylus-sdk/export-abi", "deli/export-abi"]
 test-debug = ["stylus-sdk/debug", "deli/debug", "deli/stylus-test"]
 mini-alloc = ["stylus-sdk/mini-alloc"]
@@ -37,13 +37,3 @@ path = "src/main.rs"
 
 [lib]
 crate-type = ["lib", "cdylib"]
-
-[profile.release]
-codegen-units = 1
-strip = true
-lto = true
-panic = "abort"
-
-# If you need to reduce the binary size, it is advisable to try other
-# optimization levels, such as "s" and "z"
-opt-level = "s"

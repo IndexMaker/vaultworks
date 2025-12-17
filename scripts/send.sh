@@ -4,4 +4,4 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 
 . $SCRIPT_DIR/vars.sh
 
-export_abi $@
+contract_send $@
