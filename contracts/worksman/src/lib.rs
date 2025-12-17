@@ -77,7 +77,7 @@ impl Worksman {
 
     pub fn build_vault(&mut self, index: U128, info: Vec<u8>) -> Result<Address, Vec<u8>> {
         let keep = Keep::storage();
-        if keep.worksman.get() != self.vm().contract_address() {
+        if keep.worksman.get().is_zero() {
             Err(b"Worksman not appointed")?;
         }
         let mut storage = Self::_storage();

@@ -28,7 +28,7 @@ impl Scribe {
 
     pub fn verify_signature(&mut self, data: Vec<u8>) -> Result<bool, Vec<u8>> {
         let keep = Keep::storage();
-        if keep.scribe.get() != self.vm().contract_address() {
+        if keep.scribe.get().is_zero() {
             Err(b"Scribe not appointed")?;
         }
         // TODO: Implement actual signature verification
