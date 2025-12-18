@@ -17,6 +17,10 @@ if [ -z "$WORKSPACE_ROOT" ]; then
     die "Could not determine the workspace root. Are you inside a Cargo project?"
 fi
 
+RPC_URL=${RPC_URL:-"http://localhost:8547"}
+MAX_FEE_PER_GAS_GWEI=${MAX_FEE_PER_GAS_GWEI:-30}
+
+
 set_vars() {
     PACKAGE_NAME=${1:-$(basename "$PWD")}
 
@@ -26,9 +30,6 @@ set_vars() {
     if [ ! -d $PACKAGE_PATH ]; then
         die "Such contract does not exist '$PACKAGE_NAME' ($PACKAGE_PATH)"
     fi
-
-    RPC_URL=${RPC_URL:-"http://localhost:8547"}
-    MAX_FEE_PER_GAS_GWEI=${MAX_FEE_PER_GAS_GWEI:-30}
 
     echo "-------------------------------------"
     echo "=== Script configuration complete ==="

@@ -13,8 +13,8 @@ use deli::contracts::{
     keep_calls::KeepCalls,
 };
 use icore::vil::{
-    add_market_assets::add_market_assets, update_margin::update_margin,
-    update_supply::update_supply,
+    add_market_assets::add_market_assets, create_market::create_market,
+    update_margin::update_margin, update_supply::update_supply,
 };
 use stylus_sdk::prelude::*;
 
@@ -42,43 +42,85 @@ impl Banker {
         market_asset_names: Vec<u8>,
     ) -> Result<(), Vec<u8>> {
         let mut storage = Keep::storage();
-
-        let mut account = storage.accounts.setter(vendor_id);
-        account.set_only_owner(self.attendee())?;
-
         let gate_to_granary = storage.granary.get_granary_address();
 
-        let new_market_asset_names_id = Granary::SCRATCH_1;
+        let mut account = storage.accounts.setter(vendor_id);
+        if account.has_owner() {
+            account.only_owner(self.attendee())?;
 
-        self.submit_vector_bytes(
-            gate_to_granary,
-            new_market_asset_names_id.to(),
-            market_asset_names,
-        )?;
+            let new_market_asset_names_id = Granary::SCRATCH_1;
 
-        // Compile VIL program, which we will send to DeVIL for execution.
-        //
-        // The program:
-        // - updates market asset names
-        // - extends supply, demand, and delta vectors
-        // - extends prices, slopes, liquidity vectors
-        //
-        let update = add_market_assets(
-            new_market_asset_names_id.to(),
-            account.assets.get().to(),
-            account.prices.get().to(),
-            account.slopes.get().to(),
-            account.liquidity.get().to(),
-            account.supply_long.get().to(),
-            account.supply_short.get().to(),
-            account.demand_long.get().to(),
-            account.demand_short.get().to(),
-            account.delta_long.get().to(),
-            account.delta_short.get().to(),
-            account.margin.get().to(),
-        );
-        let num_registry = 16;
-        self.execute_vector_program(gate_to_granary, update, num_registry)?;
+            self.submit_vector_bytes(
+                gate_to_granary,
+                new_market_asset_names_id.to(),
+                market_asset_names,
+            )?;
+
+            // Compile VIL program, which we will send to DeVIL for execution.
+            //
+            // The program:
+            // - updates market asset names
+            // - extends supply, demand, and delta vectors
+            // - extends prices, slopes, liquidity vectors
+            //
+            let update = add_market_assets(
+                new_market_asset_names_id.to(),
+                account.assets.get().to(),
+                account.prices.get().to(),
+                account.slopes.get().to(),
+                account.liquidity.get().to(),
+                account.supply_long.get().to(),
+                account.supply_short.get().to(),
+                account.demand_long.get().to(),
+                account.demand_short.get().to(),
+                account.delta_long.get().to(),
+                account.delta_short.get().to(),
+                account.margin.get().to(),
+            );
+            let num_registry = 16;
+            self.execute_vector_program(gate_to_granary, update, num_registry)?;
+        } else {
+            account.set_owner(self.attendee())?;
+
+            let new_market_asset_names_id = Granary::SCRATCH_1;
+
+            self.submit_vector_bytes(
+                gate_to_granary,
+                new_market_asset_names_id.to(),
+                market_asset_names,
+            )?;
+
+            account.assets.set(storage.granary.next_vector());
+            account.prices.set(storage.granary.next_vector());
+            account.slopes.set(storage.granary.next_vector());
+            account.liquidity.set(storage.granary.next_vector());
+            account.supply_long.set(storage.granary.next_vector());
+            account.supply_short.set(storage.granary.next_vector());
+            account.demand_long.set(storage.granary.next_vector());
+            account.demand_short.set(storage.granary.next_vector());
+            account.delta_long.set(storage.granary.next_vector());
+            account.delta_short.set(storage.granary.next_vector());
+            account.margin.set(storage.granary.next_vector());
+
+            // Compile VIL program, which we will send to DeVIL for execution.
+            let update = create_market(
+                new_market_asset_names_id.to(),
+                account.assets.get().to(),
+                account.prices.get().to(),
+                account.slopes.get().to(),
+                account.liquidity.get().to(),
+                account.supply_long.get().to(),
+                account.supply_short.get().to(),
+                account.demand_long.get().to(),
+                account.demand_short.get().to(),
+                account.delta_long.get().to(),
+                account.delta_short.get().to(),
+                account.margin.get().to(),
+            );
+            let num_registry = 16;
+            self.execute_vector_program(gate_to_granary, update, num_registry)?;
+        }
+
         Ok(())
     }
 
@@ -99,8 +141,8 @@ impl Banker {
     ) -> Result<(), Vec<u8>> {
         let mut storage = Keep::storage();
 
-        let mut account = storage.accounts.setter(vendor_id);
-        account.set_only_owner(self.attendee())?;
+        let account = storage.accounts.setter(vendor_id);
+        account.only_owner(self.attendee())?;
 
         let gate_to_granary = storage.granary.get_granary_address();
 
@@ -150,8 +192,8 @@ impl Banker {
     ) -> Result<(), Vec<u8>> {
         let mut storage = Keep::storage();
 
-        let mut account = storage.accounts.setter(vendor_id);
-        account.set_only_owner(self.attendee())?;
+        let account = storage.accounts.setter(vendor_id);
+        account.only_owner(self.attendee())?;
 
         let gate_to_granary = storage.granary.get_granary_address();
 

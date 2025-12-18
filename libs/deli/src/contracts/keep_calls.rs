@@ -5,6 +5,7 @@ use alloy_primitives::{Address, U8};
 use crate::{
     contracts::calls::InnerCall,
     interfaces::{clerk::IClerk, granary::IGranary, scribe::IScribe, worksman::IWorksman},
+    log_msg,
     vector::Vector,
 };
 
@@ -106,13 +107,18 @@ where
                 info,
             },
         )?;
-        let result = Address::from_slice(&gate_to_vault_bytes);
+        let address_bytes: [u8; 20] = gate_to_vault_bytes[12..32]
+            .try_into()
+            .map_err(|_| b"Bad gate to vault address")?;
+        let result = Address::from(address_bytes);
         Ok(result)
     }
 
     fn verify_signature(&mut self, scribe: Address, data: Vec<u8>) -> Result<bool, Vec<u8>> {
-        let result_bytes = self.inner_call(scribe, IScribe::verifySignatureCall { data })?;
-        let verfication_result = U8::from_be_slice(&result_bytes);
-        Ok(verfication_result == U8::ONE)
+        let verfication_result_bytes = self.inner_call(scribe, IScribe::verifySignatureCall { data })?;
+        let result_byte: [u8; 1] = verfication_result_bytes [31..32]
+            .try_into()
+            .map_err(|_| b"Bad signature verification")?;
+        Ok(result_byte[0] == 1u8)
     }
 }

@@ -9,15 +9,19 @@ use alloc::vec::Vec;
 
 use alloy_primitives::U128;
 use amount_macros::amount;
-use deli::contracts::{
-    keep::{Granary, Keep},
-    keep_calls::KeepCalls,
+use deli::{
+    contracts::{
+        keep::{Granary, Keep},
+        keep_calls::KeepCalls,
+    },
+    vector::Vector,
 };
 use icore::vil::{
-    execute_buy_order::execute_buy_order, update_market_data::update_market_data,
-    update_quote::update_quote,
+    execute_buy_order::execute_buy_order, solve_quadratic::solve_quadratic,
+    update_market_data::update_market_data, update_quote::update_quote,
 };
 use stylus_sdk::prelude::*;
+use vector_macros::amount_vec;
 
 #[storage]
 #[entrypoint]
@@ -51,8 +55,8 @@ impl Factor {
     ) -> Result<(), Vec<u8>> {
         let mut storage = Keep::storage();
 
-        let mut account = storage.accounts.setter(vendor_id);
-        account.set_only_owner(self.attendee())?;
+        let account = storage.accounts.setter(vendor_id);
+        account.only_owner(self.attendee())?;
 
         let gate_to_granary = storage.granary.get_granary_address();
 
@@ -137,22 +141,39 @@ impl Factor {
         &mut self,
         vendor_id: U128,
         index: U128,
-        collateral_amount: u128,
-    ) -> Result<(), Vec<u8>> {
+        collateral_added: u128,
+        collateral_removed: u128,
+        max_order_size: u128,
+        asset_contribution_fractions: Vec<u8>,
+    ) -> Result<(Vec<u8>, Vec<u8>, Vec<u8>), Vec<u8>> {
         let mut storage = Keep::storage();
         let mut vault = storage.vaults.setter(index);
         let account = storage.accounts.get(vendor_id);
         let gate_to_granary = storage.granary.get_granary_address();
         let user = self.attendee();
 
-        // TODO: We need to set these up. They are from Vault and Market.
-        let executed_asset_quantities_id = Granary::SCRATCH_1;
-        let executed_index_quantities_id = Granary::SCRATCH_2;
+        let asset_contribution_fractions_id = Granary::SCRATCH_1;
+        self.submit_vector_bytes(
+            gate_to_granary,
+            asset_contribution_fractions_id.to(),
+            asset_contribution_fractions,
+        )?;
 
-        let asset_contribution_fractions_id = 0;
-        let solve_quadratic_id = 0;
+        let executed_asset_quantities_id = Granary::SCRATCH_2;
+        let executed_index_quantities_id = Granary::SCRATCH_3;
 
-        let max_order_size = amount!(1000.0);
+        let solve_quadratic_id = {
+            let mut id = storage.solve_quadratic_id.get();
+            if id.is_zero() {
+                id = storage.granary.next_vector();
+                let code = solve_quadratic();
+                self.submit_vector_bytes(gate_to_granary, id.to(), code)?;
+                storage.solve_quadratic_id.set(id);
+                id
+            } else {
+                id
+            }
+        };
 
         // Allocate new Index order or extend to existing one
         let index_order_id = {
@@ -161,6 +182,11 @@ impl Factor {
             if old_id.is_zero() {
                 let new_id = storage.granary.next_vector();
                 set_id.set(new_id);
+                self.submit_vector_bytes(
+                    gate_to_granary,
+                    new_id.to(),
+                    amount_vec![0, 0, 0].to_vec(),
+                )?;
                 new_id
             } else {
                 old_id
@@ -178,9 +204,9 @@ impl Factor {
         //
         let update = execute_buy_order(
             index_order_id.to(),
-            collateral_amount,
-            0,
-            max_order_size.to_u128_raw(),
+            collateral_added,
+            collateral_removed,
+            max_order_size,
             executed_index_quantities_id.to(),
             executed_asset_quantities_id.to(),
             vault.assets.get().to(),
@@ -194,8 +220,8 @@ impl Factor {
             account.delta_long.get().to(),
             account.delta_short.get().to(),
             account.margin.get().to(),
-            asset_contribution_fractions_id,
-            solve_quadratic_id,
+            asset_contribution_fractions_id.to(),
+            solve_quadratic_id.to(),
         );
         let num_registry = 16;
         self.execute_vector_program(gate_to_granary, update, num_registry)?;
@@ -212,13 +238,11 @@ impl Factor {
 
         let index_order = self.fetch_vector_from_granary(gate_to_granary, index_order_id.to())?;
 
-        let _ = executed_asset_quantities;
-        let _ = executed_index_quantities;
-        let _ = index_order;
-
-        // TODO: Do something with results
-
-        Ok(())
+        Ok((
+            index_order.to_vec(),
+            executed_index_quantities.to_vec(),
+            executed_asset_quantities.to_vec(),
+        ))
     }
 }
 

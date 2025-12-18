@@ -101,13 +101,14 @@ impl Constable {
             function_selectors: vec![
                 IFactor::updateIndexQuoteCall::SELECTOR.into(),
                 IFactor::updateMultipleIndexQuotesCall::SELECTOR.into(),
+                IFactor::submitBuyOrderCall::SELECTOR.into()
             ],
             required_role: CASTLE_KEEPER_ROLE.into(),
         })?;
-        self.top_level_call(ICastle::createPublicFunctionsCall {
-            contract_address: factor,
-            function_selectors: vec![IFactor::submitBuyOrderCall::SELECTOR.into()],
-        })?;
+        // self.top_level_call(ICastle::createPublicFunctionsCall {
+        //     contract_address: factor,
+        //     function_selectors: vec![IFactor::submitBuyOrderCall::SELECTOR.into()],
+        // })?;
         Ok(())
     }
 

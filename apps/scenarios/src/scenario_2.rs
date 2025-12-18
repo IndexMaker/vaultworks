@@ -3,7 +3,7 @@ use deli::{labels::Labels, log_msg, vector::Vector};
 use ethers::types::Address;
 use icore::vil::{
     execute_buy_order::execute_buy_order,
-    solve_quadratic::{self, solve_quadratic},
+    solve_quadratic::solve_quadratic,
 };
 use labels_macros::label_vec;
 use vector_macros::amount_vec;

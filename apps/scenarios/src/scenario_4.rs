@@ -1,12 +1,8 @@
 use amount_macros::amount;
 use deli::{labels::Labels, log_msg, vector::Vector};
 use ethers::types::Address;
-use icore::vil::{
-    execute_buy_order::execute_buy_order,
-    solve_quadratic::{self, solve_quadratic},
-};
+use icore::vil::{execute_buy_order::execute_buy_order, solve_quadratic::solve_quadratic};
 use itertools::{chain, Itertools};
-use labels_macros::label_vec;
 use vector_macros::amount_vec;
 
 use decon::{contracts::Granary, tx_sender::TxClient};
@@ -61,7 +57,10 @@ pub async fn run_scenario(client: &TxClient, devil_address: Address) -> eyre::Re
         .begin_tx()
         .add(granary.store(asset_names_id, asset_names.to_vec()))
         .add(granary.store(weights_id, asset_vector(amount!(0.1)).to_vec()))
-        .add(granary.store(asset_contribution_fractions_id, asset_vector(amount!(1.0)).to_vec()))
+        .add(granary.store(
+            asset_contribution_fractions_id,
+            asset_vector(amount!(1.0)).to_vec(),
+        ))
         .add(granary.store(quote_id, amount_vec![10.00, 10_000, 100.0].to_vec()))
         .add(granary.store(index_order_id, amount_vec![950.00, 0, 0].to_vec()))
         .add(granary.store(market_asset_names_id, market_asset_names.to_vec()))
@@ -121,8 +120,10 @@ pub async fn run_scenario(client: &TxClient, devil_address: Address) -> eyre::Re
     let order_after = Vector::from_vec(granary.load(index_order_id).call().await?);
     let quote = Vector::from_vec(granary.load(quote_id).call().await?);
     let weigths = Vector::from_vec(granary.load(weights_id).call().await?);
-    let index_quantites = Vector::from_vec(granary.load(executed_index_quantities_id).call().await?);
-    let asset_quantites = Vector::from_vec(granary.load(executed_asset_quantities_id).call().await?);
+    let index_quantites =
+        Vector::from_vec(granary.load(executed_index_quantities_id).call().await?);
+    let asset_quantites =
+        Vector::from_vec(granary.load(executed_asset_quantities_id).call().await?);
     let demand_short = Vector::from_vec(granary.load(demand_short_id).call().await?);
     let demand_long = Vector::from_vec(granary.load(demand_long_id).call().await?);
     let delta_short = Vector::from_vec(granary.load(delta_short_id).call().await?);

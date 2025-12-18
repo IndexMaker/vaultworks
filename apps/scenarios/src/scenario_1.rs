@@ -1,5 +1,5 @@
 use amount_macros::amount;
-use deli::{labels::Labels, log_msg, vector::Vector};
+use deli::{log_msg, vector::Vector};
 use devil_macros::devil;
 use ethers::types::Address;
 

@@ -66,6 +66,7 @@ openzeppelin-stylus-proc = { version = "0.3.0" }
 regex = "1.12"
 reqwest = { version = "0.12", default-features = false }
 ruint = "^1.12.3"
+serde = { version = "^1.0", features = ["derive"] }
 stylus-sdk = "0.9.0"
 tiny-keccak = { version = "2.0.2", features = ["keccak"] }
 tokio = { version = "1.12.0", features = ["full"] }

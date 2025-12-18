@@ -1,10 +1,4 @@
-use amount_macros::amount;
-use deli::{
-    labels::{self, Labels},
-    log_msg,
-    vector::Vector,
-};
-use devil_macros::devil;
+use deli::{labels::Labels, log_msg, vector::Vector};
 use ethers::types::Address;
 
 use decon::{contracts::Granary, tx_sender::TxClient};
@@ -234,9 +228,12 @@ pub async fn run_scenario(client: &TxClient, devil_address: Address) -> eyre::Re
         .data
     );
 
-    let new_market_asset_prices = Vector::from_vec(granary.load(market_asset_prices_id).call().await?);
-    let new_market_asset_slopes = Vector::from_vec(granary.load(market_asset_slopes_id).call().await?);
-    let new_market_asset_liquidity = Vector::from_vec(granary.load(asset_liquidity_id).call().await?);
+    let new_market_asset_prices =
+        Vector::from_vec(granary.load(market_asset_prices_id).call().await?);
+    let new_market_asset_slopes =
+        Vector::from_vec(granary.load(market_asset_slopes_id).call().await?);
+    let new_market_asset_liquidity =
+        Vector::from_vec(granary.load(asset_liquidity_id).call().await?);
     assert_eq!(
         new_market_asset_prices.data,
         amount_vec![

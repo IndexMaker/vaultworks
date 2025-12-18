@@ -52,15 +52,27 @@ impl Account {
         self.owner.get() == address
     } 
 
-    pub fn set_only_owner(&mut self, address: Address) -> Result<(), Vec<u8>> {
+    pub fn only_owner(&self, address: Address) -> Result<(), Vec<u8>> {
         let owner = self.owner.get();
         if owner.is_zero() {
-            self.owner.set(address);
+            Err(b"Owner not set")?;
         }
-        else if owner != address {
+        if owner != address {
             Err(b"Unauthorized access")?;
         }
         Ok(())
+    }
+
+    pub fn set_owner(&mut self, address: Address) -> Result<(), Vec<u8>> {
+        if self.has_owner() {
+            Err(b"Owner already set")?;
+        }
+        self.owner.set(address);
+        Ok(())
+    }
+
+    pub fn has_owner(&self) -> bool {
+        !self.owner.get().is_zero()
     }
 }
 
@@ -102,6 +114,7 @@ pub struct Keep {
     pub constable: StorageAddress,
     pub worksman: StorageAddress,
     pub scribe: StorageAddress,
+    pub solve_quadratic_id: StorageU128,
 }
 
 impl Keep {
