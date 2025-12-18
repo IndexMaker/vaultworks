@@ -1,6 +1,6 @@
 use core::mem::swap;
 
-#[cfg(test)]
+//#[cfg(test)]
 use core::fmt::Debug;
 
 use alloc::vec::Vec;
@@ -25,7 +25,7 @@ pub struct ProgramError {
     pub stack_depth: usize,
 }
 
-#[cfg(test)]
+//#[cfg(test)]
 impl Debug for ErrorCode {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         match self {
@@ -43,7 +43,7 @@ impl Debug for ErrorCode {
     }
 }
 
-#[cfg(test)]
+//#[cfg(test)]
 impl Debug for ProgramError {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         f.debug_struct("ProgramError")
@@ -611,6 +611,7 @@ impl Stack {
                         let label_b = labels_b.data[j];
                         if label_b < label_a {
                             result.push(label_b);
+                            updated = false;
                             j += 1;
                             continue;
                         } else if label_a < label_b {
@@ -625,6 +626,9 @@ impl Stack {
                     if !updated {
                         result.push(label_a);
                     }
+                }
+                if j < labels_b.data.len() {
+                    result.extend(labels_b.data[j..].iter());
                 }
                 labels_a.data = result;
             }
@@ -839,7 +843,7 @@ pub(crate) fn log_stack_fun(stack: &Stack) {
 }
 
 #[cfg(test)]
-pub(crate) fn op_code_str_fun(op_code: u8) -> &'static str {
+pub(crate) fn _op_code_str_fun(op_code: u8) -> &'static str {
     match op_code {
         OP_LDL => "LDL",
         OP_LDV => "LDV",
@@ -912,7 +916,7 @@ macro_rules! op_code_str {
 #[macro_export]
 macro_rules! op_code_str {
     ($arg:expr) => {
-        $crate::program::op_code_str_fun($arg)
+        $crate::program::_op_code_str_fun($arg)
     };
 }
 

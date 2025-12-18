@@ -7,9 +7,9 @@ description = "IndexMaker Constable (Manages the Castle: Configures facets of a 
 [dependencies]
 alloy-primitives = { workspace = true }
 alloy-sol-types = { workspace = true }
-stylus-sdk = { workspace = true }
+stylus-sdk = { workspace = true, features = ["reentrant"] }
 hex = { workspace = true }
-deli = { workspace = true, features = ["stylus"] }
+deli = { workspace = true, features = ["stylus", "reentrant"] }
 
 [dev-dependencies]
 alloy-primitives = { workspace = true, features = ["sha3-keccak"] }
@@ -32,13 +32,3 @@ path = "src/main.rs"
 
 [lib]
 crate-type = ["lib", "cdylib"]
-
-[profile.release]
-codegen-units = 1
-strip = true
-lto = true
-panic = "abort"
-
-# If you need to reduce the binary size, it is advisable to try other
-# optimization levels, such as "s" and "z"
-opt-level = "s"

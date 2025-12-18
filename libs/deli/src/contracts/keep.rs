@@ -7,7 +7,7 @@ use stylus_sdk::{
     storage::{StorageAddress, StorageMap, StorageU128},
 };
 
-use crate::storage::StorageSlot;
+use crate::contracts::storage::StorageSlot;
 
 pub const KEEP_STORAGE_SLOT: U256 = {
     const HASH: [u8; 32] = keccak_const::Keccak256::new()
@@ -52,15 +52,27 @@ impl Account {
         self.owner.get() == address
     } 
 
-    pub fn set_only_owner(&mut self, address: Address) -> Result<(), Vec<u8>> {
+    pub fn only_owner(&self, address: Address) -> Result<(), Vec<u8>> {
         let owner = self.owner.get();
         if owner.is_zero() {
-            self.owner.set(address);
+            Err(b"Owner not set")?;
         }
-        else if owner != address {
+        if owner != address {
             Err(b"Unauthorized access")?;
         }
         Ok(())
+    }
+
+    pub fn set_owner(&mut self, address: Address) -> Result<(), Vec<u8>> {
+        if self.has_owner() {
+            Err(b"Owner already set")?;
+        }
+        self.owner.set(address);
+        Ok(())
+    }
+
+    pub fn has_owner(&self) -> bool {
+        !self.owner.get().is_zero()
     }
 }
 
@@ -99,10 +111,10 @@ pub struct Keep {
     pub vaults: StorageMap<U128, Vault>,
     pub accounts: StorageMap<U128, Account>,
     pub granary: Granary,
-    pub castle: StorageAddress,
     pub constable: StorageAddress,
     pub worksman: StorageAddress,
     pub scribe: StorageAddress,
+    pub solve_quadratic_id: StorageU128,
 }
 
 impl Keep {
@@ -110,8 +122,7 @@ impl Keep {
         StorageSlot::get_slot::<Keep>(KEEP_STORAGE_SLOT)
     }
 
-    pub fn initialize(&mut self, castle: Address, constable: Address) {
-        self.castle.set(castle);
+    pub fn initialize(&mut self, constable: Address) {
         self.constable.set(constable);
     }
 }

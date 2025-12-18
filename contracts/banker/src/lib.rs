@@ -7,46 +7,20 @@ extern crate alloc;
 
 use alloc::vec::Vec;
 
-use alloy_primitives::{Address, U128};
-use alloy_sol_types::SolCall;
+use alloy_primitives::U128;
 use deli::contracts::{
-    interfaces::{clerk::IClerk, granary::IGranary},
     keep::{Granary, Keep},
+    keep_calls::KeepCalls,
 };
 use icore::vil::{
-    add_market_assets::add_market_assets, update_margin::update_margin,
-    update_supply::update_supply,
+    add_market_assets::add_market_assets, create_market::create_market,
+    update_margin::update_margin, update_supply::update_supply,
 };
 use stylus_sdk::prelude::*;
 
 #[storage]
 #[entrypoint]
 pub struct Banker;
-
-impl Banker {
-    fn _attendee(&self) -> Address {
-        self.vm().msg_sender()
-    }
-
-    fn _send_to_granary(
-        &mut self,
-        gate_to_granary: Address,
-        call: impl SolCall,
-    ) -> Result<Vec<u8>, Vec<u8>> {
-        let calldata = call.abi_encode();
-        let result = self.vm().call(&self, gate_to_granary, &calldata)?;
-        Ok(result)
-    }
-
-    fn send_to_clerk(&mut self, code: Vec<u8>, num_registry: u128) -> Result<(), Vec<u8>> {
-        let storage = Keep::storage();
-        let gate_to_granary = storage.granary.get_granary_address();
-
-        let call = IClerk::executeCall { code, num_registry };
-        self.vm().call(&self, gate_to_granary, &call.abi_encode())?;
-        Ok(())
-    }
-}
 
 #[public]
 impl Banker {
@@ -68,44 +42,85 @@ impl Banker {
         market_asset_names: Vec<u8>,
     ) -> Result<(), Vec<u8>> {
         let mut storage = Keep::storage();
-
-        let mut account = storage.accounts.setter(vendor_id);
-        account.set_only_owner(self._attendee())?;
-        
         let gate_to_granary = storage.granary.get_granary_address();
 
-        let new_market_asset_names_id = Granary::SCRATCH_1;
+        let mut account = storage.accounts.setter(vendor_id);
+        if account.has_owner() {
+            account.only_owner(self.attendee())?;
 
-        let new_market_asset_names = IGranary::storeCall {
-            id: new_market_asset_names_id.to(),
-            data: market_asset_names,
-        };
+            let new_market_asset_names_id = Granary::SCRATCH_1;
 
-        self._send_to_granary(gate_to_granary, new_market_asset_names)?;
+            self.submit_vector_bytes(
+                gate_to_granary,
+                new_market_asset_names_id.to(),
+                market_asset_names,
+            )?;
 
-        // Compile VIL program, which we will send to DeVIL for execution.
-        //
-        // The program:
-        // - updates market asset names
-        // - extends supply, demand, and delta vectors
-        // - extends prices, slopes, liquidity vectors
-        //
-        let update = add_market_assets(
-            new_market_asset_names_id.to(),
-            account.assets.get().to(),
-            account.prices.get().to(),
-            account.slopes.get().to(),
-            account.liquidity.get().to(),
-            account.supply_long.get().to(),
-            account.supply_short.get().to(),
-            account.demand_long.get().to(),
-            account.demand_short.get().to(),
-            account.delta_long.get().to(),
-            account.delta_short.get().to(),
-            account.margin.get().to(),
-        );
-        let num_registry = 16;
-        self.send_to_clerk(update, num_registry)?;
+            // Compile VIL program, which we will send to DeVIL for execution.
+            //
+            // The program:
+            // - updates market asset names
+            // - extends supply, demand, and delta vectors
+            // - extends prices, slopes, liquidity vectors
+            //
+            let update = add_market_assets(
+                new_market_asset_names_id.to(),
+                account.assets.get().to(),
+                account.prices.get().to(),
+                account.slopes.get().to(),
+                account.liquidity.get().to(),
+                account.supply_long.get().to(),
+                account.supply_short.get().to(),
+                account.demand_long.get().to(),
+                account.demand_short.get().to(),
+                account.delta_long.get().to(),
+                account.delta_short.get().to(),
+                account.margin.get().to(),
+            );
+            let num_registry = 16;
+            self.execute_vector_program(gate_to_granary, update, num_registry)?;
+        } else {
+            account.set_owner(self.attendee())?;
+
+            let new_market_asset_names_id = Granary::SCRATCH_1;
+
+            self.submit_vector_bytes(
+                gate_to_granary,
+                new_market_asset_names_id.to(),
+                market_asset_names,
+            )?;
+
+            account.assets.set(storage.granary.next_vector());
+            account.prices.set(storage.granary.next_vector());
+            account.slopes.set(storage.granary.next_vector());
+            account.liquidity.set(storage.granary.next_vector());
+            account.supply_long.set(storage.granary.next_vector());
+            account.supply_short.set(storage.granary.next_vector());
+            account.demand_long.set(storage.granary.next_vector());
+            account.demand_short.set(storage.granary.next_vector());
+            account.delta_long.set(storage.granary.next_vector());
+            account.delta_short.set(storage.granary.next_vector());
+            account.margin.set(storage.granary.next_vector());
+
+            // Compile VIL program, which we will send to DeVIL for execution.
+            let update = create_market(
+                new_market_asset_names_id.to(),
+                account.assets.get().to(),
+                account.prices.get().to(),
+                account.slopes.get().to(),
+                account.liquidity.get().to(),
+                account.supply_long.get().to(),
+                account.supply_short.get().to(),
+                account.demand_long.get().to(),
+                account.demand_short.get().to(),
+                account.delta_long.get().to(),
+                account.delta_short.get().to(),
+                account.margin.get().to(),
+            );
+            let num_registry = 16;
+            self.execute_vector_program(gate_to_granary, update, num_registry)?;
+        }
+
         Ok(())
     }
 
@@ -126,26 +141,16 @@ impl Banker {
     ) -> Result<(), Vec<u8>> {
         let mut storage = Keep::storage();
 
-        let mut account = storage.accounts.setter(vendor_id);
-        account.set_only_owner(self._attendee())?;
+        let account = storage.accounts.setter(vendor_id);
+        account.only_owner(self.attendee())?;
 
         let gate_to_granary = storage.granary.get_granary_address();
 
         let new_asset_names_id = Granary::SCRATCH_1;
         let new_asset_margin_id = Granary::SCRATCH_2;
 
-        let new_asset_names = IGranary::storeCall {
-            id: new_asset_names_id.to(),
-            data: asset_names,
-        };
-
-        let new_asset_margin = IGranary::storeCall {
-            id: new_asset_margin_id.to(),
-            data: asset_margin,
-        };
-
-        self._send_to_granary(gate_to_granary, new_asset_names)?;
-        self._send_to_granary(gate_to_granary, new_asset_margin)?;
+        self.submit_vector_bytes(gate_to_granary, new_asset_names_id.to(), asset_names)?;
+        self.submit_vector_bytes(gate_to_granary, new_asset_margin_id.to(), asset_margin)?;
 
         // Compile VIL program, which we will send to DeVIL for execution.
         //
@@ -159,7 +164,7 @@ impl Banker {
             account.margin.get().to(),
         );
         let num_registry = 16;
-        self.send_to_clerk(update, num_registry)?;
+        self.execute_vector_program(gate_to_granary, update, num_registry)?;
         Ok(())
     }
 
@@ -187,8 +192,8 @@ impl Banker {
     ) -> Result<(), Vec<u8>> {
         let mut storage = Keep::storage();
 
-        let mut account = storage.accounts.setter(vendor_id);
-        account.set_only_owner(self._attendee())?;
+        let account = storage.accounts.setter(vendor_id);
+        account.only_owner(self.attendee())?;
 
         let gate_to_granary = storage.granary.get_granary_address();
 
@@ -196,24 +201,17 @@ impl Banker {
         let new_asset_quantities_short_id = Granary::SCRATCH_2;
         let new_asset_quantities_long_id = Granary::SCRATCH_3;
 
-        let new_asset_names = IGranary::storeCall {
-            id: new_asset_names_id.to(),
-            data: asset_names,
-        };
-
-        let new_asset_quantities_short = IGranary::storeCall {
-            id: new_asset_quantities_short_id.to(),
-            data: asset_quantities_short,
-        };
-
-        let new_asset_quantities_long = IGranary::storeCall {
-            id: new_asset_quantities_long_id.to(),
-            data: asset_quantities_long,
-        };
-
-        self._send_to_granary(gate_to_granary, new_asset_names)?;
-        self._send_to_granary(gate_to_granary, new_asset_quantities_short)?;
-        self._send_to_granary(gate_to_granary, new_asset_quantities_long)?;
+        self.submit_vector_bytes(gate_to_granary, new_asset_names_id.to(), asset_names)?;
+        self.submit_vector_bytes(
+            gate_to_granary,
+            new_asset_quantities_short_id.to(),
+            asset_quantities_short,
+        )?;
+        self.submit_vector_bytes(
+            gate_to_granary,
+            new_asset_quantities_long_id.to(),
+            asset_quantities_long,
+        )?;
 
         // Compile VIL program, which we will send to DeVIL for execution.
         //
@@ -234,7 +232,7 @@ impl Banker {
             account.delta_short.get().to(),
         );
         let num_registry = 16;
-        self.send_to_clerk(update, num_registry)?;
+        self.execute_vector_program(gate_to_granary, update, num_registry)?;
         Ok(())
     }
 }

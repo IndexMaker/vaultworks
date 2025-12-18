@@ -10,12 +10,8 @@ use alloc::vec::Vec;
 use alloy_primitives::{uint, Address, U128, U256};
 use alloy_sol_types::SolCall;
 use deli::{
-    contracts::{
-        castle::CASTLE_ADMIN_ROLE,
-        interfaces::{castle::ICastle, worksman::IWorksman},
-        keep::Keep,
-    },
-    storage::StorageSlot,
+    contracts::{calls::InnerCall, castle::CASTLE_ADMIN_ROLE, keep::Keep, storage::StorageSlot},
+    interfaces::{castle::ICastle, worksman::IWorksman},
 };
 use stylus_sdk::{
     keccak_const,
@@ -56,37 +52,27 @@ impl Worksman {
     fn _storage() -> WorksmanStorage {
         StorageSlot::get_slot::<WorksmanStorage>(WORKSMAN_STORAGE_SLOT)
     }
-
-    fn _dispatch(&mut self, castle: Address, call: impl SolCall) -> Result<Vec<u8>, Vec<u8>> {
-        let calldata = call.abi_encode();
-        let result = unsafe { self.vm().delegate_call(&self, castle, &calldata) }?;
-        Ok(result)
-    }
 }
 
 #[public]
 impl Worksman {
-    pub fn accept_appointment(&mut self, castle: Address) -> Result<(), Vec<u8>> {
+    pub fn accept_appointment(&mut self, worksman: Address) -> Result<(), Vec<u8>> {
         let mut storage = Keep::storage();
-        if !storage.castle.get() != castle {
-            Err(b"Wrong Castle")?;
-        }
         if !storage.worksman.get().is_zero() {
             Err(b"Worksman already appointed")?;
         }
-        storage.worksman.set(self.vm().contract_address());
-        let add_vault_role = ICastle::createProtectedFunctionsCall {
-            contract_address: castle,
+        storage.worksman.set(worksman);
+        self.top_level_call(ICastle::createProtectedFunctionsCall {
+            contract_address: worksman,
             function_selectors: vec![IWorksman::addVaultCall::SELECTOR.into()],
             required_role: CASTLE_ADMIN_ROLE.into(),
-        };
-        self._dispatch(castle, add_vault_role)?;
+        })?;
         Ok(())
     }
 
     pub fn build_vault(&mut self, index: U128, info: Vec<u8>) -> Result<Address, Vec<u8>> {
         let keep = Keep::storage();
-        if keep.worksman.get() != self.vm().contract_address() {
+        if keep.worksman.get().is_zero() {
             Err(b"Worksman not appointed")?;
         }
         let mut storage = Self::_storage();

@@ -8,7 +8,7 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 
 set_vars $1
 
-DEPLOYMENT_ADDRESS=$(deploy "$@" | tee /dev/stderr | parse_deployment_address)
+DEPLOYMENT_ADDRESS=$(deploy_construct "$@" | tee /dev/stderr | parse_deployment_address)
 DEPLOYER_ADDRESS=$(deployer_address)
 
 if [ -z $DEPLOYMENT_ADDRESS ]; then

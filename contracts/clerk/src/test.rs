@@ -174,9 +174,7 @@ mod unit_tests {
 mod test_scenarios {
     use amount_macros::amount;
     use icore::vil::{
-        add_market_assets::add_market_assets, update_margin::update_margin,
-        update_market_data::update_market_data, update_quote::update_quote,
-        update_supply::update_supply,
+        add_market_assets::add_market_assets, create_market::create_market, update_margin::update_margin, update_market_data::update_market_data, update_quote::update_quote, update_supply::update_supply
     };
 
     use super::*;
@@ -374,31 +372,15 @@ mod test_scenarios {
         let delta_short_id = 110;
         let margin_id = 111;
 
-        vio.store_labels(market_asset_names_id, label_vec![])
-            .unwrap();
-        vio.store_vector(market_asset_prices_id, amount_vec![])
-            .unwrap();
-        vio.store_vector(market_asset_slopes_id, amount_vec![])
-            .unwrap();
-        vio.store_vector(market_asset_liquidity_id, amount_vec![])
-            .unwrap();
-        vio.store_vector(supply_long_id, amount_vec![]).unwrap();
-        vio.store_vector(supply_short_id, amount_vec![]).unwrap();
-        vio.store_vector(demand_long_id, amount_vec![]).unwrap();
-        vio.store_vector(demand_short_id, amount_vec![]).unwrap();
-        vio.store_vector(delta_long_id, amount_vec![]).unwrap();
-        vio.store_vector(delta_short_id, amount_vec![]).unwrap();
-        vio.store_vector(margin_id, amount_vec![]).unwrap();
-
         {
             let new_market_asset_names_id = 901;
-            vio.store_labels(new_market_asset_names_id, label_vec![101, 103, 104])
+            vio.store_labels(new_market_asset_names_id, label_vec![101, 103])
                 .unwrap();
 
             let mut program = test_utils::TestProgram::new(&mut vio);
             program.execute(
-                "update assets (1)",
-                add_market_assets(
+                "create market",
+                create_market(
                     new_market_asset_names_id,
                     market_asset_names_id,
                     market_asset_prices_id,
@@ -421,7 +403,7 @@ mod test_scenarios {
 
             let mut program = test_utils::TestProgram::new(&mut vio);
             program.execute(
-                "update assets (2)",
+                "update assets",
                 add_market_assets(
                     new_market_asset_names_id,
                     market_asset_names_id,

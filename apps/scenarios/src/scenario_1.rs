@@ -1,13 +1,13 @@
 use amount_macros::amount;
-use deli::{labels::Labels, log_msg, vector::Vector};
+use deli::{log_msg, vector::Vector};
 use devil_macros::devil;
 use ethers::types::Address;
 
-use decon::{contracts::Devil, tx_sender::TxClient};
+use decon::{contracts::Granary, tx_sender::TxClient};
 
 pub async fn run_scenario(client: &TxClient, devil_address: Address) -> eyre::Result<()> {
     log_msg!("Scenario 1.");
-    let devil = Devil::new(devil_address, client.client());
+    let granary = Granary::new(devil_address, client.client());
 
     let asset_prices_id = 101;
     let asset_slopes_id = 102;
@@ -21,15 +21,15 @@ pub async fn run_scenario(client: &TxClient, devil_address: Address) -> eyre::Re
 
     client
         .begin_tx()
-        .add(devil.submit(asset_prices_id, asset_prices.to_vec()))
-        .add(devil.submit(asset_slopes_id, asset_slopes.to_vec()))
-        .add(devil.submit(asset_weights_id, asset_weights.to_vec()))
+        .add(granary.store(asset_prices_id, asset_prices.to_vec()))
+        .add(granary.store(asset_slopes_id, asset_slopes.to_vec()))
+        .add(granary.store(asset_weights_id, asset_weights.to_vec()))
         .send()
         .await?;
 
     client
         .begin_tx()
-        .add(devil.execute(
+        .add(granary.execute(
             devil![
                 LDV asset_weights_id
                 LDV asset_prices_id
@@ -51,8 +51,8 @@ pub async fn run_scenario(client: &TxClient, devil_address: Address) -> eyre::Re
     log_msg!("Getting index quote...");
 
     let _index_quote = Vector::from_vec(
-        devil
-            .get(index_quote_id)
+        granary
+            .load(index_quote_id)
             .call()
             .await
             .expect("Failed to get index quote"),

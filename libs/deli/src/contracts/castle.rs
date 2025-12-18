@@ -5,12 +5,12 @@ use alloy_primitives::{aliases::B32, uint, Address, B256, U256};
 use stylus_sdk::{
     keccak_const,
     prelude::*,
-    storage::{StorageGuard, StorageMap},
+    storage::{StorageAddress, StorageGuard, StorageMap},
 };
 
-use crate::{contracts::acl::Role, log_msg, storage::StorageSlot};
+use crate::{contracts::acl::Role, log_msg};
 
-use super::{acl::AccessControlList, delegate::Delegate};
+use super::{acl::AccessControlList, delegate::Delegate, storage::StorageSlot};
 
 pub const CASTLE_ADMIN_ROLE: [u8; 32] = keccak_const::Keccak256::new()
     .update(b"Castle.ADMIN_ROLE")
@@ -27,11 +27,28 @@ pub const CASTLE_STORAGE_SLOT: U256 = {
 pub struct CastleStorage {
     delegates: StorageMap<B32, Delegate>,
     acl: AccessControlList,
+    castle: StorageAddress,
 }
 
 impl CastleStorage {
     pub fn storage() -> CastleStorage {
         StorageSlot::get_slot::<CastleStorage>(CASTLE_STORAGE_SLOT)
+    }
+
+    pub fn construct(&mut self, castle: Address) -> Result<(), Vec<u8>> {
+        if self.has_castle() {
+            Err(b"Castle already constructed")?;
+        }
+        self.castle.set(castle);
+        Ok(())
+    }
+
+    pub fn has_castle(&self) -> bool {
+        !self.castle.get().is_zero()
+    }
+
+    pub fn get_castle(&self) -> Address {
+        self.castle.get()
     }
 
     pub fn get_function_delegate_from_calldata(

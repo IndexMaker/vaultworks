@@ -22,18 +22,9 @@ vec-u8 = []
 amount-sqrt = []
 stylus = ["stylus-sdk"]
 stylus-test = ["stylus", "debug"]
+reentrant = ["stylus-sdk/reentrant"]
 export-abi = ["stylus-sdk/export-abi"]
 with-ethers = ["ethers"]
 
 [lib]
-crate-type = ["lib"]
-
-[profile.release]
-codegen-units = 1
-strip = true
-lto = true
-panic = "abort"
-
-# If you need to reduce the binary size, it is advisable to try other
-# optimization levels, such as "s" and "z"
-opt-level = "s"
+crate-type = ["lib", "cdylib"]

@@ -33,17 +33,3 @@ path = "src/main.rs"
 
 [lib]
 crate-type = ["lib", "cdylib"]
-
-[profile.release]
-codegen-units = 1
-panic = "abort"
-opt-level = "z"
-strip = true
-lto = true
-debug = false
-rpath = false
-debug-assertions = false
-incremental = false
-
-[profile.dev]
-panic = "abort"

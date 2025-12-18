@@ -4292,6 +4292,7 @@ dependencies = [
  "itertools 0.14.0",
  "labels-macros",
  "reqwest 0.12.15",
+ "serde",
  "tokio",
  "vector-macros",
 ]

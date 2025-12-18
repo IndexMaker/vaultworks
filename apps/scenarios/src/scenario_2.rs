@@ -3,16 +3,16 @@ use deli::{labels::Labels, log_msg, vector::Vector};
 use ethers::types::Address;
 use icore::vil::{
     execute_buy_order::execute_buy_order,
-    solve_quadratic::{self, solve_quadratic},
+    solve_quadratic::solve_quadratic,
 };
 use labels_macros::label_vec;
 use vector_macros::amount_vec;
 
-use decon::{contracts::Devil, tx_sender::TxClient};
+use decon::{contracts::Granary, tx_sender::TxClient};
 
 pub async fn run_scenario(client: &TxClient, devil_address: Address) -> eyre::Result<()> {
     log_msg!("Scenario 2.");
-    let devil = Devil::new(devil_address, client.client());
+    let granary = Granary::new(devil_address, client.client());
 
     let index_order_id = 10001;
     let executed_asset_quantities_id = 10002;
@@ -37,25 +37,25 @@ pub async fn run_scenario(client: &TxClient, devil_address: Address) -> eyre::Re
 
     client
         .begin_tx()
-        .add(devil.submit(asset_names_id, label_vec![51, 53, 54].to_vec()))
-        .add(devil.submit(weights_id, amount_vec![0.100, 1.000, 100.0].to_vec()))
-        .add(devil.submit(asset_contribution_fractions_id, amount_vec![1, 1, 1].to_vec()))
-        .add(devil.submit(quote_id, amount_vec![10.00, 10_000, 100.0].to_vec()))
-        .add(devil.submit(index_order_id, amount_vec![950.00, 0, 0].to_vec()))
-        .add(devil.submit(
+        .add(granary.store(asset_names_id, label_vec![51, 53, 54].to_vec()))
+        .add(granary.store(weights_id, amount_vec![0.100, 1.000, 100.0].to_vec()))
+        .add(granary.store(asset_contribution_fractions_id, amount_vec![1, 1, 1].to_vec()))
+        .add(granary.store(quote_id, amount_vec![10.00, 10_000, 100.0].to_vec()))
+        .add(granary.store(index_order_id, amount_vec![950.00, 0, 0].to_vec()))
+        .add(granary.store(
             market_asset_names_id,
             label_vec![51, 52, 53, 54, 55].to_vec(),
         ))
-        .add(devil.submit(demand_short_id, amount_vec![0, 0, 0.01, 0, 0].to_vec()))
-        .add(devil.submit(demand_long_id, amount_vec![0.1, 0.1, 0, 0.01, 0.2].to_vec()))
-        .add(devil.submit(supply_short_id, amount_vec![0, 0, 0, 0, 0].to_vec()))
-        .add(devil.submit(
+        .add(granary.store(demand_short_id, amount_vec![0, 0, 0.01, 0, 0].to_vec()))
+        .add(granary.store(demand_long_id, amount_vec![0.1, 0.1, 0, 0.01, 0.2].to_vec()))
+        .add(granary.store(supply_short_id, amount_vec![0, 0, 0, 0, 0].to_vec()))
+        .add(granary.store(
             supply_long_id,
             amount_vec![0.05, 0.05, 0.05, 0.05, 0.05].to_vec(),
         ))
-        .add(devil.submit(delta_short_id, amount_vec![0, 0, 0, 0, 0].to_vec()))
-        .add(devil.submit(delta_long_id, amount_vec![0, 0, 0, 0, 0].to_vec()))
-        .add(devil.submit(margin_id, amount_vec![0.2, 0.2, 0.2, 20.0, 0.2].to_vec()))
+        .add(granary.store(delta_short_id, amount_vec![0, 0, 0, 0, 0].to_vec()))
+        .add(granary.store(delta_long_id, amount_vec![0, 0, 0, 0, 0].to_vec()))
+        .add(granary.store(margin_id, amount_vec![0.2, 0.2, 0.2, 20.0, 0.2].to_vec()))
         .send()
         .await?;
 
@@ -65,7 +65,7 @@ pub async fn run_scenario(client: &TxClient, devil_address: Address) -> eyre::Re
 
     client
         .begin_tx()
-        .add(devil.submit(solve_quadratic_id, solve_quadratic_code))
+        .add(granary.store(solve_quadratic_id, solve_quadratic_code))
         .send()
         .await?;
 
@@ -93,24 +93,24 @@ pub async fn run_scenario(client: &TxClient, devil_address: Address) -> eyre::Re
 
     log_msg!("Code: {:?}", code);
 
-    let order_before = Vector::from_vec(devil.get(index_order_id).call().await?);
+    let order_before = Vector::from_vec(granary.load(index_order_id).call().await?);
     let num_registers = 16;
 
     client
         .begin_tx()
-        .add(devil.execute(code, num_registers))
+        .add(granary.execute(code, num_registers))
         .send()
         .await?;
 
-    let order_after = Vector::from_vec(devil.get(index_order_id).call().await?);
-    let quote = Vector::from_vec(devil.get(quote_id).call().await?);
-    let weigths = Vector::from_vec(devil.get(weights_id).call().await?);
-    let index_quantites = Vector::from_vec(devil.get(executed_index_quantities_id).call().await?);
-    let asset_quantites = Vector::from_vec(devil.get(executed_asset_quantities_id).call().await?);
-    let demand_short = Vector::from_vec(devil.get(demand_short_id).call().await?);
-    let demand_long = Vector::from_vec(devil.get(demand_long_id).call().await?);
-    let delta_short = Vector::from_vec(devil.get(delta_short_id).call().await?);
-    let delta_long = Vector::from_vec(devil.get(delta_long_id).call().await?);
+    let order_after = Vector::from_vec(granary.load(index_order_id).call().await?);
+    let quote = Vector::from_vec(granary.load(quote_id).call().await?);
+    let weigths = Vector::from_vec(granary.load(weights_id).call().await?);
+    let index_quantites = Vector::from_vec(granary.load(executed_index_quantities_id).call().await?);
+    let asset_quantites = Vector::from_vec(granary.load(executed_asset_quantities_id).call().await?);
+    let demand_short = Vector::from_vec(granary.load(demand_short_id).call().await?);
+    let demand_long = Vector::from_vec(granary.load(demand_long_id).call().await?);
+    let delta_short = Vector::from_vec(granary.load(delta_short_id).call().await?);
+    let delta_long = Vector::from_vec(granary.load(delta_long_id).call().await?);
 
     log_msg!("\n-= Program complete =-");
     log_msg!("\n[in] Index Order = {:0.9}", order_before);

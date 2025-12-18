@@ -9,13 +9,15 @@ use alloc::vec::Vec;
 
 use alloy_primitives::{aliases::B32, Address, B256, U256};
 
-use alloy_sol_types::{SolCall, SolEvent};
+use alloy_sol_types::SolCall;
+use alloy_sol_types::SolEvent;
 use deli::{
     contracts::{
         acl::AccessControlList,
+        calls::InnerCall,
         castle::{CastleStorage, CASTLE_ADMIN_ROLE},
-        interfaces::{castle::ICastle, constable::IConstable},
     },
+    interfaces::{castle::ICastle, constable::IConstable},
     log_msg,
 };
 use stylus_sdk::{prelude::*, ArbResult};
@@ -56,6 +58,9 @@ impl Castle {
     }
 
     fn _prohibit_self(&self, contract_address: &Address) -> Result<(), Vec<u8>> {
+        if contract_address.is_zero() {
+            Err(b"Cannot reference null contract")?;
+        }
         if self.vm().contract_address().eq(contract_address) {
             Err(b"Cannot reference self")?;
         }
@@ -94,44 +99,50 @@ impl Castle {
 #[public]
 impl Castle {
     // TODO: Consider whether to add UUPS (ERC-1967) if Castle itself needs to be upgradeable.
-    // Probably yes, because there is a lot of logic here, so would be good to 
+    // Probably yes, because there is a lot of logic here, so would be good to
     // be able to patch when needed. We'd essentially put Castle behind the Gate.
 
     #[constructor]
-    pub fn constructor(&mut self, admin: Address) -> Result<(), Vec<u8>> {
+    pub fn constructor(&mut self) -> Result<(), Vec<u8>> {
         let mut storage = CastleStorage::storage();
+        storage.construct(self.vm().contract_address())?;
+        Ok(())
+    }
+
+    pub fn initialize(&mut self, castle: Address, admin: Address) -> Result<(), Vec<u8>> {
+        let mut storage = CastleStorage::storage();
+        storage.construct(castle)?;
 
         log_msg!("Castle administrated by {}", admin);
         storage
             .get_acl_mut()
             .set_role(admin, CASTLE_ADMIN_ROLE.into())?;
-
         Ok(())
     }
 
     /// Appoint a Constable to cast roles in this Castle
-    /// 
+    ///
     /// Constable logic is injected into Castle context, and after that user
     /// with appropriate privileges (ACL) will be able to call Constable method
     /// on Castle, this way that method will be able to modify storage slots associated
     /// with this Castle.
-    /// 
+    ///
     /// Note: Constable cannot cast roles directly within acceptAppointment(), because
     /// user needs to pass additional data, and because of that it happens in separate
     /// call.
-    /// 
+    ///
     /// Note: Appointed delegates of the Castle will be able to modify storage associated
     /// with the Castle, if and only if their methods are called on Castle context and not
     /// their own storage. It is safe undefined behaviour in case someone called method of
     /// the delegate on that delegate's context. It's safe as the storage of the Castle
     /// cannot be modified in such case, and what matters is only what is in that storage.
-    /// 
+    ///
     pub fn appoint_constable(&mut self, constable: Address) -> Result<(), Vec<u8>> {
-        let calldata = IConstable::acceptAppointmentCall {
-            castle: self.vm().contract_address(),
-        }
-        .abi_encode();
-        unsafe { self.vm().delegate_call(&self, constable, &calldata) }?;
+        let mut storage = CastleStorage::storage();
+        let acl = storage.get_acl_mut();
+
+        self._only_admin(acl)?;
+        self.inner_call(constable, IConstable::acceptAppointmentCall { constable })?;
         Ok(())
     }
 
@@ -348,7 +359,7 @@ impl Castle {
 
         if let Some(required_role) = required_role {
             if !required_role.contains(self._attendee()) {
-                log_msg!("Required role {} to access function", required_role);
+                log_msg!("Unauthorised access");
                 Err(b"Unauthorised access")?;
             }
         }

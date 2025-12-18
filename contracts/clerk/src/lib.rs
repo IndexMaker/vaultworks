@@ -75,7 +75,7 @@ impl Clerk {
         let mut program = Program::new(&mut storage);
         program
             .execute(code, num_registry as usize)
-            .map_err(|err| format!("Program error: {}", err.program_counter))?;
+            .map_err(|err| format!("Program error: {:?}", err))?;
 
         Ok(())
     }

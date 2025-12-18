@@ -30,8 +30,23 @@ members = [
 ]
 
 [workspace.dependencies]
-alloy-primitives = "=0.8.20"
+alloy = { version = "=0.7.3", features = [
+    "contract",
+    "network",
+    "providers",
+    "provider-http",
+    "rpc-client",
+    "rpc-types-eth",
+    "signer-local",
+    "getrandom",
+] }
+alloy-primitives = { version = "=0.8.20", default-features = false, features = [
+    "tiny-keccak",
+] }
 alloy-sol-types = "=0.8.20"
+alloy-sol-macro = { version = "=0.8.20", default-features = false }
+alloy-sol-macro-expander = { version = "=0.8.20", default-features = false }
+alloy-sol-macro-input = { version = "=0.8.20", default-features = false }
 amount-macros = { path = "./proc-macros/amount-macros" }
 chrono = "0.4.42"
 clap = "4.5"
@@ -50,6 +65,23 @@ openzeppelin-stylus = { version = "0.3.0" }
 openzeppelin-stylus-proc = { version = "0.3.0" }
 regex = "1.12"
 reqwest = { version = "0.12", default-features = false }
+ruint = "^1.12.3"
+serde = { version = "^1.0", features = ["derive"] }
 stylus-sdk = "0.9.0"
-tokio = "1.12.0"
+tiny-keccak = { version = "2.0.2", features = ["keccak"] }
+tokio = { version = "1.12.0", features = ["full"] }
 vector-macros = { path = "./proc-macros/vector-macros" }
+
+[profile.release]
+codegen-units = 1
+panic = "abort"
+opt-level = "z"
+strip = true
+lto = true
+debug = false
+rpath = false
+debug-assertions = false
+incremental = false
+
+[profile.dev]
+panic = "abort"

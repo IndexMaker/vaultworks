@@ -8,12 +8,12 @@ description = "IndexMaker Castle (A Diamond w/ Access Control List)"
 alloy-primitives = { workspace = true }
 alloy-sol-types = { workspace = true }
 amount-macros = { workspace = true }
-deli = { workspace = true, features = ["stylus"] }
+deli = { workspace = true, features = ["stylus", "reentrant"] }
 devil-macros = { workspace = true }
 hex = { workspace = true }
 icore = { workspace = true }
 labels-macros = { workspace = true }
-stylus-sdk = { workspace = true }
+stylus-sdk = { workspace = true, features = ["reentrant"] }
 vector-macros = { workspace = true }
 
 [dev-dependencies]
@@ -37,13 +37,3 @@ path = "src/main.rs"
 
 [lib]
 crate-type = ["lib", "cdylib"]
-
-[profile.release]
-codegen-units = 1
-strip = true
-lto = true
-panic = "abort"
-
-# If you need to reduce the binary size, it is advisable to try other
-# optimization levels, such as "s" and "z"
-opt-level = "s"
