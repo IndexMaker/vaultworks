@@ -4,6 +4,8 @@
 
 1. Start *Nitro Dev Node*
 
+Follow [instructions](https://github.com/OffchainLabs/nitro-devnode) on *Nitro Dev Node* project page.
+
 2. Setup environment
 
 Need to set private key:
