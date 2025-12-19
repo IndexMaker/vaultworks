@@ -1,9 +1,9 @@
-use devil_macros::devil;
+use abacus_macros::abacus;
 
 /// Solve Index Quantity Equation: (S, P, C) -> Q = C / (P + S * Q)
 /// 
 pub fn solve_quadratic() -> Vec<u8> {
-    devil! {
+    abacus! {
         // 1. Initial Load and Setup (assuming stack starts with [C_vec, P_vec, S_vec])
         STR     _C           // C_vec -> R3, POP C_vec
         STR     _P           // P_vec -> R2, POP P_vec

@@ -9,7 +9,7 @@ alloy-primitives = { workspace = true }
 alloy-sol-types = { workspace = true }
 amount-macros = { workspace = true }
 deli = { workspace = true, features = ["stylus", "reentrant"] }
-devil-macros = { workspace = true }
+abacus-macros = { workspace = true }
 hex = { workspace = true }
 icore = { workspace = true }
 labels-macros = { workspace = true }

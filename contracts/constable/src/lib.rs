@@ -52,7 +52,7 @@ impl Constable {
                 IConstable::appointGuildmasterCall::SELECTOR.into(),
                 IConstable::appointScribeCall::SELECTOR.into(),
                 IConstable::appointWorksmanCall::SELECTOR.into(),
-                IConstable::appendGranaryCall::SELECTOR.into(),
+                IConstable::appendClerkCall::SELECTOR.into(),
             ],
             required_role: CASTLE_ADMIN_ROLE.into(),
         })?;
@@ -159,16 +159,16 @@ impl Constable {
         Ok(())
     }
 
-    pub fn append_granary(&mut self, gate_to_granary: Address) -> Result<(), Vec<u8>> {
-        log_msg!("Appending granary {}", gate_to_granary);
+    pub fn append_clerk(&mut self, gate_to_clerk: Address) -> Result<(), Vec<u8>> {
+        log_msg!("Appending clerk {}", gate_to_clerk);
         let mut storage = Keep::storage();
         if storage.constable.get().is_zero() {
             Err(b"Constable was not appointed")?;
         }
-        if !storage.granary.get_granary_address().is_zero() {
-            Err(b"Granary already cast")?;
+        if !storage.clerk.get_clerk_address().is_zero() {
+            Err(b"Clerk already cast")?;
         }
-        storage.granary.initialize(gate_to_granary);
+        storage.clerk.initialize(gate_to_clerk);
         Ok(())
     }
 

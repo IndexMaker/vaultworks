@@ -12,7 +12,7 @@ pub mod contracts {
     pub mod calls;
     pub mod castle;
     pub mod delegate;
-    pub mod granary;
+    pub mod clerk;
     pub mod keep;
     pub mod keep_calls;
     pub mod storage;
@@ -24,7 +24,7 @@ pub mod interfaces {
     pub mod abacus;
     pub mod constable;
     pub mod factor;
-    pub mod granary;
+    pub mod clerk;
     pub mod guildmaster;
     pub mod scribe;
     pub mod treasury;

@@ -24,7 +24,7 @@ struct Cli {
     castle_address: Option<String>,
 
     #[arg(long)]
-    granary_address: Option<String>,
+    clerk_address: Option<String>,
 
     #[arg(short, long, value_delimiter = ',')]
     scenario: Vec<String>,
@@ -42,7 +42,7 @@ async fn main() -> eyre::Result<()> {
         None
     };
 
-    let granary_address: Option<Address> = if let Some(a) = cli.granary_address {
+    let clerk_address: Option<Address> = if let Some(a) = cli.clerk_address {
         Some(a.parse()?)
     } else {
         None
@@ -57,28 +57,28 @@ async fn main() -> eyre::Result<()> {
             "scenario1" => {
                 scenario_1::run_scenario(
                     &client,
-                    granary_address.ok_or_eyre("Granary address is required")?,
+                    clerk_address.ok_or_eyre("Clerk address is required")?,
                 )
                 .await?;
             }
             "scenario2" => {
                 scenario_2::run_scenario(
                     &client,
-                    granary_address.ok_or_eyre("Granary address is required")?,
+                    clerk_address.ok_or_eyre("Clerk address is required")?,
                 )
                 .await?;
             }
             "scenario3" => {
                 scenario_3::run_scenario(
                     &client,
-                    granary_address.ok_or_eyre("Granary address is required")?,
+                    clerk_address.ok_or_eyre("Clerk address is required")?,
                 )
                 .await?;
             }
             "scenario4" => {
                 scenario_4::run_scenario(
                     &client,
-                    granary_address.ok_or_eyre("Granary address is required")?,
+                    clerk_address.ok_or_eyre("Clerk address is required")?,
                 )
                 .await?;
             }

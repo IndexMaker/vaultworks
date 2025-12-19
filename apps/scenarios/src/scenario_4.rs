@@ -5,11 +5,11 @@ use icore::vil::{execute_buy_order::execute_buy_order, solve_quadratic::solve_qu
 use itertools::{chain, Itertools};
 use vector_macros::amount_vec;
 
-use decon::{contracts::Granary, tx_sender::TxClient};
+use decon::{contracts::Clerk, tx_sender::TxClient};
 
-pub async fn run_scenario(client: &TxClient, devil_address: Address) -> eyre::Result<()> {
+pub async fn run_scenario(client: &TxClient, abacus_address: Address) -> eyre::Result<()> {
     log_msg!("Scenario 2.");
-    let granary = Granary::new(devil_address, client.client());
+    let clerk = Clerk::new(abacus_address, client.client());
 
     let index_order_id = 10001;
     let executed_asset_quantities_id = 10002;
@@ -55,22 +55,22 @@ pub async fn run_scenario(client: &TxClient, devil_address: Address) -> eyre::Re
 
     client
         .begin_tx()
-        .add(granary.store(asset_names_id, asset_names.to_vec()))
-        .add(granary.store(weights_id, asset_vector(amount!(0.1)).to_vec()))
-        .add(granary.store(
+        .add(clerk.store(asset_names_id, asset_names.to_vec()))
+        .add(clerk.store(weights_id, asset_vector(amount!(0.1)).to_vec()))
+        .add(clerk.store(
             asset_contribution_fractions_id,
             asset_vector(amount!(1.0)).to_vec(),
         ))
-        .add(granary.store(quote_id, amount_vec![10.00, 10_000, 100.0].to_vec()))
-        .add(granary.store(index_order_id, amount_vec![950.00, 0, 0].to_vec()))
-        .add(granary.store(market_asset_names_id, market_asset_names.to_vec()))
-        .add(granary.store(demand_short_id, market_vector(amount!(0)).to_vec()))
-        .add(granary.store(demand_long_id, market_vector(amount!(0.1)).to_vec()))
-        .add(granary.store(supply_short_id, market_vector(amount!(0)).to_vec()))
-        .add(granary.store(supply_long_id, market_vector(amount!(0.05)).to_vec()))
-        .add(granary.store(delta_short_id, market_vector(amount!(0)).to_vec()))
-        .add(granary.store(delta_long_id, market_vector(amount!(0)).to_vec()))
-        .add(granary.store(margin_id, market_vector(amount!(20.0)).to_vec()))
+        .add(clerk.store(quote_id, amount_vec![10.00, 10_000, 100.0].to_vec()))
+        .add(clerk.store(index_order_id, amount_vec![950.00, 0, 0].to_vec()))
+        .add(clerk.store(market_asset_names_id, market_asset_names.to_vec()))
+        .add(clerk.store(demand_short_id, market_vector(amount!(0)).to_vec()))
+        .add(clerk.store(demand_long_id, market_vector(amount!(0.1)).to_vec()))
+        .add(clerk.store(supply_short_id, market_vector(amount!(0)).to_vec()))
+        .add(clerk.store(supply_long_id, market_vector(amount!(0.05)).to_vec()))
+        .add(clerk.store(delta_short_id, market_vector(amount!(0)).to_vec()))
+        .add(clerk.store(delta_long_id, market_vector(amount!(0)).to_vec()))
+        .add(clerk.store(margin_id, market_vector(amount!(20.0)).to_vec()))
         .send()
         .await?;
 
@@ -80,7 +80,7 @@ pub async fn run_scenario(client: &TxClient, devil_address: Address) -> eyre::Re
 
     client
         .begin_tx()
-        .add(granary.store(solve_quadratic_id, solve_quadratic_code))
+        .add(clerk.store(solve_quadratic_id, solve_quadratic_code))
         .send()
         .await?;
 
@@ -108,26 +108,26 @@ pub async fn run_scenario(client: &TxClient, devil_address: Address) -> eyre::Re
 
     log_msg!("Code: {:?}", code);
 
-    let order_before = Vector::from_vec(granary.load(index_order_id).call().await?);
+    let order_before = Vector::from_vec(clerk.load(index_order_id).call().await?);
     let num_registers = 16;
 
     client
         .begin_tx()
-        .add(granary.execute(code, num_registers))
+        .add(clerk.execute(code, num_registers))
         .send()
         .await?;
 
-    let order_after = Vector::from_vec(granary.load(index_order_id).call().await?);
-    let quote = Vector::from_vec(granary.load(quote_id).call().await?);
-    let weigths = Vector::from_vec(granary.load(weights_id).call().await?);
+    let order_after = Vector::from_vec(clerk.load(index_order_id).call().await?);
+    let quote = Vector::from_vec(clerk.load(quote_id).call().await?);
+    let weigths = Vector::from_vec(clerk.load(weights_id).call().await?);
     let index_quantites =
-        Vector::from_vec(granary.load(executed_index_quantities_id).call().await?);
+        Vector::from_vec(clerk.load(executed_index_quantities_id).call().await?);
     let asset_quantites =
-        Vector::from_vec(granary.load(executed_asset_quantities_id).call().await?);
-    let demand_short = Vector::from_vec(granary.load(demand_short_id).call().await?);
-    let demand_long = Vector::from_vec(granary.load(demand_long_id).call().await?);
-    let delta_short = Vector::from_vec(granary.load(delta_short_id).call().await?);
-    let delta_long = Vector::from_vec(granary.load(delta_long_id).call().await?);
+        Vector::from_vec(clerk.load(executed_asset_quantities_id).call().await?);
+    let demand_short = Vector::from_vec(clerk.load(demand_short_id).call().await?);
+    let demand_long = Vector::from_vec(clerk.load(demand_long_id).call().await?);
+    let delta_short = Vector::from_vec(clerk.load(delta_short_id).call().await?);
+    let delta_long = Vector::from_vec(clerk.load(delta_long_id).call().await?);
 
     log_msg!("\n-= Program complete =-");
     log_msg!("\n[in] Index Order = {:0.9}", order_before);

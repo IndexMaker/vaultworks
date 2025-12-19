@@ -1,4 +1,4 @@
-use devil_macros::devil;
+use abacus_macros::abacus;
 
 /// Create market adding initial assets and setting market vectors
 pub fn create_market(
@@ -15,7 +15,7 @@ pub fn create_market(
     delta_short_id: u128,
     margin_id: u128,
 ) -> Vec<u8> {
-    devil! {
+    abacus! {
         // ====================================
         // * * * (TRY) COMPUTE NEW VALUES * * *
         // ====================================

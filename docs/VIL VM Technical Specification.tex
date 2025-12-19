@@ -91,13 +91,13 @@ The VIL VM is architected to function as a specialized \textsl{mathematical co-p
 \end{figure}
 
 \pagebreak
-\section{Development Workflow with the \texttt{devil!()} Proc Macro}
+\section{Development Workflow with the \texttt{abacus!()} Proc Macro}
 
-Writing raw instruction bytes and operands for any VM is tedious and error-prone. The \texttt{devil!()} procedural macro simplifies VIL program creation by allowing developers to embed native VIL assembly code directly within Rust functions.
+Writing raw instruction bytes and operands for any VM is tedious and error-prone. The \texttt{abacus!()} procedural macro simplifies VIL program creation by allowing developers to embed native VIL assembly code directly within Rust functions.
 
 \subsection{Macro Functionality}
 
-The \texttt{devil!()} macro transpiles the human-readable VIL assembly language into an efficient, executable bytecode array (\texttt{Vec<u8>}). This allows for:
+The \texttt{abacus!()} macro transpiles the human-readable VIL assembly language into an efficient, executable bytecode array (\texttt{Vec<u8>}). This allows for:
 
 \begin{itemize}
     \item \textbf{Readability:} Programs are easy to audit and maintain.
@@ -110,10 +110,10 @@ The \texttt{devil!()} macro transpiles the human-readable VIL assembly language 
 The following snippet demonstrates how a complex sequence of data retrieval and vector operations is expressed concisely using the macro:
 
 \begin{verbatim}
-use devil_macros::devil;
+use abacus_macros::abacus;
 
 pub fn execute_buy_order(...) -> Vec<u8> {
-    devil! {
+    abacus! {
         LDV         asset_weights_id                // Load from Blockchain (SLOAD)
         STR         _Weights                        // Store into registry
         // ...
@@ -142,7 +142,7 @@ The following conventions are used throughout the instruction set documentation 
     \item[\texttt{[TOS]}] Denotes the operand currently residing on the \textbf{Top of the Stack}.
     \item[\texttt{[TOS - N]}] Denotes the operand located $N$ positions below the top of the stack. \\
                               For instance, \texttt{[TOS - 1]} refers to the operand immediately below the top element.
-    \item[\texttt{\_Name}] In usage examples, names beginning with an underscore (e.g., \texttt{\_AssetWeights}) refer to dedicated VIL registers. These names are automatically associated with register indices by the \texttt{devil!()} procedural macro.
+    \item[\texttt{\_Name}] In usage examples, names beginning with an underscore (e.g., \texttt{\_AssetWeights}) refer to dedicated VIL registers. These names are automatically associated with register indices by the \texttt{abacus!()} procedural macro.
     \item[$A \leftarrow B$] A left arrow in mathematical notation indicates an assignment operation. \\
     The value or result on the right-hand side is assigned to the destination on the left-hand side.
     For example, $[TOS] \leftarrow [TOS] + [TOS - 1]$ means the sum of the top two stack operands is stored back onto the top of the stack.
@@ -364,7 +364,7 @@ vector storage, but still it requires cloning of a vector.
 
 Create a duplicate of the register allocated for \texttt{\_AssetWeights}.
 
-The \texttt{\_AssetWeights} is a convenience label we associate with some register when we use \texttt{devil!()} macro.
+The \texttt{\_AssetWeights} is a convenience label we associate with some register when we use \texttt{abacus!()} macro.
 
 \pagebreak
 \subsubsection{\texttt{LDM} --- Load Moving from Register\label{inst:ldm}} \hyperref[tab:vil_summary]{ $\Uparrow$ Back to top }
@@ -403,7 +403,7 @@ This is highly gas-effective operation, as operand is moved from register onto s
 
 Move \texttt{\_MarketAssetPrices} value out of register, and place it on stack.
 
-The \texttt{\_MarketAssetPrices} is a convenience label we associate with some register when we use \texttt{devil!()} macro.
+The \texttt{\_MarketAssetPrices} is a convenience label we associate with some register when we use \texttt{abacus!()} macro.
 
 \pagebreak
 \subsection{Data Storage \& Register Access (Opcode 20..23)}

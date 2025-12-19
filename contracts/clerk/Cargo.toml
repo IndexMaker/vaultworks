@@ -1,8 +1,8 @@
 [package]
-name = "granary"
+name = "clerk"
 version = "0.1.0"
 edition = "2021"
-description = "IndexMaker Granary (Stores high-dimensional vectors)"
+description = "IndexMaker Clerk (Stores high-dimensional vectors)"
 
 [dependencies]
 alloy-primitives = { workspace = true }
@@ -20,7 +20,7 @@ stylus-sdk = { workspace = true, features = ["stylus-test"] }
 dotenv = { workspace = true }
 deli = { workspace = true, features = ["stylus"] }
 amount-macros = { workspace = true }
-devil-macros = { workspace = true }
+abacus-macros = { workspace = true }
 labels-macros = { workspace = true }
 vector-macros = { workspace = true }
 icore = { workspace = true }
@@ -32,7 +32,7 @@ test-debug = ["stylus-sdk/debug", "deli/debug", "deli/stylus-test"]
 mini-alloc = ["stylus-sdk/mini-alloc"]
 
 [[bin]]
-name = "devil"
+name = "abacus"
 path = "src/main.rs"
 
 [lib]

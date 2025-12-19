@@ -8,28 +8,28 @@ use stylus_sdk::{
 use crate::contracts::storage::StorageSlot;
 
 #[storage]
-pub struct GranaryStorage {
+pub struct ClerkStorage {
     vectors: StorageMap<U128, StorageBytes>,
     presence: StorageMap<U128, StorageBool>,
     abacus: StorageAddress,
     owner: StorageAddress,
 }
 
-pub const GRANARY_STORAGE_SLOT: U256 = {
+pub const CLERK_STORAGE_SLOT: U256 = {
     const HASH: [u8; 32] = keccak_const::Keccak256::new()
-        .update(b"Granary.STORAGE_SLOT")
+        .update(b"Clerk.STORAGE_SLOT")
         .finalize();
     U256::from_be_bytes(HASH).wrapping_sub(uint!(1_U256))
 };
 
-impl GranaryStorage {
-    pub fn storage() -> GranaryStorage {
-        StorageSlot::get_slot::<GranaryStorage>(GRANARY_STORAGE_SLOT)
+impl ClerkStorage {
+    pub fn storage() -> ClerkStorage {
+        StorageSlot::get_slot::<ClerkStorage>(CLERK_STORAGE_SLOT)
     }
 
     pub fn initialize(&mut self, owner: Address, abacus: Address) -> Result<(), Vec<u8>> {
         if !self.owner.get().is_zero() {
-            Err(b"Granary already has an owner")?;
+            Err(b"Clerk already has an owner")?;
         }
         self.owner.set(owner);
         self.abacus.set(abacus);

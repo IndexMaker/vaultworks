@@ -25,7 +25,7 @@ itertools = { workspace = true }
 reqwest = { workspace = true }
 tokio = { workspace = true, features = ["full"] }
 amount-macros = { workspace = true }
-devil-macros = { workspace = true }
+abacus-macros = { workspace = true }
 labels-macros = { workspace = true }
 serde = { workspace = true }
 vector-macros = { workspace = true }

@@ -8,7 +8,7 @@ members = [
     "contracts/constable",
     "contracts/factor",
     "contracts/gate",
-    "contracts/granary",
+    "contracts/clerk",
     "contracts/guildmaster",
     "contracts/scribe",
     "contracts/treasury",
@@ -24,7 +24,7 @@ members = [
     "apps/document_vis",
 
     "proc-macros/amount-macros",
-    "proc-macros/devil-macros",
+    "proc-macros/abacus-macros",
     "proc-macros/labels-macros",
     "proc-macros/vector-macros",
 ]
@@ -52,7 +52,7 @@ chrono = "0.4.42"
 clap = "4.5"
 decon = { path = "libs/decon" }
 deli = { path = "libs/deli" }
-devil-macros = { path = "./proc-macros/devil-macros" }
+abacus-macros = { path = "./proc-macros/abacus-macros" }
 dotenv = "0.15.0"
 ethers = "2.0"
 eyre = "0.6.8"

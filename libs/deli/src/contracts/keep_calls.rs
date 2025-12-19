@@ -4,7 +4,7 @@ use alloy_primitives::{Address, U8};
 
 use crate::{
     contracts::calls::InnerCall,
-    interfaces::{abacus::IAbacus, granary::IGranary, scribe::IScribe, worksman::IWorksman},
+    interfaces::{abacus::IAbacus, clerk::IClerk, scribe::IScribe, worksman::IWorksman},
     log_msg,
     vector::Vector,
 };
@@ -14,29 +14,29 @@ pub trait KeepCalls {
 
     fn submit_vector_bytes(
         &mut self,
-        gate_to_granary: Address,
+        gate_to_clerk: Address,
         vector_id: u128,
         data: Vec<u8>,
     ) -> Result<Vec<u8>, Vec<u8>>;
 
     fn fetch_vector_bytes(
         &self,
-        gate_to_granary: Address,
+        gate_to_clerk: Address,
         vector_id: u128,
     ) -> Result<Vec<u8>, Vec<u8>>;
 
-    fn fetch_vector_from_granary(
+    fn fetch_vector_from_clerk(
         &self,
-        gate_to_granary: Address,
+        gate_to_clerk: Address,
         vector_id: u128,
     ) -> Result<Vector, Vec<u8>> {
-        let data = self.fetch_vector_bytes(gate_to_granary, vector_id)?;
+        let data = self.fetch_vector_bytes(gate_to_clerk, vector_id)?;
         Ok(Vector::from_vec(data))
     }
 
     fn execute_vector_program(
         &mut self,
-        gate_to_granary: Address,
+        gate_to_clerk: Address,
         code: Vec<u8>,
         num_registry: u128,
     ) -> Result<(), Vec<u8>>;
@@ -61,13 +61,13 @@ where
 
     fn submit_vector_bytes(
         &mut self,
-        gate_to_granary: Address,
+        gate_to_clerk: Address,
         vector_id: u128,
         data: Vec<u8>,
     ) -> Result<Vec<u8>, Vec<u8>> {
         let result = self.external_call(
-            gate_to_granary,
-            IGranary::storeCall {
+            gate_to_clerk,
+            IClerk::storeCall {
                 id: vector_id,
                 data,
             },
@@ -77,20 +77,20 @@ where
 
     fn fetch_vector_bytes(
         &self,
-        gate_to_granary: Address,
+        gate_to_clerk: Address,
         vector_id: u128,
     ) -> Result<Vec<u8>, Vec<u8>> {
-        let result = self.static_call(gate_to_granary, IGranary::loadCall { id: vector_id })?;
+        let result = self.static_call(gate_to_clerk, IClerk::loadCall { id: vector_id })?;
         Ok(result)
     }
 
     fn execute_vector_program(
         &mut self,
-        gate_to_granary: Address,
+        gate_to_clerk: Address,
         code: Vec<u8>,
         num_registry: u128,
     ) -> Result<(), Vec<u8>> {
-        self.external_call(gate_to_granary, IAbacus::executeCall { code, num_registry })?;
+        self.external_call(gate_to_clerk, IAbacus::executeCall { code, num_registry })?;
         Ok(())
     }
 

@@ -1,4 +1,4 @@
-use devil_macros::devil;
+use abacus_macros::abacus;
 
 /// Update Index Quote (Capacity, Price, Slope)
 /// 
@@ -11,7 +11,7 @@ pub fn update_quote(
     asset_slopes_id: u128,
     asset_liquidity_id: u128,
 ) -> Vec<u8> {
-    devil! {
+    abacus! {
         // ====================================
         // * * * (TRY) COMPUTE NEW VALUES * * *
         // ====================================

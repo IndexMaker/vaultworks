@@ -14,7 +14,7 @@ show_help() {
     echo ""
     echo "Types:"
     echo "  core <PROXY> [CALLDATA]    Upgrade Castle logic via Proxy"
-    echo "  granary <PROXY> [CALLDATA] Upgrade Granary logic via Proxy"
+    echo "  clerk <PROXY> [CALLDATA] Upgrade Clerk logic via Proxy"
     echo "  officer <PROXY> <NAME>     Replace an officer (Direct appointment)"
     echo ""
     echo "Note: For UUPS, upgradeToAndCall is invoked on the PROXY address"
@@ -29,7 +29,7 @@ PROXY_ADDR=$2
 EXTRA_ARG=$3 # Can be calldata for logic, or Name for officer
 
 case "$TYPE" in
-    "core" | "granary")
+    "core" | "clerk")
         CONTRACT_NAME=$TYPE
         [ "$TYPE" == "core" ] && CONTRACT_NAME="castle"
         CALLDATA=${EXTRA_ARG:-"0x"}

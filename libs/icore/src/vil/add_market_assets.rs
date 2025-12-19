@@ -1,4 +1,4 @@
-use devil_macros::devil;
+use abacus_macros::abacus;
 
 /// Add assets and extend all market vectors
 /// 
@@ -22,7 +22,7 @@ pub fn add_market_assets(
     delta_short_id: u128,
     margin_id: u128,
 ) -> Vec<u8> {
-    devil! {
+    abacus! {
         // ====================================
         // * * * (TRY) COMPUTE NEW VALUES * * *
         // ====================================

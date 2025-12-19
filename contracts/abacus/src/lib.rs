@@ -8,7 +8,7 @@ extern crate alloc;
 use alloc::vec::Vec;
 
 use alloy_primitives::{Address, U128};
-use deli::{contracts::granary::GranaryStorage, labels::Labels, vector::Vector};
+use deli::{contracts::clerk::ClerkStorage, labels::Labels, vector::Vector};
 use stylus_sdk::prelude::*;
 
 use crate::program::{ErrorCode, Program, VectorIO};
@@ -18,7 +18,7 @@ pub mod program;
 #[cfg(test)]
 pub mod test;
 
-impl VectorIO for GranaryStorage {
+impl VectorIO for ClerkStorage {
     fn load_labels(&self, id: u128) -> Result<Labels, ErrorCode> {
         let key = U128::from(id);
         let Some(vector) = self.fetch_bytes(key) else {
@@ -69,7 +69,7 @@ impl Abacus {
 #[public]
 impl Abacus {
     pub fn execute(&mut self, code: Vec<u8>, num_registry: u128) -> Result<(), Vec<u8>> {
-        let mut storage = GranaryStorage::storage();
+        let mut storage = ClerkStorage::storage();
         storage.only_owner(self._attendee())?;
 
         let mut program = Program::new(&mut storage);

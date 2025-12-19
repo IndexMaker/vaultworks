@@ -22,8 +22,8 @@ deploy_abacus() {
 }
 
 deploy_logic() {
-    local ADDR=$(deploy granary | tee /dev/stderr | parse_deployment_address)
-    [ -z "$ADDR" ] && die "Failed to parse Granary logic address"
+    local ADDR=$(deploy clerk | tee /dev/stderr | parse_deployment_address)
+    [ -z "$ADDR" ] && die "Failed to parse Clerk logic address"
     echo "$ADDR"
 }
 
@@ -36,11 +36,11 @@ deploy_gate() {
         die "deploy_gate requires <CASTLE_GATE> and <ABACUS_ADDRESS>"
     fi
 
-    # UUPS Initialization for Granary
+    # UUPS Initialization for Clerk
     local init_data=$(calldata "initialize(address,address)" "$castle_gate" "$abacus_addr")
     
     local gate_addr=$(deploy_construct gate "constructor(address,bytes)" "$logic_addr" "$init_data" | tee /dev/stderr | parse_deployment_address)
-    [ -z "$gate_addr" ] && die "Failed to parse Granary Gate address"
+    [ -z "$gate_addr" ] && die "Failed to parse Clerk Gate address"
     echo "$gate_addr"
 }
 
@@ -49,7 +49,7 @@ upgrade_gate() {
     local new_logic=$2
     local calldata=${3:-"0x"}
     
-    echo "Upgrading Granary at $proxy to new logic $new_logic..."
+    echo "Upgrading Clerk at $proxy to new logic $new_logic..."
     contract_send "$proxy" "upgradeToAndCall(address,bytes)" "$new_logic" "$calldata"
 }
 
@@ -57,9 +57,9 @@ upgrade_gate() {
 
 usage() {
     echo "Usage: $0 {full | deploy-logic | upgrade}"
-    echo "  full <CASTLE_GATE|OWNER_EOA> : Deploys Abacus, Granary Logic, and Gate"
-    echo "  deploy-logic                 : Deploys only Abacus and Granary logic"
-    echo "  upgrade <PROXY> <LOGIC> [CD] : UUPS upgrade for existing Granary Gate"
+    echo "  full <CASTLE_GATE|OWNER_EOA> : Deploys Abacus, Clerk Logic, and Gate"
+    echo "  deploy-logic                 : Deploys only Abacus and Clerk logic"
+    echo "  upgrade <PROXY> <LOGIC> [CD] : UUPS upgrade for existing Clerk Gate"
     exit 1
 }
 
@@ -68,16 +68,16 @@ case "$1" in
         [ -z "$2" ] && usage
         echo "--- Deploying Abacus ---"
         ABACUS=$(deploy_abacus)
-        echo "--- Deploying Granary Logic ---"
+        echo "--- Deploying Clerk Logic ---"
         LOGIC=$(deploy_logic)
-        echo "--- Deploying Granary Gate ---"
+        echo "--- Deploying Clerk Gate ---"
         GATE=$(deploy_gate "$LOGIC" "$2" "$ABACUS")
         
-        echo -e "\n=== GRANARY DEPLOYMENT COMPLETE ==="
+        echo -e "\n=== CLERK DEPLOYMENT COMPLETE ==="
         echo "Abacus address: $ABACUS"
-        echo "Granary Logic: $LOGIC"
-        echo "Granary Gate : $GATE"
-        echo "Granary Owner: $2"
+        echo "Clerk Logic: $LOGIC"
+        echo "Clerk Gate : $GATE"
+        echo "Clerk Owner: $2"
         echo "------------------------------------"
         ;;
     "deploy-logic")

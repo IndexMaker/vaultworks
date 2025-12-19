@@ -1,4 +1,4 @@
-use devil_macros::devil;
+use abacus_macros::abacus;
 
 /// Update Market Data
 ///
@@ -12,7 +12,7 @@ pub fn update_market_data(
     market_asset_slopes_id: u128,
     market_asset_liquidity_id: u128,
 ) -> Vec<u8> {
-    devil! {
+    abacus! {
         // ====================================
         // * * * (TRY) COMPUTE NEW VALUES * * *
         // ====================================

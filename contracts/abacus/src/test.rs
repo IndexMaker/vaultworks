@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use deli::{labels::Labels, log_msg, vector::Vector};
-use devil_macros::devil;
+use abacus_macros::abacus;
 use icore::vil::execute_buy_order::execute_buy_order;
 use icore::vil::solve_quadratic::solve_quadratic;
 use labels_macros::label_vec;
@@ -126,7 +126,7 @@ mod unit_tests {
         vio.store_vector(expected3_id, amount_vec![3, 6]).unwrap();
 
         // --- 2. VIL Code Execution ---
-        let code = devil![
+        let code = abacus![
             // 1. Setup Transposition
             LDV         vector1_id              // Stack: [V1]
             LDV         vector2_id              // Stack: [V1, V2]

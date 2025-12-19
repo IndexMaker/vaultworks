@@ -1,4 +1,4 @@
-use devil_macros::devil;
+use abacus_macros::abacus;
 
 /// Execute Buy Index Order
 /// 
@@ -23,7 +23,7 @@ pub fn execute_buy_order(
     asset_contribution_fractions_id: u128,
     solve_quadratic_id: u128,
 ) -> Vec<u8> {
-    devil! {
+    abacus! {
         // ====================================
         // * * * (TRY) COMPUTE NEW VALUES * * *
         // ====================================

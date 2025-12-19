@@ -99,7 +99,7 @@ pub(crate) struct Stack {
     registry: Vec<Operand>,
 }
 
-macro_rules! impl_devil_binary_op {
+macro_rules! impl_abacus_binary_op {
     (
         $fn_name:ident,
         $checked_op:ident
@@ -335,11 +335,11 @@ impl Stack {
         Ok(())
     }
 
-    impl_devil_binary_op!(add, checked_add);
-    impl_devil_binary_op!(sub, checked_sub);
-    impl_devil_binary_op!(ssb, saturating_sub);
-    impl_devil_binary_op!(mul, checked_mul);
-    impl_devil_binary_op!(div, checked_div);
+    impl_abacus_binary_op!(add, checked_add);
+    impl_abacus_binary_op!(sub, checked_sub);
+    impl_abacus_binary_op!(ssb, saturating_sub);
+    impl_abacus_binary_op!(mul, checked_mul);
+    impl_abacus_binary_op!(div, checked_div);
 
     fn sqrt(&mut self) -> Result<(), ErrorCode> {
         let v1 = self

@@ -1,4 +1,4 @@
-use devil_macros::devil;
+use abacus_macros::abacus;
 
 /// Update Market (Supply, Delta)
 /// 
@@ -14,7 +14,7 @@ pub fn update_supply(
     delta_long_id: u128,
     delta_short_id: u128,
 ) -> Vec<u8> {
-    devil! {
+    abacus! {
         // ====================================
         // * * * (TRY) COMPUTE NEW VALUES * * *
         // ====================================

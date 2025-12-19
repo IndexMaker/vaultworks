@@ -211,7 +211,7 @@ impl Parse for InstructionList {
 }
 
 #[proc_macro]
-pub fn devil(input: TokenStream) -> TokenStream {
+pub fn abacus(input: TokenStream) -> TokenStream {
     let instruction_list = match syn::parse::<InstructionList>(input) {
         Ok(list) => list,
         Err(e) => return e.to_compile_error().into(),

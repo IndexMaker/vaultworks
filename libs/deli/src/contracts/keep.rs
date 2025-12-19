@@ -30,7 +30,7 @@ pub struct Vault {
 pub struct Account {
     owner: StorageAddress,
     // TODO: These will be very long vectors, e.g. 2M components.
-    // We will optimise Granary and Abacus to provide partial load/store
+    // We will optimise Clerk and Abacus to provide partial load/store
     // and we'll store chunks in mapping.
     pub assets: StorageU128,       // Vector = [Name; num_assets]
     pub margin: StorageU128,       // Vector = [Margin; num_assets]
@@ -77,12 +77,12 @@ impl Account {
 }
 
 #[storage]
-pub struct Granary {
-    gate_to_granary: StorageAddress,
+pub struct Clerk {
+    gate_to_clerk: StorageAddress,
     last_vector: StorageU128,
 }
 
-impl Granary {
+impl Clerk {
     pub const SCRATCH_1: U128 = uint!(1_U128);
     pub const SCRATCH_2: U128 = uint!(2_U128);
     pub const SCRATCH_3: U128 = uint!(3_U128);
@@ -90,8 +90,8 @@ impl Granary {
 
     pub const FIRST_DYNAMIC_ID: U128 = uint!(100_U128);
 
-    pub fn initialize(&mut self, gate_to_granary: Address) {
-        self.gate_to_granary.set(gate_to_granary);
+    pub fn initialize(&mut self, gate_to_clerk: Address) {
+        self.gate_to_clerk.set(gate_to_clerk);
         self.last_vector.set(uint!(Self::FIRST_DYNAMIC_ID));
     }
 
@@ -101,8 +101,8 @@ impl Granary {
         value
     }
 
-    pub fn get_granary_address(&self) -> Address {
-        self.gate_to_granary.get()
+    pub fn get_clerk_address(&self) -> Address {
+        self.gate_to_clerk.get()
     }
 }
 
@@ -110,7 +110,7 @@ impl Granary {
 pub struct Keep {
     pub vaults: StorageMap<U128, Vault>,
     pub accounts: StorageMap<U128, Account>,
-    pub granary: Granary,
+    pub clerk: Clerk,
     pub constable: StorageAddress,
     pub worksman: StorageAddress,
     pub scribe: StorageAddress,

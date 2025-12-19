@@ -14,7 +14,7 @@ sol!{
 
         function appointWorksman(address worksman) external;
 
-        function appendGranary(address gate_to_granary) external;
+        function appendClerk(address gate_to_clerk) external;
 
         function getIssuerRole() external view returns (bytes32);
 

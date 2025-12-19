@@ -1,7 +1,7 @@
 use ethers::contract::abigen;
 
 abigen!(
-    Granary,
+    Clerk,
     r"[
         function initialize(address owner, address abacus) external
         function store(uint128 id, uint8[] memory data) external

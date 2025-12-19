@@ -1,7 +1,7 @@
 use alloy_sol_types::sol;
 
 sol! {
-    interface IGranary {
+    interface IClerk {
         function initialize(address owner, address abacus) external;
 
         function store(uint128 id, uint8[] memory data) external;
