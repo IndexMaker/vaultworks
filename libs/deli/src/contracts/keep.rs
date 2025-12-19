@@ -30,7 +30,7 @@ pub struct Vault {
 pub struct Account {
     owner: StorageAddress,
     // TODO: These will be very long vectors, e.g. 2M components.
-    // We will optimise Granary and Clerk to provide partial load/store
+    // We will optimise Granary and Abacus to provide partial load/store
     // and we'll store chunks in mapping.
     pub assets: StorageU128,       // Vector = [Name; num_assets]
     pub margin: StorageU128,       // Vector = [Margin; num_assets]

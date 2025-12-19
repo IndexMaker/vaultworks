@@ -132,18 +132,18 @@ fi
 # --- Granary Sequence ---
 
 if [ "$SKIP_GRANARY" = false ]; then
-    CLERK_ADDRESS=$(deploy clerk | tee /dev/stderr | parse_deployment_address)
+    ABACUS_ADDRESS=$(deploy abacus | tee /dev/stderr | parse_deployment_address)
     GRANARY_ADDRESS=$(deploy granary | tee /dev/stderr | parse_deployment_address)
     [ -z "$GRANARY_ADDRESS" ] && die "Failed to deploy Granary"
 
     if [ "$USE_GATES" = true ]; then
-        CALLDATA_GRANARY=$(calldata "initialize(address,address)" "$TARGET_ADDRESS" "$CLERK_ADDRESS")
+        CALLDATA_GRANARY=$(calldata "initialize(address,address)" "$TARGET_ADDRESS" "$ABACUS_ADDRESS")
         GRANARY_TARGET=$(deploy_construct gate "constructor(address,bytes)" "$GRANARY_ADDRESS" "$CALLDATA_GRANARY" | tee /dev/stderr | parse_deployment_address)
         [ -z "$GRANARY_TARGET" ] && die "Failed to deploy Granary Gate"
     else
         GRANARY_TARGET=$GRANARY_ADDRESS
         echo "Direct Deployment: Initializing Granary Logic..."
-        contract_send "$GRANARY_TARGET" "initialize(address,address)" "$TARGET_ADDRESS" "$CLERK_ADDRESS"
+        contract_send "$GRANARY_TARGET" "initialize(address,address)" "$TARGET_ADDRESS" "$ABACUS_ADDRESS"
     fi
 
     echo "--- Attaching Granary to Castle ---"

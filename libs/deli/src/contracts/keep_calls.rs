@@ -4,7 +4,7 @@ use alloy_primitives::{Address, U8};
 
 use crate::{
     contracts::calls::InnerCall,
-    interfaces::{clerk::IClerk, granary::IGranary, scribe::IScribe, worksman::IWorksman},
+    interfaces::{abacus::IAbacus, granary::IGranary, scribe::IScribe, worksman::IWorksman},
     log_msg,
     vector::Vector,
 };
@@ -90,7 +90,7 @@ where
         code: Vec<u8>,
         num_registry: u128,
     ) -> Result<(), Vec<u8>> {
-        self.external_call(gate_to_granary, IClerk::executeCall { code, num_registry })?;
+        self.external_call(gate_to_granary, IAbacus::executeCall { code, num_registry })?;
         Ok(())
     }
 

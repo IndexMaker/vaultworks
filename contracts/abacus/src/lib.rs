@@ -58,16 +58,16 @@ impl VectorIO for GranaryStorage {
 
 #[storage]
 #[entrypoint]
-pub struct Clerk;
+pub struct Abacus;
 
-impl Clerk {
+impl Abacus {
     fn _attendee(&self) -> Address {
         self.vm().msg_sender()
     }
 }
 
 #[public]
-impl Clerk {
+impl Abacus {
     pub fn execute(&mut self, code: Vec<u8>, num_registry: u128) -> Result<(), Vec<u8>> {
         let mut storage = GranaryStorage::storage();
         storage.only_owner(self._attendee())?;

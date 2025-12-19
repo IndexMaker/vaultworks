@@ -21,7 +21,7 @@ pub mod contracts {
 pub mod interfaces {
     pub mod banker;
     pub mod castle;
-    pub mod clerk;
+    pub mod abacus;
     pub mod constable;
     pub mod factor;
     pub mod granary;

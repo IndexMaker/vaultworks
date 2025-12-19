@@ -4,7 +4,7 @@ members = [
     # Stylus Contract Packages
     "contracts/banker",
     "contracts/castle",
-    "contracts/clerk",
+    "contracts/abacus",
     "contracts/constable",
     "contracts/factor",
     "contracts/gate",

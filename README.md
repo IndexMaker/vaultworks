@@ -29,7 +29,7 @@ Our design is inspired by RPG & card games such as Diablo, and Magic The Gatheri
 | Member | Role & Focus | Summary |
 | --- | --- | --- |
 | Cast of the Castle: *Factor*, *Guildmaster*, *Banker* | Core Orchestrator/VIL Runner: Generates and directs the specialized VIL programs; coordinates execution and state updates. | The central, disciplined hero who commands the entire system's financial and computational flow. |
-| Clerk | Decentralized VIL Machine & Bookkeeper: Executes VIL programs; manages the books to track orders. | The powerful, optimized machine that performs the high-velocity, high-risk computation and tracks the system's financial state. |
+| Abacus | Decentralized VIL Machine & Bookkeeper: Executes VIL programs; manages the books to track orders. | The powerful, optimized machine that performs the high-velocity, high-risk computation and tracks the system's financial state. |
 | Vaults (Store) | Index Token Storage: Stores the Index contract definitions and orders. | The highly protected Archive containing the blueprints and structure of the system's indices. |
 | Keeper (Servant) | Settlement Off-Chain Agent: Monitors the Devil's books; pays gas to execute gross settlement VIL programs to close positions. | The vigilant maintenance service that ensures the Devil's ledger stays up to date. |
 | Vendor (Servant) | Off-Chain Fulfillment Service: Reads executed orders from the Market and initiates the final off-chain asset transfers. | The trusted logistics master who completes the physical delivery based on Daxos's on-chain instructions. |

@@ -11,7 +11,7 @@ use crate::contracts::storage::StorageSlot;
 pub struct GranaryStorage {
     vectors: StorageMap<U128, StorageBytes>,
     presence: StorageMap<U128, StorageBool>,
-    clerk: StorageAddress,
+    abacus: StorageAddress,
     owner: StorageAddress,
 }
 
@@ -27,12 +27,12 @@ impl GranaryStorage {
         StorageSlot::get_slot::<GranaryStorage>(GRANARY_STORAGE_SLOT)
     }
 
-    pub fn initialize(&mut self, owner: Address, clerk: Address) -> Result<(), Vec<u8>> {
+    pub fn initialize(&mut self, owner: Address, abacus: Address) -> Result<(), Vec<u8>> {
         if !self.owner.get().is_zero() {
             Err(b"Granary already has an owner")?;
         }
         self.owner.set(owner);
-        self.clerk.set(clerk);
+        self.abacus.set(abacus);
         Ok(())
     }
 
@@ -47,8 +47,8 @@ impl GranaryStorage {
         Ok(())
     }
 
-    pub fn get_clerk_address(&self) -> Address {
-        self.clerk.get()
+    pub fn get_abacus_address(&self) -> Address {
+        self.abacus.get()
     }
 
     pub fn store_bytes(&mut self, id: U128, data: Vec<u8>) {

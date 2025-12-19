@@ -6,5 +6,5 @@ pub extern "C" fn main() {}
 
 #[cfg(feature = "export-abi")]
 fn main() {
-    clerk::print_from_args();
+    abacus::print_from_args();
 }

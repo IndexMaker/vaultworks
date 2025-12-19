@@ -86,7 +86,7 @@
         <mxCell id="fi5tRUbsFI_XOfXkqt2y-19" value="Granary" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#a20025;fontColor=#ffffff;strokeColor=#6F0000;" vertex="1" parent="1">
           <mxGeometry x="370" y="680" width="170" height="60" as="geometry" />
         </mxCell>
-        <mxCell id="fi5tRUbsFI_XOfXkqt2y-21" value="Clerk" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#d80073;fontColor=#ffffff;strokeColor=#A50040;" vertex="1" parent="1">
+        <mxCell id="fi5tRUbsFI_XOfXkqt2y-21" value="Abacus" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#d80073;fontColor=#ffffff;strokeColor=#A50040;" vertex="1" parent="1">
           <mxGeometry x="370" y="790" width="170" height="60" as="geometry" />
         </mxCell>
         <mxCell id="fi5tRUbsFI_XOfXkqt2y-25" style="rounded=0;orthogonalLoop=1;jettySize=auto;html=1;" edge="1" parent="1" source="fi5tRUbsFI_XOfXkqt2y-24" target="fi5tRUbsFI_XOfXkqt2y-17">
@@ -171,7 +171,7 @@
         <mxCell id="fi5tRUbsFI_XOfXkqt2y-61" style="rounded=0;orthogonalLoop=1;jettySize=auto;html=1;dashed=1;" edge="1" parent="1" source="fi5tRUbsFI_XOfXkqt2y-60" target="fi5tRUbsFI_XOfXkqt2y-21">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="fi5tRUbsFI_XOfXkqt2y-60" value="&lt;b&gt;Clerk&lt;/b&gt; performs all computations on vectors stored in Granary.&lt;div&gt;&lt;br&gt;&lt;/div&gt;&lt;div&gt;Clerk shares storage slots with Granary.&lt;/div&gt;" style="shape=note;whiteSpace=wrap;html=1;backgroundOutline=1;darkOpacity=0.05;align=left;spacing=10;" vertex="1" parent="1">
+        <mxCell id="fi5tRUbsFI_XOfXkqt2y-60" value="&lt;b&gt;Abacus&lt;/b&gt; performs all computations on vectors stored in Granary.&lt;div&gt;&lt;br&gt;&lt;/div&gt;&lt;div&gt;Abacus shares storage slots with Granary.&lt;/div&gt;" style="shape=note;whiteSpace=wrap;html=1;backgroundOutline=1;darkOpacity=0.05;align=left;spacing=10;" vertex="1" parent="1">
           <mxGeometry x="585" y="764" width="275" height="112" as="geometry" />
         </mxCell>
         <mxCell id="fi5tRUbsFI_XOfXkqt2y-63" style="rounded=0;orthogonalLoop=1;jettySize=auto;html=1;dashed=1;" edge="1" parent="1" source="fi5tRUbsFI_XOfXkqt2y-62" target="fi5tRUbsFI_XOfXkqt2y-46">
@@ -222,7 +222,7 @@
         <mxCell id="fi5tRUbsFI_XOfXkqt2y-78" style="rounded=0;orthogonalLoop=1;jettySize=auto;html=1;dashed=1;" edge="1" parent="1" source="fi5tRUbsFI_XOfXkqt2y-77" target="fi5tRUbsFI_XOfXkqt2y-19">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="fi5tRUbsFI_XOfXkqt2y-77" value="&lt;div style=&quot;line-height: 160%;&quot;&gt;&lt;b&gt;Granary&lt;/b&gt; plays two roles:&lt;/div&gt;&lt;div&gt;&lt;br&gt;&lt;/div&gt;Stores vectors for computations.&lt;div&gt;&lt;span style=&quot;background-color: initial;&quot;&gt;&lt;br&gt;&lt;/span&gt;&lt;/div&gt;&lt;div&gt;&lt;span style=&quot;background-color: initial;&quot;&gt;Acts as transparent proxy to Clerk&lt;/span&gt;&lt;/div&gt;" style="shape=note;whiteSpace=wrap;html=1;backgroundOutline=1;darkOpacity=0.05;align=left;spacing=10;spacingTop=10;size=17;" vertex="1" parent="1">
+        <mxCell id="fi5tRUbsFI_XOfXkqt2y-77" value="&lt;div style=&quot;line-height: 160%;&quot;&gt;&lt;b&gt;Granary&lt;/b&gt; plays two roles:&lt;/div&gt;&lt;div&gt;&lt;br&gt;&lt;/div&gt;Stores vectors for computations.&lt;div&gt;&lt;span style=&quot;background-color: initial;&quot;&gt;&lt;br&gt;&lt;/span&gt;&lt;/div&gt;&lt;div&gt;&lt;span style=&quot;background-color: initial;&quot;&gt;Acts as transparent proxy to Abacus&lt;/span&gt;&lt;/div&gt;" style="shape=note;whiteSpace=wrap;html=1;backgroundOutline=1;darkOpacity=0.05;align=left;spacing=10;spacingTop=10;size=17;" vertex="1" parent="1">
           <mxGeometry x="170" y="620" width="160" height="140" as="geometry" />
         </mxCell>
         <mxCell id="fi5tRUbsFI_XOfXkqt2y-86" style="rounded=0;orthogonalLoop=1;jettySize=auto;html=1;dashed=1;" edge="1" parent="1" source="fi5tRUbsFI_XOfXkqt2y-85" target="fi5tRUbsFI_XOfXkqt2y-17">

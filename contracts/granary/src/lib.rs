@@ -10,7 +10,7 @@ use alloc::vec::Vec;
 use alloy_primitives::{Address, U128};
 use deli::{
     contracts::{calls::InnerCall, granary::GranaryStorage, keep_calls::KeepCalls},
-    interfaces::clerk::IClerk,
+    interfaces::abacus::IAbacus,
     log_msg,
 };
 use stylus_sdk::prelude::*;
@@ -23,9 +23,9 @@ pub struct Granary;
 impl Granary {
     // TODO: Add UUPS (ERC-1967) so that Granary can be behind the Gate
 
-    pub fn initialize(&mut self, owner: Address, clerk: Address) -> Result<(), Vec<u8>> {
+    pub fn initialize(&mut self, owner: Address, abacus: Address) -> Result<(), Vec<u8>> {
         let mut storage = GranaryStorage::storage();
-        storage.initialize(owner, clerk)?;
+        storage.initialize(owner, abacus)?;
         Ok(())
     }
 
@@ -56,8 +56,8 @@ impl Granary {
 
         log_msg!("Executing code");
         let result = self.inner_call(
-            storage.get_clerk_address(),
-            IClerk::executeCall { code, num_registry },
+            storage.get_abacus_address(),
+            IAbacus::executeCall { code, num_registry },
         )?;
 
         Ok(result)

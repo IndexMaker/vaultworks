@@ -1,8 +1,8 @@
 [package]
-name = "clerk"
+name = "abacus"
 version = "0.1.0"
 edition = "2021"
-description = "IndexMaker Clerk (Performs computations on high-dimensional vectors)"
+description = "IndexMaker Abacus (Performs computations on high-dimensional vectors)"
 
 [dependencies]
 alloy-primitives = { workspace = true }
