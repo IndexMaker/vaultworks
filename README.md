@@ -1,4 +1,4 @@
-<img src="./docs/Castle.jpg">
+<img src="./docs/VaultWorks.jpg">
 
 # VaultWorks
 
