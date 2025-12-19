@@ -10,6 +10,7 @@ alloy-sol-types = { workspace = true }
 stylus-sdk = { workspace = true }
 hex = { workspace = true }
 common = { workspace = true, features = ["stylus", "amount-sqrt"] }
+abacus-runtime = { workspace = true, features = ["stylus"]}
 
 [dev-dependencies]
 alloy-primitives = { workspace = true, features = ["sha3-keccak"] }
@@ -19,6 +20,7 @@ eyre = { workspace = true }
 stylus-sdk = { workspace = true, features = ["stylus-test"] }
 dotenv = { workspace = true }
 common = { workspace = true, features = ["stylus"] }
+abacus-runtime = { workspace = true, features = ["stylus-test"]}
 amount-macros = { workspace = true }
 abacus-macros = { workspace = true }
 labels-macros = { workspace = true }

@@ -18,6 +18,7 @@ version = "0.1.0"
 dependencies = [
  "abacus-formulas",
  "abacus-macros",
+ "abacus-runtime",
  "alloy-primitives",
  "alloy-sol-types",
  "amount-macros",
@@ -61,6 +62,19 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn 2.0.110",
+]
+
+[[package]]
+name = "abacus-runtime"
+version = "0.1.0"
+dependencies = [
+ "abacus-formulas",
+ "abacus-macros",
+ "amount-macros",
+ "common",
+ "labels-macros",
+ "stylus-sdk",
+ "vector-macros",
 ]
 
 [[package]]

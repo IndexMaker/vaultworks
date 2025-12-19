@@ -1,6 +1,6 @@
 use core::mem::swap;
 
-use alloc::vec::Vec;
+use alloc::{vec, vec::Vec};
 use common::{
     abacus::{instruction_set::*, program_error::*},
     amount::Amount,
@@ -872,7 +872,7 @@ macro_rules! op_code_str {
 #[macro_export]
 macro_rules! op_code_str {
     ($arg:expr) => {
-        $crate::program::_op_code_str_fun($arg)
+        $crate::runtime::_op_code_str_fun($arg)
     };
 }
 

@@ -14,17 +14,14 @@ use common::{
 };
 use stylus_sdk::prelude::*;
 
-use crate::runtime::{VectorVM, VectorIO};
+use abacus_runtime::runtime::{VectorIO, VectorVM};
 
-pub mod runtime;
+struct ClerkStorageRef<'a>(&'a mut ClerkStorage);
 
-#[cfg(test)]
-pub mod test;
-
-impl VectorIO for ClerkStorage {
+impl<'a> VectorIO for ClerkStorageRef<'a> {
     fn load_labels(&self, id: u128) -> Result<Labels, ErrorCode> {
         let key = U128::from(id);
-        let Some(vector) = self.fetch_bytes(key) else {
+        let Some(vector) = self.0.fetch_bytes(key) else {
             return Err(ErrorCode::NotFound);
         };
         Ok(Labels::from_vec(vector))
@@ -32,7 +29,7 @@ impl VectorIO for ClerkStorage {
 
     fn load_vector(&self, id: u128) -> Result<Vector, ErrorCode> {
         let key = U128::from(id);
-        let Some(vector) = self.fetch_bytes(key) else {
+        let Some(vector) = self.0.fetch_bytes(key) else {
             return Err(ErrorCode::NotFound);
         };
         Ok(Vector::from_vec(vector))
@@ -40,7 +37,7 @@ impl VectorIO for ClerkStorage {
 
     fn load_code(&self, id: u128) -> Result<Vec<u8>, ErrorCode> {
         let key = U128::from(id);
-        let Some(vector) = self.fetch_bytes(key) else {
+        let Some(vector) = self.0.fetch_bytes(key) else {
             return Err(ErrorCode::NotFound);
         };
         Ok(vector)
@@ -48,13 +45,13 @@ impl VectorIO for ClerkStorage {
 
     fn store_labels(&mut self, id: u128, input: Labels) -> Result<(), ErrorCode> {
         let key = U128::from(id);
-        self.store_bytes(key, input.to_vec());
+        self.0.store_bytes(key, input.to_vec());
         Ok(())
     }
 
     fn store_vector(&mut self, id: u128, input: Vector) -> Result<(), ErrorCode> {
         let key = U128::from(id);
-        self.store_bytes(key, input.to_vec());
+        self.0.store_bytes(key, input.to_vec());
         Ok(())
     }
 }
@@ -75,7 +72,8 @@ impl Abacus {
         let mut storage = ClerkStorage::storage();
         storage.only_owner(self._attendee())?;
 
-        let mut program = VectorVM::new(&mut storage);
+        let mut ref_storage = ClerkStorageRef(&mut storage);
+        let mut program = VectorVM::new(&mut ref_storage);
         program
             .execute(code, num_registry as usize)
             .map_err(|err| format!("Program error: {:?}", err))?;

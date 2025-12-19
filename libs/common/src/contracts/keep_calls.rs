@@ -1,11 +1,10 @@
 use alloc::vec::Vec;
 
-use alloy_primitives::{Address, U8};
+use alloy_primitives::Address;
 
 use crate::{
     contracts::calls::InnerCall,
     interfaces::{abacus::IAbacus, clerk::IClerk, scribe::IScribe, worksman::IWorksman},
-    log_msg,
     vector::Vector,
 };
 

@@ -36,9 +36,17 @@ The ecosystem is structured as a **Castle**—a high-integrity environment—whe
 * **The Clerk:** An implementation of the ***UUPS (ERC-1822)*** pattern; the Clerk executes deterministic mathematical formulas on the Abacus and records the final state in stored vectors.
 * **The Abacus:** The computational engine that performs ***high-velocity, zero-copy mathematics***, bypassing the gas overhead of standard EVM implementations. Also known as the ***VIL VM: Decentralized Vector Intermediate Language Virtual Machine***.
 
+**White Papers** are included.
+
+- [Gas-Efficient Vector Processing for On-Chain Index Order Execution](/docs/Gas-Efficient%20Vector%20Processing%20for%20On-Chain%20Index%20Order%20Execution.pdf)
+
+- [VIL VM Technical Specification](/docs/VIL%20VM%20Technical%20Specification.pdf)
+
+- [Aligning Market and Index Vectors](/docs/Aligning%20Market%20and%20Index%20Vectors.pdf)
+
 ---
 
-## ⚡ Performance Engineering
+## ⚡ Designed For Performance
 
 **VaultWorks** is engineered for the highest standards of accuracy, transparency, and efficiency.
 
@@ -48,6 +56,8 @@ The ecosystem is structured as a **Castle**—a high-integrity environment—whe
 
 ---
 
-## 🏁 Operational Deployment
+## 🏁 Developer Guide
 
-To start building with us and read **[more here.](./apps/scenarios/README.md)**
+To **start building** with us and read **[more here.](/apps/scenarios/README.md)**.
+
+Read [more here](/libs/abacus-runtime/README.md) to learn about *Vector Intermediate Language Virtual Machine (VIL VM)*.
