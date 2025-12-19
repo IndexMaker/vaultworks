@@ -80,7 +80,7 @@ requests to build a *Vault* *Worksman* will pick next from that free-list.
 
 6. Run Scenario 5.
 
-Congratulations, you have set-up the eonvironment to run once-and-only-once Scenario 5.
+Congratulations, you have set-up the environment to run once-and-only-once Scenario 5.
 
 ```
 cargo run -p scenarios -- --rpc-url $RPC_URL --private-key $DEPLOY_PRIVATE_KEY --castle-address $CASTLE -s scenario5
