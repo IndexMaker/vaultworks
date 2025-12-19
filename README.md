@@ -1,264 +1,63 @@
-# Decentralised Index Maker
-
-## About
-
-This is ***Decentralised Index Maker (DeIndex)*** project.
-
-*Daxos is a demigod from Theros. Here he's our hero, who goes to Market to meet
-with the Vendor, to buy and sell items. Then he goes on a journey to explore the
-tresure hidden in the Vaults. On his way he deals with Devil, to whom he
-delegates the hardest tasks.*
-
-*DAX* is a well known Index listed on Frankfurt Stock Exchange. *DAX-os* is a
-play of words. *Daxos* is also a demigod in *Magic The Gathering* card game.
-
-In our decentralised architecture where *Vault* is smart-contract representing
-an Index, and *DeVIL* being acronym for *Decentralised Vector Intermediate
-Language*, we needed a hero that will go to that *Devil*. We also needed to
-express *Supply - Demand* relationship, and give a suitable name to *Authorised
-Provider* a.k.a. *AP*. Falling into RPG theme, a bit of Diablo like, we have
-chosen to use name *Vendor* for *AP*. Like in Diablo, hero needs to meet a
-vendor on the market, and what is the better name for smart-contract storing
-*Supply & Demand* if not *Market*. Thus in our very simple design we have:
-*Vaults, Market, Devil & Daxos*, and off-chain service we called *Vendor*.
-
-## Roles
-
-Our design is inspired by RPG & card games such as Diablo, and Magic The Gathering.
-
-| Member | Role & Focus | Summary |
-| --- | --- | --- |
-| Cast of the Castle: *Factor*, *Guildmaster*, *Banker* | Core Orchestrator/VIL Runner: Generates and directs the specialized VIL programs; coordinates execution and state updates. | The central, disciplined hero who commands the entire system's financial and computational flow. |
-| Clerk | Decentralized VIL Machine & Bookkeeper: Executes VIL programs; manages the books to track orders. | The powerful, optimized machine that performs the high-velocity, high-risk computation and tracks the system's financial state. |
-| Vaults (Store) | Index Token Storage: Stores the Index contract definitions and orders. | The highly protected Archive containing the blueprints and structure of the system's indices. |
-| Keeper (Servant) | Settlement Off-Chain Agent: Monitors the Devil's books; pays gas to execute gross settlement VIL programs to close positions. | The vigilant maintenance service that ensures the Devil's ledger stays up to date. |
-| Vendor (Servant) | Off-Chain Fulfillment Service: Reads executed orders from the Market and initiates the final off-chain asset transfers. | The trusted logistics master who completes the physical delivery based on Daxos's on-chain instructions. |
-
-## Performance
-
-We have done initial performance testing of Devil smart-contract, and 
-the results can be found **[here...](./apps/scenarios/README.md)**
-
-
-## Architecture
-
 <img src="./docs/Castle.jpg">
 
-### Access Control List (ACL)
+# VaultWorks
 
-|Role|Persona|Responsibilities (Functions)|Thematic Logic|
-| --- | --- | --- | --- |
-|Issuer Role|Guildmaster|submitIndex, submitVote|Governance: Decides what products (Indexes) exist.|
-|Vendor Role|Banker|submitAssets, submitMargin, submitSupply|Inventory: Manages the physical stock and risk limits.|
-|Keeper Role|Factor|submitMarketData, updateIndexQuote|Pricing: Manages the value of the stock (Oracle/Market Maker).|
-|Public|Trader|submitBuyOrder|Execution: Consumes the liquidity.|
+### High-fidelity decentralized engine for the synthesis and settlement of institutional-grade financial indices on Arbitrum.
 
-### Previous Layout
+**VaultWorks** provides a strong core for the next generation of asset management. By replacing legacy financial intermediation with a system of deterministic mathematical laws, we enable the creation and settlement of indices with absolute precision and cryptographic sovereignty.
 
-This layout is not sucerceeded by Castle implementing Diamond pattern.
+Powered by *Arbitrum Stylus (Rust)*, VaultWorks achieves ***near-native performance***, allowing ***complex vector-based financial products*** to operate at the speed and scale required by global capital markets.
 
-<img src="./docs/Components.jpg">
+---
 
-### **On-Chain Components:**
+## 🏰 The Architecture of the Castle
 
-- *Vault*     - Represents ITP Token, implements *ERC20*, and stores: asset weights, prices, and user's orders.
-- *Market*   - Stores asset market data, and market state, i.e. supply, demand and delta.
-- *Daxos*     - Orchestrates all business logic. Goes to *Market* to create *Demand*.
-- *DeVIL*     - Executes Vector Math programs such as: order execution, quote update, supply update.
+The ecosystem is structured as a **Castle**—a high-integrity environment—where the protocol itself autonomously guards the ***Access Control List (ACL)*** and secures the perimeter against unauthorized execution.
 
-### **Off-Chain Components**
+### The Inhabitants of the Castle
 
-- *Frontend*       - Connects user wallet, and provides user interface to buy/sell ITP Index.
-- *Backend*        - Manages and stores database of ITP Indexes and provides additional metrics.
-- *Vendor*         - Authorized Provider supplying assets from CEX / DEX. Goes to *Market* to create *Supply*.
-- *Relayer*        - RPC Relayer for collateral routing.
-- *Keeper*         - Keeper service for updating Index prices.
+| **Role** | **Focus** | **Function** |
+| --- | --- | --- |
+| **Factor** | Trading Strategy | Manages pricing and facilitates asset trading for Index orders. |
+| **Banker** | Inventory Management | Oversees asset inventory and enforces operational limits. |
+| **Guildmaster** | Issuance & Governance | Manages Index creation and commands the Worksman to deploy Vaults. |
+| **Constable** | Functions & Security | Architects protocol functions and assigns sovereign roles to them. |
+| **Scribe** | Signature Verification | Verifies cryptographic signatures and tallies governance votes. |
+| **Worksman** | Vault Construction | Constructs and deploys sovereign Vaults. |
 
-All of the above off-chain components interact exclusively with *Daxos*
-contract, except *Vault* contracts can be interacted via *IERC20* interface,
-i.e. as ITP tokens.
+---
 
-## **Interaction**
+## 📜 The Core: Clerk and Abacus
 
-### Create Index & Initial Quote
+**VaultWorks** separates computational execution from top-level business logic to ensure a disciplined financial state.
 
-Here *Issuer* wants to add new index to the system.
+* **The Vaults:** High-security attachments that house ***Index definitions***, asset weights, and user orders. They are built by the Worksman on command of the Guildmaster.
+* **The Gate:** An implementation of the ***Proxy (ERC-1967)*** pattern providing secure, structured access points. The architecture utilizes a primary gate to the Castle, a dedicated Gate to the **Clerk**—the interface where the crew interacts to execute orders and access liquidity—and individual Gates for each **Vault** attachment.
+* **The Clerk:** An implementation of the ***UUPS (ERC-1822)*** pattern; the Clerk executes deterministic mathematical formulas on the Abacus and records the final state in stored vectors.
+* **The Abacus:** The computational engine that performs ***high-velocity, zero-copy mathematics***, bypassing the gas overhead of standard EVM implementations. Also known as the ***VIL VM: Decentralized Vector Intermediate Language Virtual Machine***.
 
-<img src="./docs/CreateIndex.jpg">
+**White Papers** are included.
 
-### New Order: Instant Fill
+- [Gas-Efficient Vector Processing for On-Chain Index Order Execution](/docs/Gas-Efficient%20Vector%20Processing%20for%20On-Chain%20Index%20Order%20Execution.pdf)
 
-Here *User* places new order, which gets instantly filled, and
-and ITP Index token is minted by *Vault*.
+- [VIL VM Technical Specification](/docs/VIL%20VM%20Technical%20Specification.pdf)
 
-<img src="./docs/InstantFill.jpg">
+- [Aligning Market and Index Vectors](/docs/Aligning%20Market%20and%20Index%20Vectors.pdf)
 
-### Update Index Quotes
+---
 
-Here external service sends a *Poke* to update index quotes, i.e. prices and capacity
-so that they are used the next time instant fill is processed.
+## ⚡ Designed For Performance
 
-<img src="./docs/UpdateIndexQuotes.jpg">
+**VaultWorks** is engineered for the highest standards of accuracy, transparency, and efficiency.
 
-### Submit Inventory
+1. **Speed & Precision:** Data is represented as ***vectors of 128-bit decimals with 256-bit computational precision***, ensuring exacting accuracy while maintaining WASM binaries under the 24KiB limit.
+2. **Gas Efficiency:** By utilizing a custom-built VIL VM, we eliminate the overhead of standard blockchain `SLOAD`/`SSTORE` operations, ensuring the ***core remains strong under high-frequency load***.
+3. **Financial Accuracy:** Trading is driven by maximizing available margin (reducing liability through incremental pegging) using the math of equity, assets, and liability, represented here as ***Supply***, ***Demand***, and ***Delta*** vectors.
 
-Here *Vendor* service adds new *Inventory* to the pool.
+---
 
-<img src="./docs/SubmitInventory.jpg">
+## 🏁 Developer Guide
 
+To **start building** with us and read **[more here.](/apps/scenarios/README.md)**.
 
-## Summary
-
-This design delegates all vector math computation to Vector IL virtual machine, which is critical
-for achieving high performance zero-copy, minimum blockchain load/store overhead, and yet plenty
-of WASM space for implementing business logic in the client contracts, i.e. *Vault*, *Market*, and
-*Daxos*.
-
-## Quick Start *(Scenario Runner)*
-
-Scenario Runner app can be used to validate SBE and test performance of smart-contracts.
-
-### 1. Build & Deploy smart-contracts
-
-Set environment variable:
-```
-export DEPLOY_PRIVATE_KEY="0x(put private key here...)"
-```
-
-Build smart-contract:
-```
-./scripts/check.sh devil
-```
-
-Deploy smart-contract:
-```
-./scripts/deploy.sh devil
-```
-
-### 2. Run Scenario Runner
-
-Set environment variable:
-```
-export AP_PRIVATE_KEY="0x(put private key here...)"
-```
-
-Run Scenario Runner:
-```
-cargo run -p scenarios --features debug -- --devil-address 0x85d9a8a4bd77b9b5559c1b7fcb8ec9635922ed49 --scenario scenario1
-```
-
-
-## Configuration & Environment Variables
-
-Rules of thumb:
-
-- Programs should accept command line parameters to configure things that change often, e.g. server bind address
-- Configuration should be stored in configuration system (e.g. json files or backend service)
-- Environment variables should be set by shell scripts living **outside** of project directory, and
-  should only be used for things that cannot be stored in proper configuration files, e.g. secrets
-
-Note that we **don't** use ~~`.env`~~ because:
-
-1. this encourages creating program configuration using environment variables as opposed to properly designed configuration system
-
-2. somone would commit their private key by mistake and we don't want that.
-
-
-
-## Development
-
-The development process is simple, but requires meticulous approach as the
-integration of the **off-chain** code with **on-chain** smart-contracts needed
-to setup workspace is this specific manner.
-
-
-### **Scripts:** Build, Test & Deploy Smart-Contracts
-
-There are scripts provided in `./scripts` directory to manage Stylus contracts.
-These scripts are necessary as we were unable to use Stylus with Cargo Workspace
-correctly. Using these scripts we can build both Stylus contracts and off-chain
-Access Point (AP) robot, which can share librares such as `deli` (Decentralised
-Utility Lib). We set-up `deli` in such a way that it builds with `no_std` for
-linking with Stylus smart-contracts, and with `std` otherwise. Sharing `deli`
-with off-chain code is critical to ensure that binary blob serialization is
-consistent between smart-contracts and off-chain code. We developed absolutely
-minimal serialisation, which supports only decimal and vector data types. We
-provded our own 128-bit decimal data type, as we have found that rust_decimal
-takes up more space in wasm. We tested bincode and serde both json and rmp, and
-they were bloating wasm size way beyond 24kB limit. To keep wasm size tiny we
-implemented minimalistic `delib` utility library. We use binary blobs containing
-vectors of decimals as inspired by such libraries as OpenGL or OpenAL. With this
-approach we keep structure of blobs simple, and we minimise the amount of code
-required to handle blobs. Any array data would be passed as such blobs storing
-vectors of decimals as a default mechanism.
-
-### Setup Steps
-
-**NOTE** For best results it is best to follow these steps in this concrete sequence, as otherwise things may not work!
-
-**IMPORTANT** DO NOT USE ~~`cargo update`~~ as this will definitely break tests.
-
-#### 1. Run Tests
-
-Build & run tests by using standard:
-```
-cargo test
-```
-
-Alternatively build tests for specific contract with debug logging:
-```
-./scripts/test-debug.sh CONTRACT_NAME [TEST_NAME]
-```
-
-Example:
-```
-./scripts/test-debug.sh devil test::test_scenarios::test_buy_index
-```
-
-#### 2. Launch Arbitrum Nitro Node
-
-Firt clone Nitro Development Node repository:
-```bash
-git clone https://github.com/OffchainLabs/nitro-devnode.git
-```
-
-And then launch:
-```bash
-./run-dev-node.sh
-```
-
-#### 3. Build Contracts
-
-Build each contract by using scripts provided:
-```
-./scripts/check.sh CONTRACT_NAME
-```
-
-Example:
-```
-./scripts/check.sh devil
-```
-
-#### 5. Deploy Contracts
-
-Deploy contracts each contract by using scripts provided:
-```
-./scripts/deploy.sh CONTRACT_NAME
-```
-
-Example:
-```
-./scripts/deploy.sh devil
-```
-
-#### 6. Export Contracts ABI
-
-Export contracts ABI each contract by using scripts provided:
-```
-./scripts/export-abi.sh CONTRACT_NAME
-```
-
-Example:
-```
-./scripts/export-abi.sh devil
-```
+Read [more here](/libs/abacus-runtime/README.md) to learn about *Vector Intermediate Language Virtual Machine (VIL VM)*.

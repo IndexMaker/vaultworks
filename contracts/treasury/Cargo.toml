@@ -7,14 +7,14 @@ description = "IndexMaker Treasury (Stores coin of the Kingdom: Gas token, and E
 [dependencies]
 alloy-primitives = { workspace = true }
 alloy-sol-types = { workspace = true }
-deli = { workspace = true, features = ["stylus"] }
+common = { workspace = true, features = ["stylus"] }
 openzeppelin-stylus = { workspace = true }
 openzeppelin-stylus-proc = { workspace = true }
 stylus-sdk = { workspace = true }
 
 [dev-dependencies]
 alloy-primitives = { workspace = true, features = ["sha3-keccak"] }
-deli = { workspace = true, features = ["stylus"] }
+common = { workspace = true, features = ["stylus"] }
 dotenv = { workspace = true }
 ethers = { workspace = true }
 eyre = { workspace = true }
@@ -23,8 +23,8 @@ tokio = { workspace = true, features = ["full"] }
 
 [features]
 default = ["mini-alloc"]
-export-abi = ["stylus-sdk/export-abi", "openzeppelin-stylus/export-abi", "deli/export-abi"]
-test-debug = ["stylus-sdk/debug", "deli/debug", "deli/stylus-test"]
+export-abi = ["stylus-sdk/export-abi", "openzeppelin-stylus/export-abi", "common/export-abi"]
+test-debug = ["stylus-sdk/debug", "common/debug", "common/stylus-test"]
 mini-alloc = ["stylus-sdk/mini-alloc"]
 
 [[bin]]

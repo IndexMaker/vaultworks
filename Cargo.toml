@@ -2,29 +2,30 @@
 resolver = "2"
 members = [
     # Stylus Contract Packages
+    "contracts/abacus",
     "contracts/banker",
     "contracts/castle",
     "contracts/clerk",
     "contracts/constable",
     "contracts/factor",
     "contracts/gate",
-    "contracts/granary",
     "contracts/guildmaster",
     "contracts/scribe",
     "contracts/treasury",
     "contracts/worksman",
 
     # Library Packages
-    "libs/decon",
-    "libs/deli",
-    "libs/icore",
+    "libs/abacus-formulas",
+    "libs/abacus-runtime",
+    "libs/common",
+    "libs/common-ethers",
 
     # Native Application Package
+    "apps/abacus-docs",
     "apps/scenarios",
-    "apps/document_vis",
 
+    "proc-macros/abacus-macros",
     "proc-macros/amount-macros",
-    "proc-macros/devil-macros",
     "proc-macros/labels-macros",
     "proc-macros/vector-macros",
 ]
@@ -43,22 +44,23 @@ alloy = { version = "=0.7.3", features = [
 alloy-primitives = { version = "=0.8.20", default-features = false, features = [
     "tiny-keccak",
 ] }
-alloy-sol-types = "=0.8.20"
+abacus-formulas = { path = "./libs/abacus-formulas" }
+abacus-macros = { path = "./proc-macros/abacus-macros" }
+abacus-runtime = { path = "./libs/abacus-runtime" }
 alloy-sol-macro = { version = "=0.8.20", default-features = false }
 alloy-sol-macro-expander = { version = "=0.8.20", default-features = false }
 alloy-sol-macro-input = { version = "=0.8.20", default-features = false }
+alloy-sol-types = "=0.8.20"
 amount-macros = { path = "./proc-macros/amount-macros" }
 chrono = "0.4.42"
 clap = "4.5"
-decon = { path = "libs/decon" }
-deli = { path = "libs/deli" }
-devil-macros = { path = "./proc-macros/devil-macros" }
+common = { path = "libs/common" }
+common-ethers = { path = "libs/common-ethers" }
 dotenv = "0.15.0"
 ethers = "2.0"
 eyre = "0.6.8"
 futures = "0.3"
 hex = { version = "0.4", default-features = false }
-icore = { path = "libs/icore" }
 itertools = { version = "0.14" }
 labels-macros = { path = "./proc-macros/labels-macros" }
 openzeppelin-stylus = { version = "0.3.0" }

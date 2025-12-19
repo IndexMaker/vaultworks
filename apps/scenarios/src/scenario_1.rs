@@ -1,13 +1,13 @@
 use amount_macros::amount;
-use deli::{log_msg, vector::Vector};
-use devil_macros::devil;
+use common::{log_msg, vector::Vector};
+use abacus_macros::abacus;
 use ethers::types::Address;
 
-use decon::{contracts::Granary, tx_sender::TxClient};
+use common_ethers::{contracts::Clerk, tx_sender::TxClient};
 
-pub async fn run_scenario(client: &TxClient, devil_address: Address) -> eyre::Result<()> {
+pub async fn run_scenario(client: &TxClient, abacus_address: Address) -> eyre::Result<()> {
     log_msg!("Scenario 1.");
-    let granary = Granary::new(devil_address, client.client());
+    let clerk = Clerk::new(abacus_address, client.client());
 
     let asset_prices_id = 101;
     let asset_slopes_id = 102;
@@ -21,16 +21,16 @@ pub async fn run_scenario(client: &TxClient, devil_address: Address) -> eyre::Re
 
     client
         .begin_tx()
-        .add(granary.store(asset_prices_id, asset_prices.to_vec()))
-        .add(granary.store(asset_slopes_id, asset_slopes.to_vec()))
-        .add(granary.store(asset_weights_id, asset_weights.to_vec()))
+        .add(clerk.store(asset_prices_id, asset_prices.to_vec()))
+        .add(clerk.store(asset_slopes_id, asset_slopes.to_vec()))
+        .add(clerk.store(asset_weights_id, asset_weights.to_vec()))
         .send()
         .await?;
 
     client
         .begin_tx()
-        .add(granary.execute(
-            devil![
+        .add(clerk.execute(
+            abacus![
                 LDV asset_weights_id
                 LDV asset_prices_id
                 MUL 1
@@ -51,7 +51,7 @@ pub async fn run_scenario(client: &TxClient, devil_address: Address) -> eyre::Re
     log_msg!("Getting index quote...");
 
     let _index_quote = Vector::from_vec(
-        granary
+        clerk
             .load(index_quote_id)
             .call()
             .await

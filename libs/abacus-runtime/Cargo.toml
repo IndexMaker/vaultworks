@@ -1,0 +1,28 @@
+[package]
+name = "abacus-runtime"
+version = "0.1.0"
+edition = "2021"
+description = "IndexMaker Abacus Runtime: Vector Intermediate Language Virtual Machine (VIL VM)"
+
+[lib]
+crate-type = ["lib"]
+
+[dependencies]
+stylus-sdk = { workspace = true, optional = true }
+common = { workspace = true, features = ["stylus", "amount-sqrt"] }
+
+[dev-dependencies]
+stylus-sdk = { workspace = true, features = ["stylus-test"] }
+common = { workspace = true, features = ["stylus-test"] }
+amount-macros = { workspace = true }
+abacus-macros = { workspace = true }
+labels-macros = { workspace = true }
+vector-macros = { workspace = true }
+abacus-formulas = { workspace = true }
+
+[features]
+default = []
+debug = []
+stylus = ["stylus-sdk"]
+stylus-test = ["stylus", "debug"]
+test-debug = ["debug", "stylus-sdk/debug", "common/debug", "common/stylus-test"]

@@ -1,0 +1,30 @@
+[package]
+name = "common"
+version = "0.1.0"
+edition = "2021"
+description = "IndexMaker Common Library"
+
+[dependencies]
+alloy-primitives = { workspace = true }
+alloy-sol-types = { workspace = true }
+ethers = { workspace = true, optional = true }
+stylus-sdk = { workspace = true, optional = true }
+
+[dev-dependencies]
+alloy-primitives = { workspace = true, features = ["sha3-keccak"] }
+stylus-sdk = { workspace = true, features = ["stylus-test"] }
+
+[features]
+default = ["vec-u8"]
+debug = []
+vec-u128 = []
+vec-u8 = []
+amount-sqrt = []
+stylus = ["stylus-sdk"]
+stylus-test = ["stylus", "debug"]
+reentrant = ["stylus-sdk/reentrant"]
+export-abi = ["stylus-sdk/export-abi"]
+with-ethers = ["ethers"]
+
+[lib]
+crate-type = ["lib", "cdylib"]

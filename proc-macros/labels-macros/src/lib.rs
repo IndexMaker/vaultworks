@@ -32,7 +32,7 @@ pub fn label_vec(input: TokenStream) -> TokenStream {
         .map(|expr| {
             // Generate the token stream: label!(expr)
             quote! {
-                deli::label!(#expr)
+                common::label!(#expr)
             }
         })
         .collect();

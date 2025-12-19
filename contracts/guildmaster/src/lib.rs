@@ -8,7 +8,7 @@ extern crate alloc;
 use alloc::vec::Vec;
 
 use alloy_primitives::U128;
-use deli::contracts::{keep::Keep, keep_calls::KeepCalls};
+use common::contracts::{keep::Keep, keep_calls::KeepCalls};
 use stylus_sdk::prelude::*;
 
 #[storage]
@@ -35,12 +35,12 @@ impl Guildmaster {
             return Err(b"Vault already exists".into());
         }
 
-        let gate_to_granary = storage.granary.get_granary_address();
-        let asset_names_id = storage.granary.next_vector();
-        let asset_weights_id = storage.granary.next_vector();
+        let gate_to_clerk = storage.clerk.get_clerk_address();
+        let asset_names_id = storage.clerk.next_vector();
+        let asset_weights_id = storage.clerk.next_vector();
 
-        self.submit_vector_bytes(gate_to_granary, asset_names_id.to(), asset_names)?;
-        self.submit_vector_bytes(gate_to_granary, asset_weights_id.to(), asset_weights)?;
+        self.submit_vector_bytes(gate_to_clerk, asset_names_id.to(), asset_names)?;
+        self.submit_vector_bytes(gate_to_clerk, asset_weights_id.to(), asset_weights)?;
 
         vault.assets.set(asset_names_id);
         vault.weights.set(asset_weights_id);

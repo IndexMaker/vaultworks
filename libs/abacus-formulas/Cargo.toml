@@ -1,0 +1,21 @@
+[package]
+name = "abacus-formulas"
+version = "0.1.0"
+edition = "2021"
+description = "Index Core Library"
+
+[lib]
+crate-type = ["lib"]
+
+[dependencies]
+common = { workspace = true }
+amount-macros = { workspace = true }
+abacus-macros = { workspace = true }
+labels-macros = { workspace = true }
+vector-macros = { workspace = true }
+
+[features]
+debug = ["common/debug"]
+stylus = ["common/stylus"]
+reentrant = ["common/reentrant"]
+stylus-test = ["stylus", "common/stylus-test", "debug"]

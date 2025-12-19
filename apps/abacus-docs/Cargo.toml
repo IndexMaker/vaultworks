@@ -1,0 +1,11 @@
+[package]
+name = "abacus-docs"
+version = "0.1.0"
+edition = "2021"
+description = "Document Abacus: Vector Instruction Set (VIS)"
+
+[dependencies]
+clap = { workspace = true, features = ["derive"] }
+eyre = { workspace = true }
+itertools = { workspace = true }
+regex = { workspace = true }
