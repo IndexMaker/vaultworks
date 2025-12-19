@@ -10,17 +10,17 @@ alloy-sol-types = { workspace = true }
 # alloy-provider = { workspace = true, features = ["hyper"]}
 # alloy-network = { workspace = true }
 # alloy-signer-local = { workspace = true }
-decon = { workspace = true }
+common-ethers = { workspace = true }
 clap = { workspace = true, features = ["derive"] }
 chrono = { workspace = true }
-deli = { workspace = true, features = [
+common = { workspace = true, features = [
     "with-ethers",
     "vec-u128",
 ], default-features = false }
 eyre = { workspace = true }
 ethers = { workspace = true }
 futures = { workspace = true }
-icore = { workspace = true }
+abacus-formulas = { workspace = true }
 itertools = { workspace = true }
 reqwest = { workspace = true }
 tokio = { workspace = true, features = ["full"] }
@@ -32,4 +32,4 @@ vector-macros = { workspace = true }
 
 [features]
 default = ["debug"]
-debug = ["deli/debug", "decon/debug", "icore/debug"]
+debug = ["common/debug", "common-ethers/debug", "abacus-formulas/debug"]

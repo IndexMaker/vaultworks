@@ -8,12 +8,15 @@ extern crate alloc;
 use alloc::vec::Vec;
 
 use alloy_primitives::{Address, U128};
-use deli::{contracts::clerk::ClerkStorage, labels::Labels, vector::Vector};
+use common::{
+    abacus::program_error::ErrorCode, contracts::clerk::ClerkStorage, labels::Labels,
+    vector::Vector,
+};
 use stylus_sdk::prelude::*;
 
-use crate::program::{ErrorCode, Program, VectorIO};
+use crate::runtime::{VectorVM, VectorIO};
 
-pub mod program;
+pub mod runtime;
 
 #[cfg(test)]
 pub mod test;
@@ -72,7 +75,7 @@ impl Abacus {
         let mut storage = ClerkStorage::storage();
         storage.only_owner(self._attendee())?;
 
-        let mut program = Program::new(&mut storage);
+        let mut program = VectorVM::new(&mut storage);
         program
             .execute(code, num_registry as usize)
             .map_err(|err| format!("Program error: {:?}", err))?;

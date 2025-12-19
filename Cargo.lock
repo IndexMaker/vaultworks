@@ -16,19 +16,40 @@ dependencies = [
 name = "abacus"
 version = "0.1.0"
 dependencies = [
+ "abacus-formulas",
  "abacus-macros",
  "alloy-primitives",
  "alloy-sol-types",
  "amount-macros",
- "deli",
+ "common",
  "dotenv",
  "ethers",
  "eyre",
  "hex",
- "icore",
  "labels-macros",
  "stylus-sdk",
  "tokio",
+ "vector-macros",
+]
+
+[[package]]
+name = "abacus-docs"
+version = "0.1.0"
+dependencies = [
+ "clap",
+ "eyre",
+ "itertools 0.14.0",
+ "regex",
+]
+
+[[package]]
+name = "abacus-formulas"
+version = "0.1.0"
+dependencies = [
+ "abacus-macros",
+ "amount-macros",
+ "common",
+ "labels-macros",
  "vector-macros",
 ]
 
@@ -820,16 +841,16 @@ dependencies = [
 name = "banker"
 version = "0.1.0"
 dependencies = [
+ "abacus-formulas",
  "abacus-macros",
  "alloy-primitives",
  "alloy-sol-types",
  "amount-macros",
- "deli",
+ "common",
  "dotenv",
  "ethers",
  "eyre",
  "hex",
- "icore",
  "labels-macros",
  "stylus-sdk",
  "tokio",
@@ -1064,16 +1085,16 @@ dependencies = [
 name = "castle"
 version = "0.1.0"
 dependencies = [
+ "abacus-formulas",
  "abacus-macros",
  "alloy-primitives",
  "alloy-sol-types",
  "amount-macros",
- "deli",
+ "common",
  "dotenv",
  "ethers",
  "eyre",
  "hex",
- "icore",
  "labels-macros",
  "stylus-sdk",
  "tokio",
@@ -1164,16 +1185,16 @@ checksum = "f46ad14479a25103f283c0f10005961cf086d8dc42205bb44c46ac563475dca6"
 name = "clerk"
 version = "0.1.0"
 dependencies = [
+ "abacus-formulas",
  "abacus-macros",
  "alloy-primitives",
  "alloy-sol-types",
  "amount-macros",
- "deli",
+ "common",
  "dotenv",
  "ethers",
  "eyre",
  "hex",
- "icore",
  "labels-macros",
  "stylus-sdk",
  "tokio",
@@ -1239,6 +1260,37 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "5b63caa9aa9397e2d9480a9b13673856c78d8ac123288526c37d7839f2a86990"
 
 [[package]]
+name = "common"
+version = "0.1.0"
+dependencies = [
+ "alloy-primitives",
+ "alloy-sol-types",
+ "ethers",
+ "stylus-sdk",
+]
+
+[[package]]
+name = "common-ethers"
+version = "0.1.0"
+dependencies = [
+ "abacus-macros",
+ "alloy-primitives",
+ "alloy-sol-types",
+ "amount-macros",
+ "chrono",
+ "clap",
+ "common",
+ "ethers",
+ "eyre",
+ "futures",
+ "itertools 0.14.0",
+ "labels-macros",
+ "reqwest 0.12.15",
+ "tokio",
+ "vector-macros",
+]
+
+[[package]]
 name = "const-hex"
 version = "1.14.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1283,7 +1335,7 @@ version = "0.1.0"
 dependencies = [
  "alloy-primitives",
  "alloy-sol-types",
- "deli",
+ "common",
  "dotenv",
  "ethers",
  "eyre",
@@ -1439,37 +1491,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "2a2330da5de22e8a3cb63252ce2abb30116bf5265e89c0e01bc17015ce30a476"
 
 [[package]]
-name = "decon"
-version = "0.1.0"
-dependencies = [
- "abacus-macros",
- "alloy-primitives",
- "alloy-sol-types",
- "amount-macros",
- "chrono",
- "clap",
- "deli",
- "ethers",
- "eyre",
- "futures",
- "itertools 0.14.0",
- "labels-macros",
- "reqwest 0.12.15",
- "tokio",
- "vector-macros",
-]
-
-[[package]]
-name = "deli"
-version = "0.1.0"
-dependencies = [
- "alloy-primitives",
- "alloy-sol-types",
- "ethers",
- "stylus-sdk",
-]
-
-[[package]]
 name = "der"
 version = "0.7.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1592,16 +1613,6 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn 2.0.110",
-]
-
-[[package]]
-name = "document_vis"
-version = "0.1.0"
-dependencies = [
- "clap",
- "eyre",
- "itertools 0.14.0",
- "regex",
 ]
 
 [[package]]
@@ -2045,16 +2056,16 @@ dependencies = [
 name = "factor"
 version = "0.1.0"
 dependencies = [
+ "abacus-formulas",
  "abacus-macros",
  "alloy-primitives",
  "alloy-sol-types",
  "amount-macros",
- "deli",
+ "common",
  "dotenv",
  "ethers",
  "eyre",
  "hex",
- "icore",
  "labels-macros",
  "stylus-sdk",
  "tokio",
@@ -2307,16 +2318,16 @@ dependencies = [
 name = "gate"
 version = "0.1.0"
 dependencies = [
+ "abacus-formulas",
  "abacus-macros",
  "alloy-primitives",
  "alloy-sol-types",
  "amount-macros",
- "deli",
+ "common",
  "dotenv",
  "ethers",
  "eyre",
  "hex",
- "icore",
  "labels-macros",
  "openzeppelin-stylus",
  "openzeppelin-stylus-proc",
@@ -2398,16 +2409,16 @@ dependencies = [
 name = "guildmaster"
 version = "0.1.0"
 dependencies = [
+ "abacus-formulas",
  "abacus-macros",
  "alloy-primitives",
  "alloy-sol-types",
  "amount-macros",
- "deli",
+ "common",
  "dotenv",
  "ethers",
  "eyre",
  "hex",
- "icore",
  "labels-macros",
  "stylus-sdk",
  "tokio",
@@ -2682,17 +2693,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f31827a206f56af32e590ba56d5d2d085f558508192593743f16b2306495269f"
 dependencies = [
  "cc",
-]
-
-[[package]]
-name = "icore"
-version = "0.1.0"
-dependencies = [
- "abacus-macros",
- "amount-macros",
- "deli",
- "labels-macros",
- "vector-macros",
 ]
 
 [[package]]
@@ -4277,18 +4277,18 @@ dependencies = [
 name = "scenarios"
 version = "0.1.0"
 dependencies = [
+ "abacus-formulas",
  "abacus-macros",
  "alloy-primitives",
  "alloy-sol-types",
  "amount-macros",
  "chrono",
  "clap",
- "decon",
- "deli",
+ "common",
+ "common-ethers",
  "ethers",
  "eyre",
  "futures",
- "icore",
  "itertools 0.14.0",
  "labels-macros",
  "reqwest 0.12.15",
@@ -4318,7 +4318,7 @@ version = "0.1.0"
 dependencies = [
  "alloy-primitives",
  "alloy-sol-types",
- "deli",
+ "common",
  "dotenv",
  "ethers",
  "eyre",
@@ -5249,7 +5249,7 @@ version = "0.1.0"
 dependencies = [
  "alloy-primitives",
  "alloy-sol-types",
- "deli",
+ "common",
  "dotenv",
  "ethers",
  "eyre",
@@ -5941,7 +5941,7 @@ version = "0.1.0"
 dependencies = [
  "alloy-primitives",
  "alloy-sol-types",
- "deli",
+ "common",
  "dotenv",
  "ethers",
  "eyre",

@@ -1,58 +1,14 @@
 use core::mem::swap;
 
-//#[cfg(test)]
-use core::fmt::Debug;
-
 use alloc::vec::Vec;
-use deli::{amount::Amount, labels::Labels, log_msg, uint::read_u128, vector::Vector, vis::*};
-
-pub enum ErrorCode {
-    StackUnderflow,
-    StackOverflow,
-    InvalidInstruction,
-    InvalidOperand,
-    NotFound,
-    OutOfRange,
-    NotAligned,
-    MathUnderflow,
-    MathOverflow,
-    SubroutineError(alloc::boxed::Box<ProgramError>),
-}
-
-pub struct ProgramError {
-    pub error_code: ErrorCode,
-    pub program_counter: usize,
-    pub stack_depth: usize,
-}
-
-//#[cfg(test)]
-impl Debug for ErrorCode {
-    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-        match self {
-            Self::StackUnderflow => write!(f, "StackUnderflow"),
-            Self::StackOverflow => write!(f, "StackOverflow"),
-            Self::InvalidInstruction => write!(f, "InvalidInstruction"),
-            Self::InvalidOperand => write!(f, "InvalidOperand"),
-            Self::NotFound => write!(f, "NotFound"),
-            Self::OutOfRange => write!(f, "OutOfRange"),
-            Self::NotAligned => write!(f, "NotAligned"),
-            Self::MathUnderflow => write!(f, "MathUnderflow"),
-            Self::MathOverflow => write!(f, "MathOverflow"),
-            Self::SubroutineError(inner) => write!(f, "SubroutineError({:?})", *inner),
-        }
-    }
-}
-
-//#[cfg(test)]
-impl Debug for ProgramError {
-    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-        f.debug_struct("ProgramError")
-            .field("error_code", &self.error_code)
-            .field("program_counter", &self.program_counter)
-            .field("stack_depth", &self.stack_depth)
-            .finish()
-    }
-}
+use common::{
+    abacus::{instruction_set::*, program_error::*},
+    amount::Amount,
+    labels::Labels,
+    log_msg,
+    uint::read_u128,
+    vector::Vector,
+};
 
 pub trait VectorIO {
     fn load_labels(&self, id: u128) -> Result<Labels, ErrorCode>;
@@ -63,7 +19,7 @@ pub trait VectorIO {
     fn store_vector(&mut self, id: u128, input: Vector) -> Result<(), ErrorCode>;
 }
 
-pub struct Program<'vio, VIO>
+pub struct VectorVM<'vio, VIO>
 where
     VIO: VectorIO,
 {
@@ -900,7 +856,7 @@ macro_rules! log_stack {
 #[macro_export]
 macro_rules! log_stack {
     ($arg:expr) => {
-        $crate::program::log_stack_fun($arg);
+        $crate::runtime::log_stack_fun($arg);
     };
 }
 
@@ -920,7 +876,7 @@ macro_rules! op_code_str {
     };
 }
 
-impl<'vio, VIO> Program<'vio, VIO>
+impl<'vio, VIO> VectorVM<'vio, VIO>
 where
     VIO: VectorIO,
 {
@@ -1161,7 +1117,7 @@ where
                         let num_regs = code[pc] as usize;
                         pc += 1;
                         let mut st = Stack::new(num_regs);
-                        let mut prg = Program::new(self.vio);
+                        let mut prg = VectorVM::new(self.vio);
                         let cod = prg.vio.load_code(code_address)?;
                         let frm = stack
                             .stack
@@ -1194,7 +1150,7 @@ where
                         let num_regs = code[pc] as usize;
                         pc += 1;
                         let mut st = Stack::new(num_regs);
-                        let mut prg = Program::new(self.vio);
+                        let mut prg = VectorVM::new(self.vio);
                         let cod = prg.vio.load_code(code_address)?;
                         let source = stack.stack.pop().ok_or_else(|| ErrorCode::StackUnderflow)?;
                         let frm = stack

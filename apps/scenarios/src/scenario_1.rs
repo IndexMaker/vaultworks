@@ -1,9 +1,9 @@
 use amount_macros::amount;
-use deli::{log_msg, vector::Vector};
+use common::{log_msg, vector::Vector};
 use abacus_macros::abacus;
 use ethers::types::Address;
 
-use decon::{contracts::Clerk, tx_sender::TxClient};
+use common_ethers::{contracts::Clerk, tx_sender::TxClient};
 
 pub async fn run_scenario(client: &TxClient, abacus_address: Address) -> eyre::Result<()> {
     log_msg!("Scenario 1.");

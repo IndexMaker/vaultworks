@@ -1,8 +1,8 @@
 use clap::Parser;
-use deli::log_msg;
+use common::log_msg;
 use ethers::types::Address;
 
-use decon::tx_sender::TxClient;
+use common_ethers::tx_sender::TxClient;
 use eyre::{eyre, OptionExt};
 
 mod scenario_1;

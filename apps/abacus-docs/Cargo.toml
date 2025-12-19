@@ -1,8 +1,8 @@
 [package]
-name = "document_vis"
+name = "abacus-docs"
 version = "0.1.0"
 edition = "2021"
-description = "Document Vector Instruction Set (VIS)"
+description = "Document Abacus: Vector Instruction Set (VIS)"
 
 [dependencies]
 clap = { workspace = true, features = ["derive"] }

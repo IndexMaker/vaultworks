@@ -232,7 +232,7 @@ pub fn abacus(input: TokenStream) -> TokenStream {
 
         // Convert Opcode to a single u8 byte and into a vector of length 1.
         final_tokens.extend(quote! {
-            bytecode.push(deli::vis::#op_code_ident);
+            bytecode.push(common::abacus::instruction_set::#op_code_ident);
         });
 
         // 2. Generate Arguments (size dependent on ArgType)
@@ -274,7 +274,7 @@ pub fn abacus(input: TokenStream) -> TokenStream {
                 ArgType::StorageId | ArgType::Amount | ArgType::Label => {
                     // u128 types: Storage ID, Immediate Amount, Label ID
                     quote! {
-                        deli::uint::write_u128(#arg_value, &mut bytecode);
+                        common::uint::write_u128(#arg_value, &mut bytecode);
                     }
                 }
             };

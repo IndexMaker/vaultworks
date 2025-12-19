@@ -9,7 +9,7 @@ alloy-primitives = { workspace = true }
 alloy-sol-types = { workspace = true }
 stylus-sdk = { workspace = true }
 hex = { workspace = true }
-deli = { workspace = true, features = ["stylus", "amount-sqrt"] }
+common = { workspace = true, features = ["stylus", "amount-sqrt"] }
 
 [dev-dependencies]
 alloy-primitives = { workspace = true, features = ["sha3-keccak"] }
@@ -18,17 +18,17 @@ ethers = { workspace = true }
 eyre = { workspace = true }
 stylus-sdk = { workspace = true, features = ["stylus-test"] }
 dotenv = { workspace = true }
-deli = { workspace = true, features = ["stylus"] }
+common = { workspace = true, features = ["stylus"] }
 amount-macros = { workspace = true }
 abacus-macros = { workspace = true }
 labels-macros = { workspace = true }
 vector-macros = { workspace = true }
-icore = { workspace = true }
+abacus-formulas = { workspace = true }
 
 [features]
 default = ["mini-alloc"]
-export-abi = ["stylus-sdk/export-abi", "deli/export-abi"]
-test-debug = ["stylus-sdk/debug", "deli/debug", "deli/stylus-test"]
+export-abi = ["stylus-sdk/export-abi", "common/export-abi"]
+test-debug = ["stylus-sdk/debug", "common/debug", "common/stylus-test"]
 mini-alloc = ["stylus-sdk/mini-alloc"]
 
 [[bin]]

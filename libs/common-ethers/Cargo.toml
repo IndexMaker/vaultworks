@@ -1,5 +1,5 @@
 [package]
-name = "decon"
+name = "common-ethers"
 version = "0.1.0"
 edition = "2021"
 description = "Decentralised Connection Library"
@@ -15,7 +15,7 @@ alloy-sol-types = { workspace = true }
 # alloy-signer-local = { workspace = true }
 clap = { workspace = true, features = ["derive"] }
 chrono = { workspace = true }
-deli = { workspace = true, features = [
+common = { workspace = true, features = [
     "with-ethers", "vec-u128",
 ], default-features = false }
 eyre = { workspace = true }
@@ -30,4 +30,4 @@ labels-macros = { workspace = true }
 vector-macros = { workspace = true }
 
 [features]
-debug = ["deli/debug"]
+debug = ["common/debug"]

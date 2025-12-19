@@ -15,13 +15,13 @@ members = [
     "contracts/worksman",
 
     # Library Packages
-    "libs/decon",
-    "libs/deli",
-    "libs/icore",
+    "libs/common-ethers",
+    "libs/common",
+    "libs/abacus-formulas",
 
     # Native Application Package
     "apps/scenarios",
-    "apps/document_vis",
+    "apps/abacus-docs",
 
     "proc-macros/amount-macros",
     "proc-macros/abacus-macros",
@@ -50,15 +50,15 @@ alloy-sol-macro-input = { version = "=0.8.20", default-features = false }
 amount-macros = { path = "./proc-macros/amount-macros" }
 chrono = "0.4.42"
 clap = "4.5"
-decon = { path = "libs/decon" }
-deli = { path = "libs/deli" }
+common-ethers = { path = "libs/common-ethers" }
+common = { path = "libs/common" }
 abacus-macros = { path = "./proc-macros/abacus-macros" }
 dotenv = "0.15.0"
 ethers = "2.0"
 eyre = "0.6.8"
 futures = "0.3"
 hex = { version = "0.4", default-features = false }
-icore = { path = "libs/icore" }
+abacus-formulas = { path = "libs/abacus-formulas" }
 itertools = { version = "0.14" }
 labels-macros = { path = "./proc-macros/labels-macros" }
 openzeppelin-stylus = { version = "0.3.0" }

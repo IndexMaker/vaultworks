@@ -1,11 +1,13 @@
+use abacus_formulas::{
+    execute_buy_order::execute_buy_order, solve_quadratic::solve_quadratic,
+};
 use amount_macros::amount;
-use deli::{labels::Labels, log_msg, vector::Vector};
+use common::{labels::Labels, log_msg, vector::Vector};
 use ethers::types::Address;
-use icore::vil::{execute_buy_order::execute_buy_order, solve_quadratic::solve_quadratic};
 use itertools::{chain, Itertools};
 use vector_macros::amount_vec;
 
-use decon::{contracts::Clerk, tx_sender::TxClient};
+use common_ethers::{contracts::Clerk, tx_sender::TxClient};
 
 pub async fn run_scenario(client: &TxClient, abacus_address: Address) -> eyre::Result<()> {
     log_msg!("Scenario 2.");
@@ -120,10 +122,8 @@ pub async fn run_scenario(client: &TxClient, abacus_address: Address) -> eyre::R
     let order_after = Vector::from_vec(clerk.load(index_order_id).call().await?);
     let quote = Vector::from_vec(clerk.load(quote_id).call().await?);
     let weigths = Vector::from_vec(clerk.load(weights_id).call().await?);
-    let index_quantites =
-        Vector::from_vec(clerk.load(executed_index_quantities_id).call().await?);
-    let asset_quantites =
-        Vector::from_vec(clerk.load(executed_asset_quantities_id).call().await?);
+    let index_quantites = Vector::from_vec(clerk.load(executed_index_quantities_id).call().await?);
+    let asset_quantites = Vector::from_vec(clerk.load(executed_asset_quantities_id).call().await?);
     let demand_short = Vector::from_vec(clerk.load(demand_short_id).call().await?);
     let demand_long = Vector::from_vec(clerk.load(demand_long_id).call().await?);
     let delta_short = Vector::from_vec(clerk.load(delta_short_id).call().await?);

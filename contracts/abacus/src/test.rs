@@ -1,16 +1,18 @@
 use std::collections::HashMap;
 
-use deli::{labels::Labels, log_msg, vector::Vector};
+use abacus_formulas::execute_buy_order::execute_buy_order;
+use abacus_formulas::solve_quadratic::solve_quadratic;
 use abacus_macros::abacus;
-use icore::vil::execute_buy_order::execute_buy_order;
-use icore::vil::solve_quadratic::solve_quadratic;
+use common::{labels::Labels, log_msg, vector::Vector};
 use labels_macros::label_vec;
 use vector_macros::amount_vec;
 
 use crate::log_stack;
-use crate::program::*; // Use glob import for tidiness
+use crate::runtime::*; // Use glob import for tidiness
 
 mod test_utils {
+    use common::abacus::program_error::*;
+
     use super::*;
 
     pub(super) struct TestVectorIO {
@@ -81,13 +83,13 @@ mod test_utils {
     }
 
     pub(super) struct TestProgram<'a> {
-        program: Program<'a, TestVectorIO>,
+        program: VectorVM<'a, TestVectorIO>,
     }
 
     impl<'a> TestProgram<'a> {
         pub(super) fn new(vio: &'a mut TestVectorIO) -> Self {
             Self {
-                program: Program::new(vio),
+                program: VectorVM::new(vio),
             }
         }
 
@@ -157,7 +159,7 @@ mod unit_tests {
         ];
 
         let mut stack = Stack::new(num_registers);
-        let mut program = Program::new(&mut vio);
+        let mut program = VectorVM::new(&mut vio);
 
         if let Err(err) = program.execute_with_stack(code, &mut stack) {
             log_stack!(&stack);
@@ -172,10 +174,12 @@ mod unit_tests {
 }
 
 mod test_scenarios {
-    use amount_macros::amount;
-    use icore::vil::{
-        add_market_assets::add_market_assets, create_market::create_market, update_margin::update_margin, update_market_data::update_market_data, update_quote::update_quote, update_supply::update_supply
+    use abacus_formulas::{
+        add_market_assets::add_market_assets, create_market::create_market,
+        update_margin::update_margin, update_market_data::update_market_data,
+        update_quote::update_quote, update_supply::update_supply,
     };
+    use amount_macros::amount;
 
     use super::*;
 
@@ -294,7 +298,7 @@ mod test_scenarios {
 
         let num_registers = 16;
 
-        let mut program = Program::new(&mut vio);
+        let mut program = VectorVM::new(&mut vio);
         let mut stack = Stack::new(num_registers);
         let result = program.execute_with_stack(code, &mut stack);
 

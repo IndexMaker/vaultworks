@@ -1,12 +1,12 @@
-use deli::{labels::Labels, log_msg, vector::Vector};
+use common::{labels::Labels, log_msg, vector::Vector};
 use ethers::types::Address;
 
-use decon::{contracts::Clerk, tx_sender::TxClient};
-use icore::vil::{
+use abacus_formulas::{
     add_market_assets::add_market_assets, update_margin::update_margin,
     update_market_data::update_market_data, update_quote::update_quote,
     update_supply::update_supply,
 };
+use common_ethers::{contracts::Clerk, tx_sender::TxClient};
 use labels_macros::label_vec;
 use vector_macros::amount_vec;
 
@@ -232,8 +232,7 @@ pub async fn run_scenario(client: &TxClient, abacus_address: Address) -> eyre::R
         Vector::from_vec(clerk.load(market_asset_prices_id).call().await?);
     let new_market_asset_slopes =
         Vector::from_vec(clerk.load(market_asset_slopes_id).call().await?);
-    let new_market_asset_liquidity =
-        Vector::from_vec(clerk.load(asset_liquidity_id).call().await?);
+    let new_market_asset_liquidity = Vector::from_vec(clerk.load(asset_liquidity_id).call().await?);
     assert_eq!(
         new_market_asset_prices.data,
         amount_vec![

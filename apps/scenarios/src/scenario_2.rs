@@ -1,14 +1,13 @@
-use amount_macros::amount;
-use deli::{labels::Labels, log_msg, vector::Vector};
-use ethers::types::Address;
-use icore::vil::{
-    execute_buy_order::execute_buy_order,
-    solve_quadratic::solve_quadratic,
+use abacus_formulas::{
+    execute_buy_order::execute_buy_order, solve_quadratic::solve_quadratic,
 };
+use amount_macros::amount;
+use common::{labels::Labels, log_msg, vector::Vector};
+use ethers::types::Address;
 use labels_macros::label_vec;
 use vector_macros::amount_vec;
 
-use decon::{contracts::Clerk, tx_sender::TxClient};
+use common_ethers::{contracts::Clerk, tx_sender::TxClient};
 
 pub async fn run_scenario(client: &TxClient, abacus_address: Address) -> eyre::Result<()> {
     log_msg!("Scenario 2.");
@@ -39,7 +38,10 @@ pub async fn run_scenario(client: &TxClient, abacus_address: Address) -> eyre::R
         .begin_tx()
         .add(clerk.store(asset_names_id, label_vec![51, 53, 54].to_vec()))
         .add(clerk.store(weights_id, amount_vec![0.100, 1.000, 100.0].to_vec()))
-        .add(clerk.store(asset_contribution_fractions_id, amount_vec![1, 1, 1].to_vec()))
+        .add(clerk.store(
+            asset_contribution_fractions_id,
+            amount_vec![1, 1, 1].to_vec(),
+        ))
         .add(clerk.store(quote_id, amount_vec![10.00, 10_000, 100.0].to_vec()))
         .add(clerk.store(index_order_id, amount_vec![950.00, 0, 0].to_vec()))
         .add(clerk.store(
