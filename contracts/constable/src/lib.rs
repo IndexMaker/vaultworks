@@ -9,13 +9,13 @@ use alloc::vec::Vec;
 
 use alloy_primitives::{Address, B256};
 use alloy_sol_types::SolCall;
-use common::{
+use common::log_msg;
+use common_contracts::{
     contracts::{calls::InnerCall, castle::CASTLE_ADMIN_ROLE, keep::Keep},
     interfaces::{
         banker::IBanker, castle::ICastle, constable::IConstable, factor::IFactor,
         guildmaster::IGuildmaster, scribe::IScribe, worksman::IWorksman,
     },
-    log_msg,
 };
 use stylus_sdk::{keccak_const, prelude::*};
 
@@ -52,7 +52,7 @@ impl Constable {
                 IConstable::appointGuildmasterCall::SELECTOR.into(),
                 IConstable::appointScribeCall::SELECTOR.into(),
                 IConstable::appointWorksmanCall::SELECTOR.into(),
-                IConstable::appendClerkCall::SELECTOR.into(),
+                IConstable::appendClerkChamberCall::SELECTOR.into(),
             ],
             required_role: CASTLE_ADMIN_ROLE.into(),
         })?;
@@ -101,7 +101,7 @@ impl Constable {
             function_selectors: vec![
                 IFactor::updateIndexQuoteCall::SELECTOR.into(),
                 IFactor::updateMultipleIndexQuotesCall::SELECTOR.into(),
-                IFactor::submitBuyOrderCall::SELECTOR.into()
+                IFactor::submitBuyOrderCall::SELECTOR.into(),
             ],
             required_role: CASTLE_KEEPER_ROLE.into(),
         })?;
@@ -159,8 +159,8 @@ impl Constable {
         Ok(())
     }
 
-    pub fn append_clerk(&mut self, gate_to_clerk: Address) -> Result<(), Vec<u8>> {
-        log_msg!("Appending clerk {}", gate_to_clerk);
+    pub fn append_clerk_chamber(&mut self, gate_to_clerk_chamber: Address) -> Result<(), Vec<u8>> {
+        log_msg!("Appending clerk {}", gate_to_clerk_chamber);
         let mut storage = Keep::storage();
         if storage.constable.get().is_zero() {
             Err(b"Constable was not appointed")?;
@@ -168,7 +168,7 @@ impl Constable {
         if !storage.clerk.get_clerk_address().is_zero() {
             Err(b"Clerk already cast")?;
         }
-        storage.clerk.initialize(gate_to_clerk);
+        storage.clerk.initialize(gate_to_clerk_chamber);
         Ok(())
     }
 

@@ -7,10 +7,10 @@ description = "IndexMaker Treasury (Stores coin of the Kingdom: Gas token, and E
 [dependencies]
 alloy-primitives = { workspace = true }
 alloy-sol-types = { workspace = true }
-common = { workspace = true, features = ["stylus"] }
+common = { workspace = true, features = ["stylus", "reentrant"] }
 openzeppelin-stylus = { workspace = true }
 openzeppelin-stylus-proc = { workspace = true }
-stylus-sdk = { workspace = true }
+stylus-sdk = { workspace = true, features = ["reentrant"]}
 
 [dev-dependencies]
 alloy-primitives = { workspace = true, features = ["sha3-keccak"] }

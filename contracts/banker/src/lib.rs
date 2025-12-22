@@ -12,7 +12,7 @@ use abacus_formulas::{
     update_margin::update_margin, update_supply::update_supply,
 };
 use alloy_primitives::U128;
-use common::contracts::{
+use common_contracts::contracts::{
     keep::{Clerk, Keep},
     keep_calls::KeepCalls,
 };
@@ -42,7 +42,7 @@ impl Banker {
         market_asset_names: Vec<u8>,
     ) -> Result<(), Vec<u8>> {
         let mut storage = Keep::storage();
-        let gate_to_clerk = storage.clerk.get_clerk_address();
+        let gate_to_clerk_chamber = storage.clerk.get_clerk_address();
 
         let mut account = storage.accounts.setter(vendor_id);
         if account.has_owner() {
@@ -51,7 +51,7 @@ impl Banker {
             let new_market_asset_names_id = Clerk::SCRATCH_1;
 
             self.submit_vector_bytes(
-                gate_to_clerk,
+                gate_to_clerk_chamber,
                 new_market_asset_names_id.to(),
                 market_asset_names,
             )?;
@@ -78,14 +78,14 @@ impl Banker {
                 account.margin.get().to(),
             );
             let num_registry = 16;
-            self.execute_vector_program(gate_to_clerk, update, num_registry)?;
+            self.execute_vector_program(gate_to_clerk_chamber, update, num_registry)?;
         } else {
             account.set_owner(self.attendee())?;
 
             let new_market_asset_names_id = Clerk::SCRATCH_1;
 
             self.submit_vector_bytes(
-                gate_to_clerk,
+                gate_to_clerk_chamber,
                 new_market_asset_names_id.to(),
                 market_asset_names,
             )?;
@@ -118,7 +118,7 @@ impl Banker {
                 account.margin.get().to(),
             );
             let num_registry = 16;
-            self.execute_vector_program(gate_to_clerk, update, num_registry)?;
+            self.execute_vector_program(gate_to_clerk_chamber, update, num_registry)?;
         }
 
         Ok(())
@@ -144,13 +144,13 @@ impl Banker {
         let account = storage.accounts.setter(vendor_id);
         account.only_owner(self.attendee())?;
 
-        let gate_to_clerk = storage.clerk.get_clerk_address();
+        let gate_to_clerk_chamber = storage.clerk.get_clerk_address();
 
         let new_asset_names_id = Clerk::SCRATCH_1;
         let new_asset_margin_id = Clerk::SCRATCH_2;
 
-        self.submit_vector_bytes(gate_to_clerk, new_asset_names_id.to(), asset_names)?;
-        self.submit_vector_bytes(gate_to_clerk, new_asset_margin_id.to(), asset_margin)?;
+        self.submit_vector_bytes(gate_to_clerk_chamber, new_asset_names_id.to(), asset_names)?;
+        self.submit_vector_bytes(gate_to_clerk_chamber, new_asset_margin_id.to(), asset_margin)?;
 
         // Compile VIL program, which we will send to DeVIL for execution.
         //
@@ -164,7 +164,7 @@ impl Banker {
             account.margin.get().to(),
         );
         let num_registry = 16;
-        self.execute_vector_program(gate_to_clerk, update, num_registry)?;
+        self.execute_vector_program(gate_to_clerk_chamber, update, num_registry)?;
         Ok(())
     }
 
@@ -195,20 +195,20 @@ impl Banker {
         let account = storage.accounts.setter(vendor_id);
         account.only_owner(self.attendee())?;
 
-        let gate_to_clerk = storage.clerk.get_clerk_address();
+        let gate_to_clerk_chamber = storage.clerk.get_clerk_address();
 
         let new_asset_names_id = Clerk::SCRATCH_1;
         let new_asset_quantities_short_id = Clerk::SCRATCH_2;
         let new_asset_quantities_long_id = Clerk::SCRATCH_3;
 
-        self.submit_vector_bytes(gate_to_clerk, new_asset_names_id.to(), asset_names)?;
+        self.submit_vector_bytes(gate_to_clerk_chamber, new_asset_names_id.to(), asset_names)?;
         self.submit_vector_bytes(
-            gate_to_clerk,
+            gate_to_clerk_chamber,
             new_asset_quantities_short_id.to(),
             asset_quantities_short,
         )?;
         self.submit_vector_bytes(
-            gate_to_clerk,
+            gate_to_clerk_chamber,
             new_asset_quantities_long_id.to(),
             asset_quantities_long,
         )?;
@@ -232,7 +232,7 @@ impl Banker {
             account.delta_short.get().to(),
         );
         let num_registry = 16;
-        self.execute_vector_program(gate_to_clerk, update, num_registry)?;
+        self.execute_vector_program(gate_to_clerk_chamber, update, num_registry)?;
         Ok(())
     }
 }

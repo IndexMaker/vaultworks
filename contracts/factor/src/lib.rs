@@ -12,12 +12,10 @@ use abacus_formulas::{
     update_market_data::update_market_data, update_quote::update_quote,
 };
 use alloy_primitives::U128;
-use common::{
-    contracts::{
-        keep::{Clerk, Keep},
-        keep_calls::KeepCalls,
-    },
-    vector::Vector,
+use common::vector::Vector;
+use common_contracts::contracts::{
+    keep::{Clerk, Keep},
+    keep_calls::KeepCalls,
 };
 use stylus_sdk::prelude::*;
 use vector_macros::amount_vec;
@@ -57,17 +55,21 @@ impl Factor {
         let account = storage.accounts.setter(vendor_id);
         account.only_owner(self.attendee())?;
 
-        let gate_to_clerk = storage.clerk.get_clerk_address();
+        let gate_to_clerk_chamber = storage.clerk.get_clerk_address();
 
         let asset_names_id = Clerk::SCRATCH_1;
         let asset_liquidity_id = Clerk::SCRATCH_2;
         let asset_prices_id = Clerk::SCRATCH_3;
         let asset_slopes_id = Clerk::SCRATCH_4;
 
-        self.submit_vector_bytes(gate_to_clerk, asset_names_id.to(), asset_names)?;
-        self.submit_vector_bytes(gate_to_clerk, asset_liquidity_id.to(), asset_liquidity)?;
-        self.submit_vector_bytes(gate_to_clerk, asset_prices_id.to(), asset_prices)?;
-        self.submit_vector_bytes(gate_to_clerk, asset_slopes_id.to(), asset_slopes)?;
+        self.submit_vector_bytes(gate_to_clerk_chamber, asset_names_id.to(), asset_names)?;
+        self.submit_vector_bytes(
+            gate_to_clerk_chamber,
+            asset_liquidity_id.to(),
+            asset_liquidity,
+        )?;
+        self.submit_vector_bytes(gate_to_clerk_chamber, asset_prices_id.to(), asset_prices)?;
+        self.submit_vector_bytes(gate_to_clerk_chamber, asset_slopes_id.to(), asset_slopes)?;
 
         // Compile VIL program, which we will send to DeVIL for execution.
         let update = update_market_data(
@@ -81,7 +83,7 @@ impl Factor {
             account.liquidity.get().to(),
         );
         let num_registry = 16;
-        self.execute_vector_program(gate_to_clerk, update, num_registry)?;
+        self.execute_vector_program(gate_to_clerk_chamber, update, num_registry)?;
         Ok(())
     }
 
@@ -94,7 +96,7 @@ impl Factor {
         let storage = Keep::storage();
         let vault = storage.vaults.get(index);
         let account = storage.accounts.get(vendor_id);
-        let gate_to_clerk = storage.clerk.get_clerk_address();
+        let gate_to_clerk_chamber = storage.clerk.get_clerk_address();
 
         // Compile VIL program, which we will send to DeVIL for execution
         //
@@ -113,7 +115,7 @@ impl Factor {
             account.liquidity.get().to(),
         );
         let num_registry = 16;
-        self.execute_vector_program(gate_to_clerk, update, num_registry)?;
+        self.execute_vector_program(gate_to_clerk_chamber, update, num_registry)?;
         Ok(())
     }
 
@@ -148,12 +150,12 @@ impl Factor {
         let mut storage = Keep::storage();
         let mut vault = storage.vaults.setter(index);
         let account = storage.accounts.get(vendor_id);
-        let gate_to_clerk = storage.clerk.get_clerk_address();
+        let gate_to_clerk_chamber = storage.clerk.get_clerk_address();
         let user = self.attendee();
 
         let asset_contribution_fractions_id = Clerk::SCRATCH_1;
         self.submit_vector_bytes(
-            gate_to_clerk,
+            gate_to_clerk_chamber,
             asset_contribution_fractions_id.to(),
             asset_contribution_fractions,
         )?;
@@ -166,7 +168,7 @@ impl Factor {
             if id.is_zero() {
                 id = storage.clerk.next_vector();
                 let code = solve_quadratic();
-                self.submit_vector_bytes(gate_to_clerk, id.to(), code)?;
+                self.submit_vector_bytes(gate_to_clerk_chamber, id.to(), code)?;
                 storage.solve_quadratic_id.set(id);
                 id
             } else {
@@ -182,7 +184,7 @@ impl Factor {
                 let new_id = storage.clerk.next_vector();
                 set_id.set(new_id);
                 self.submit_vector_bytes(
-                    gate_to_clerk,
+                    gate_to_clerk_chamber,
                     new_id.to(),
                     amount_vec![0, 0, 0].to_vec(),
                 )?;
@@ -223,19 +225,20 @@ impl Factor {
             solve_quadratic_id.to(),
         );
         let num_registry = 16;
-        self.execute_vector_program(gate_to_clerk, update, num_registry)?;
+        self.execute_vector_program(gate_to_clerk_chamber, update, num_registry)?;
 
         // TODO: Fetch results
         // - executed and remaining Index quantity
         // - collateral remaining and spent
         // - mint token if fully executed
         let executed_asset_quantities =
-            self.fetch_vector_from_clerk(gate_to_clerk, executed_asset_quantities_id.to())?;
+            self.fetch_vector_from_clerk(gate_to_clerk_chamber, executed_asset_quantities_id.to())?;
 
         let executed_index_quantities =
-            self.fetch_vector_from_clerk(gate_to_clerk, executed_index_quantities_id.to())?;
+            self.fetch_vector_from_clerk(gate_to_clerk_chamber, executed_index_quantities_id.to())?;
 
-        let index_order = self.fetch_vector_from_clerk(gate_to_clerk, index_order_id.to())?;
+        let index_order =
+            self.fetch_vector_from_clerk(gate_to_clerk_chamber, index_order_id.to())?;
 
         Ok((
             index_order.to_vec(),

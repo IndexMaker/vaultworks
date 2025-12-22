@@ -78,7 +78,7 @@ impl Account {
 
 #[storage]
 pub struct Clerk {
-    gate_to_clerk: StorageAddress,
+    gate_to_clerk_chamber: StorageAddress,
     last_vector: StorageU128,
 }
 
@@ -90,8 +90,8 @@ impl Clerk {
 
     pub const FIRST_DYNAMIC_ID: U128 = uint!(100_U128);
 
-    pub fn initialize(&mut self, gate_to_clerk: Address) {
-        self.gate_to_clerk.set(gate_to_clerk);
+    pub fn initialize(&mut self, gate_to_clerk_chamber: Address) {
+        self.gate_to_clerk_chamber.set(gate_to_clerk_chamber);
         self.last_vector.set(uint!(Self::FIRST_DYNAMIC_ID));
     }
 
@@ -102,7 +102,7 @@ impl Clerk {
     }
 
     pub fn get_clerk_address(&self) -> Address {
-        self.gate_to_clerk.get()
+        self.gate_to_clerk_chamber.get()
     }
 }
 

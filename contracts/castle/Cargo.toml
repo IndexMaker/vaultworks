@@ -5,13 +5,14 @@ edition = "2021"
 description = "IndexMaker Castle (A Diamond w/ Access Control List)"
 
 [dependencies]
+abacus-formulas = { workspace = true }
+abacus-macros = { workspace = true }
 alloy-primitives = { workspace = true }
 alloy-sol-types = { workspace = true }
 amount-macros = { workspace = true }
 common = { workspace = true, features = ["stylus", "reentrant"] }
-abacus-macros = { workspace = true }
+common-contracts = { workspace = true, features = ["stylus", "reentrant"] }
 hex = { workspace = true }
-abacus-formulas = { workspace = true }
 labels-macros = { workspace = true }
 stylus-sdk = { workspace = true, features = ["reentrant"] }
 vector-macros = { workspace = true }

@@ -7,23 +7,24 @@ description = "IndexMaker Clerk (Stores high-dimensional vectors)"
 [dependencies]
 alloy-primitives = { workspace = true }
 alloy-sol-types = { workspace = true }
-stylus-sdk = { workspace = true }
+common = { workspace = true, features = ["stylus", "reentrant", "amount-sqrt"] }
+common-contracts = { workspace = true, features = ["stylus", "reentrant"] }
 hex = { workspace = true }
-common = { workspace = true, features = ["stylus", "amount-sqrt"] }
+stylus-sdk = { workspace = true, features = ["reentrant"]}
 
 [dev-dependencies]
+abacus-formulas = { workspace = true }
+abacus-macros = { workspace = true }
 alloy-primitives = { workspace = true, features = ["sha3-keccak"] }
-tokio = { workspace = true, features = ["full"] }
+amount-macros = { workspace = true }
+common = { workspace = true, features = ["stylus"] }
+dotenv = { workspace = true }
 ethers = { workspace = true }
 eyre = { workspace = true }
-stylus-sdk = { workspace = true, features = ["stylus-test"] }
-dotenv = { workspace = true }
-common = { workspace = true, features = ["stylus"] }
-amount-macros = { workspace = true }
-abacus-macros = { workspace = true }
 labels-macros = { workspace = true }
+stylus-sdk = { workspace = true, features = ["stylus-test"] }
+tokio = { workspace = true, features = ["full"] }
 vector-macros = { workspace = true }
-abacus-formulas = { workspace = true }
 
 [features]
 default = ["mini-alloc"]

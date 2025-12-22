@@ -5,16 +5,17 @@ edition = "2021"
 description = "IndexMaker Guildmaster (Summons vaults: Deploys Vault contracts and facilitates voting)"
 
 [dependencies]
+abacus-formulas = { workspace = true }
+abacus-macros = { workspace = true }
 alloy-primitives = { workspace = true }
 alloy-sol-types = { workspace = true }
-stylus-sdk = { workspace = true }
-hex = { workspace = true }
-common = { workspace = true, features = ["stylus"] }
 amount-macros = { workspace = true }
-abacus-macros = { workspace = true }
+common = { workspace = true, features = ["stylus", "reentrant"] }
+common-contracts = { workspace = true, features = ["stylus", "reentrant"] }
+hex = { workspace = true }
 labels-macros = { workspace = true }
+stylus-sdk = { workspace = true, features = ["reentrant"]}
 vector-macros = { workspace = true }
-abacus-formulas = { workspace = true }
 
 [dev-dependencies]
 alloy-primitives = { workspace = true, features = ["sha3-keccak"] }

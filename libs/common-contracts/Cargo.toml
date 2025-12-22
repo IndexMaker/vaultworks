@@ -1,18 +1,20 @@
 [package]
-name = "abacus-runtime"
+name = "common-contracts"
 version = "0.1.0"
 edition = "2021"
-description = "IndexMaker Abacus Runtime: Vector Intermediate Language Virtual Machine (VIL VM)"
+description = "IndexMaker Common Contracts"
 
 [lib]
 crate-type = ["lib"]
 
 [dependencies]
-stylus-sdk = { workspace = true, optional = true, features = ["reentrant"] }
+alloy-primitives = { workspace = true }
+alloy-sol-types = { workspace = true }
+stylus-sdk = { workspace = true, optional = true }
 common = { workspace = true, features = ["stylus", "amount-sqrt"] }
 
 [dev-dependencies]
-stylus-sdk = { workspace = true, features = ["stylus-test", "reentrant"] }
+stylus-sdk = { workspace = true, features = ["stylus-test"] }
 common = { workspace = true, features = ["stylus-test"] }
 amount-macros = { workspace = true }
 abacus-macros = { workspace = true }
@@ -25,4 +27,6 @@ default = []
 debug = []
 stylus = ["stylus-sdk"]
 stylus-test = ["stylus", "debug"]
+reentrant = ["stylus-sdk/reentrant", "common/reentrant"]
+export-abi = ["stylus-sdk/export-abi"]
 test-debug = ["debug", "stylus-sdk/debug", "common/debug", "common/stylus-test"]

@@ -5,17 +5,17 @@ edition = "2021"
 description = "IndexMaker Gate (Proxy)"
 
 [dependencies]
+abacus-formulas = { workspace = true }
+abacus-macros = { workspace = true }
 alloy-primitives = { workspace = true }
 alloy-sol-types = { workspace = true }
 amount-macros = { workspace = true }
-common = { workspace = true, features = ["stylus"] }
-abacus-macros = { workspace = true }
+common = { workspace = true, features = ["stylus", "reentrant"] }
 hex = { workspace = true }
-abacus-formulas = { workspace = true }
 labels-macros = { workspace = true }
 openzeppelin-stylus = { workspace = true }
 openzeppelin-stylus-proc = { workspace = true }
-stylus-sdk = { workspace = true }
+stylus-sdk = { workspace = true, features = ["reentrant"]}
 vector-macros = { workspace = true }
 
 [dev-dependencies]

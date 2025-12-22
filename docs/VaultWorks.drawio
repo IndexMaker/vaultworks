@@ -1,6 +1,6 @@
 <mxfile host="Electron" agent="Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) draw.io/24.7.8 Chrome/128.0.6613.36 Electron/32.0.1 Safari/537.36" version="24.7.8">
   <diagram name="Page-1" id="4fxURio9z_m0yaRwNro2">
-    <mxGraphModel dx="4449" dy="2930" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1169" pageHeight="827" math="0" shadow="0">
+    <mxGraphModel dx="2327" dy="1569" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1169" pageHeight="827" math="0" shadow="0">
       <root>
         <mxCell id="0" />
         <mxCell id="1" parent="0" />
@@ -198,8 +198,8 @@
         <mxCell id="fi5tRUbsFI_XOfXkqt2y-70" style="rounded=0;orthogonalLoop=1;jettySize=auto;html=1;dashed=1;" parent="1" source="fi5tRUbsFI_XOfXkqt2y-68" target="fi5tRUbsFI_XOfXkqt2y-44" edge="1">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="fi5tRUbsFI_XOfXkqt2y-68" value="&lt;b&gt;Constable&lt;/b&gt; is appointed in the Castle to cast following roles:&lt;div&gt;&lt;br&gt;&lt;/div&gt;&lt;div&gt;&lt;b&gt;Guildmaster&lt;/b&gt; manages Vaults.&lt;/div&gt;&lt;div&gt;&lt;b&gt;Banker&lt;/b&gt; manages affairs with Vendors.&lt;/div&gt;&lt;div&gt;&lt;b&gt;Factor&lt;/b&gt; facilitates all trading.&lt;/div&gt;&lt;div&gt;&lt;br&gt;&lt;/div&gt;&lt;div&gt;&lt;b&gt;Worksman&lt;/b&gt; builds Vaults for Guildmaster.&lt;/div&gt;&lt;div&gt;&lt;b&gt;Scribe&lt;/b&gt; counts votes.&lt;/div&gt;" style="shape=note;whiteSpace=wrap;html=1;backgroundOutline=1;darkOpacity=0.05;align=left;spacing=10;size=20;shadow=1;" parent="1" vertex="1">
-          <mxGeometry x="-230" y="268.75" width="250" height="152.5" as="geometry" />
+        <mxCell id="fi5tRUbsFI_XOfXkqt2y-68" value="&lt;b&gt;Constable&lt;/b&gt; is appointed in the Castle to cast following roles:&lt;div&gt;&lt;br&gt;&lt;/div&gt;&lt;div&gt;&lt;b&gt;Guildmaster&lt;/b&gt; manages Vaults.&lt;/div&gt;&lt;div&gt;&lt;b&gt;Banker&lt;/b&gt; manages affairs with Vendors.&lt;/div&gt;&lt;div&gt;&lt;b&gt;Factor&lt;/b&gt; facilitates all trading.&lt;/div&gt;&lt;div&gt;&lt;br&gt;&lt;/div&gt;&lt;div&gt;&lt;b&gt;Worksman&lt;/b&gt; builds Vaults for Guildmaster.&lt;/div&gt;&lt;div&gt;&lt;b&gt;Scribe&lt;/b&gt; counts votes and verifies signatures.&lt;/div&gt;" style="shape=note;whiteSpace=wrap;html=1;backgroundOutline=1;darkOpacity=0.05;align=left;spacing=10;size=20;shadow=1;" parent="1" vertex="1">
+          <mxGeometry x="-230" y="268.75" width="260" height="152.5" as="geometry" />
         </mxCell>
         <mxCell id="fi5tRUbsFI_XOfXkqt2y-72" style="rounded=0;orthogonalLoop=1;jettySize=auto;html=1;dashed=1;" parent="1" source="fi5tRUbsFI_XOfXkqt2y-71" target="fi5tRUbsFI_XOfXkqt2y-1" edge="1">
           <mxGeometry relative="1" as="geometry" />
@@ -261,38 +261,41 @@
         <mxCell id="fi5tRUbsFI_XOfXkqt2y-95" value="&lt;b&gt;Vendor&lt;/b&gt;&amp;nbsp;supplies market data and assets into the system." style="shape=note;whiteSpace=wrap;html=1;backgroundOutline=1;darkOpacity=0.05;align=left;spacing=10;size=20;shadow=1;" parent="1" vertex="1">
           <mxGeometry x="851.25" y="-121" width="167.5" height="102" as="geometry" />
         </mxCell>
-        <mxCell id="EmyVHcqdJuYKRbyvVVPJ-2" value="Guildmaster" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d80073;fontColor=#ffffff;strokeColor=#A50040;fontStyle=1;strokeWidth=2;glass=1;" vertex="1" parent="1">
+        <mxCell id="EmyVHcqdJuYKRbyvVVPJ-2" value="Guildmaster" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d80073;fontColor=#ffffff;strokeColor=#A50040;fontStyle=1;strokeWidth=2;glass=1;" parent="1" vertex="1">
           <mxGeometry x="230" y="315" width="130" height="60" as="geometry" />
         </mxCell>
-        <mxCell id="EmyVHcqdJuYKRbyvVVPJ-3" value="Factor" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d80073;fontColor=#ffffff;strokeColor=#A50040;fontStyle=1;strokeWidth=2;glass=1;" vertex="1" parent="1">
+        <mxCell id="EmyVHcqdJuYKRbyvVVPJ-3" value="Factor" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d80073;fontColor=#ffffff;strokeColor=#A50040;fontStyle=1;strokeWidth=2;glass=1;" parent="1" vertex="1">
           <mxGeometry x="390" y="315" width="130" height="60" as="geometry" />
         </mxCell>
-        <mxCell id="EmyVHcqdJuYKRbyvVVPJ-6" style="rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=0;strokeWidth=2;strokeColor=#FFFFFF;" edge="1" parent="1" source="EmyVHcqdJuYKRbyvVVPJ-2" target="fi5tRUbsFI_XOfXkqt2y-1">
+        <mxCell id="EmyVHcqdJuYKRbyvVVPJ-6" style="rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=0;strokeWidth=2;strokeColor=#FFFFFF;" parent="1" source="EmyVHcqdJuYKRbyvVVPJ-2" target="fi5tRUbsFI_XOfXkqt2y-1" edge="1">
           <mxGeometry relative="1" as="geometry">
             <mxPoint x="215" y="325" as="sourcePoint" />
             <mxPoint x="405" y="230" as="targetPoint" />
           </mxGeometry>
         </mxCell>
-        <mxCell id="EmyVHcqdJuYKRbyvVVPJ-7" style="rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=0;strokeWidth=2;strokeColor=#FFFFFF;" edge="1" parent="1" source="EmyVHcqdJuYKRbyvVVPJ-3" target="fi5tRUbsFI_XOfXkqt2y-1">
+        <mxCell id="EmyVHcqdJuYKRbyvVVPJ-7" style="rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=block;endFill=0;strokeWidth=2;strokeColor=#FFFFFF;" parent="1" source="EmyVHcqdJuYKRbyvVVPJ-3" target="fi5tRUbsFI_XOfXkqt2y-1" edge="1">
           <mxGeometry relative="1" as="geometry">
             <mxPoint x="342" y="325" as="sourcePoint" />
             <mxPoint x="436" y="230" as="targetPoint" />
           </mxGeometry>
         </mxCell>
-        <mxCell id="EmyVHcqdJuYKRbyvVVPJ-8" style="rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=2;strokeColor=#FFFFFF;" edge="1" parent="1" source="EmyVHcqdJuYKRbyvVVPJ-3" target="fi5tRUbsFI_XOfXkqt2y-11">
+        <mxCell id="EmyVHcqdJuYKRbyvVVPJ-8" style="rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=2;strokeColor=#FFFFFF;" parent="1" source="EmyVHcqdJuYKRbyvVVPJ-3" target="fi5tRUbsFI_XOfXkqt2y-11" edge="1">
           <mxGeometry relative="1" as="geometry">
             <mxPoint x="596" y="385" as="sourcePoint" />
             <mxPoint x="497" y="480" as="targetPoint" />
           </mxGeometry>
         </mxCell>
-        <mxCell id="EmyVHcqdJuYKRbyvVVPJ-9" style="rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=2;strokeColor=#FFFFFF;" edge="1" parent="1" source="EmyVHcqdJuYKRbyvVVPJ-2" target="fi5tRUbsFI_XOfXkqt2y-11">
+        <mxCell id="EmyVHcqdJuYKRbyvVVPJ-9" style="rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=2;strokeColor=#FFFFFF;" parent="1" source="EmyVHcqdJuYKRbyvVVPJ-2" target="fi5tRUbsFI_XOfXkqt2y-11" edge="1">
           <mxGeometry relative="1" as="geometry">
             <mxPoint x="469" y="385" as="sourcePoint" />
             <mxPoint x="466" y="480" as="targetPoint" />
           </mxGeometry>
         </mxCell>
-        <mxCell id="EmyVHcqdJuYKRbyvVVPJ-10" value="&lt;font style=&quot;font-size: 64px;&quot;&gt;Vault Works&lt;/font&gt;&lt;div style=&quot;font-size: 32px;&quot;&gt;&lt;font style=&quot;font-size: 32px;&quot;&gt;&lt;h3 style=&quot;caret-color: rgb(0, 0, 0); font-style: normal; text-align: start;&quot; class=&quot;&quot; data-path-to-node=&quot;1&quot;&gt;High-fidelity decentralized index infrastructure on Arbitrum&lt;/h3&gt;&lt;/font&gt;&lt;/div&gt;" style="text;html=1;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontStyle=3;shadow=0;textShadow=1;" vertex="1" parent="1">
+        <mxCell id="EmyVHcqdJuYKRbyvVVPJ-10" value="&lt;font style=&quot;font-size: 64px;&quot;&gt;Vault Works&lt;/font&gt;&lt;div style=&quot;font-size: 32px;&quot;&gt;&lt;font style=&quot;font-size: 32px;&quot;&gt;&lt;h3 style=&quot;caret-color: rgb(0, 0, 0); font-style: normal; text-align: start;&quot; class=&quot;&quot; data-path-to-node=&quot;1&quot;&gt;High-fidelity decentralized index infrastructure on Arbitrum&lt;/h3&gt;&lt;/font&gt;&lt;/div&gt;" style="text;html=1;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontStyle=3;shadow=0;textShadow=1;" parent="1" vertex="1">
           <mxGeometry x="-260" y="-640" width="1330" height="100" as="geometry" />
+        </mxCell>
+        <mxCell id="gQ1WG_gtsOFKUrCkeMMG-1" value="Clerk Chamber" style="text;html=1;align=center;verticalAlign=middle;resizable=0;points=[];autosize=1;strokeColor=none;fillColor=none;rotation=-90;fontStyle=3;fontColor=#004C99;" vertex="1" parent="1">
+          <mxGeometry x="500" y="710" width="100" height="30" as="geometry" />
         </mxCell>
       </root>
     </mxGraphModel>

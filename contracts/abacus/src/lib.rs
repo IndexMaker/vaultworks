@@ -8,11 +8,9 @@ extern crate alloc;
 use alloc::vec::Vec;
 
 use alloy_primitives::{Address, U128};
-use common::{
-    abacus::program_error::ErrorCode, contracts::clerk::ClerkStorage, labels::Labels,
-    vector::Vector,
-};
-use stylus_sdk::prelude::*;
+use common::{abacus::program_error::ErrorCode, labels::Labels, vector::Vector};
+use common_contracts::contracts::clerk::ClerkStorage;
+use stylus_sdk::{console, prelude::*};
 
 use abacus_runtime::runtime::{VectorIO, VectorVM};
 
