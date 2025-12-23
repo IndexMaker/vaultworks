@@ -8,11 +8,11 @@ description = "IndexMaker Abacus Runtime: Vector Intermediate Language Virtual M
 crate-type = ["lib"]
 
 [dependencies]
-stylus-sdk = { workspace = true, optional = true, features = ["reentrant"] }
-common = { workspace = true, features = ["stylus", "amount-sqrt"] }
+stylus-sdk = { workspace = true, optional = true }
+common = { workspace = true, features = ["amount-sqrt"] }
 
 [dev-dependencies]
-stylus-sdk = { workspace = true, features = ["stylus-test", "reentrant"] }
+stylus-sdk = { workspace = true, features = ["stylus-test"] }
 common = { workspace = true, features = ["stylus-test"] }
 amount-macros = { workspace = true }
 abacus-macros = { workspace = true }
@@ -22,7 +22,16 @@ abacus-formulas = { workspace = true }
 
 [features]
 default = []
-debug = []
-stylus = ["stylus-sdk"]
-stylus-test = ["stylus", "debug"]
-test-debug = ["debug", "stylus-sdk/debug", "common/debug", "common/stylus-test"]
+debug = ["common/debug"]
+
+# if we're compiling smart-contracts
+stylus = ["common/stylus", "stylus-sdk", "stylus-sdk/mini-alloc", "stylus-sdk/reentrant"]
+
+# if we're compiling smart-contracts with debug enabled
+stylus-debug = ["common/stylus-debug", "stylus", "stylus-sdk/debug", "debug"]
+
+# if we're compiling smart-contracts tests
+stylus-test = ["common/stylus-test", "stylus-sdk", "stylus-sdk/stylus-test"]
+
+# if we want to run unit tests with debug
+test-debug = ["stylus-test", "debug"]

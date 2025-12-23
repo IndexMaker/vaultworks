@@ -5,21 +5,22 @@ edition = "2021"
 description = "IndexMaker Abacus (Performs computations on high-dimensional vectors)"
 
 [dependencies]
-abacus-runtime = { workspace = true, features = ["stylus"]}
+abacus-runtime = { workspace = true, features = ["stylus"] }
 alloy-primitives = { workspace = true }
 alloy-sol-types = { workspace = true }
-common = { workspace = true, features = ["stylus", "reentrant", "amount-sqrt"] }
-common-contracts = { workspace = true, features = ["stylus", "reentrant"] }
+common = { workspace = true, features = ["stylus", "amount-sqrt"] }
+common-contracts = { workspace = true, features = ["stylus"] }
 hex = { workspace = true }
-stylus-sdk = { workspace = true, features = ["reentrant"]}
+stylus-sdk = { workspace = true, features = ["reentrant"] }
 
 [dev-dependencies]
 abacus-formulas = { workspace = true }
 abacus-macros = { workspace = true }
-abacus-runtime = { workspace = true, features = ["stylus-test"]}
+abacus-runtime = { workspace = true, features = ["stylus-test"] }
 alloy-primitives = { workspace = true, features = ["sha3-keccak"] }
 amount-macros = { workspace = true }
-common = { workspace = true, features = ["stylus"] }
+common = { workspace = true, features = ["stylus-test"] }
+common-contracts = { workspace = true, features = ["stylus-test"] }
 dotenv = { workspace = true }
 ethers = { workspace = true }
 eyre = { workspace = true }
@@ -30,8 +31,17 @@ vector-macros = { workspace = true }
 
 [features]
 default = ["mini-alloc"]
-export-abi = ["stylus-sdk/export-abi", "common/export-abi"]
-test-debug = ["stylus-sdk/debug", "common/debug", "common/stylus-test"]
+export-abi = [
+    "stylus-sdk/export-abi",
+    "common/stylus",
+    "common-contracts/stylus-export-abi",
+]
+test-debug = [
+    "stylus-sdk/debug",
+    "common/debug",
+    "common/stylus-test",
+    "common-contracts/stylus-test"
+]
 mini-alloc = ["stylus-sdk/mini-alloc"]
 
 [[bin]]

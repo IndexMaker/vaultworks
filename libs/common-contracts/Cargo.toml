@@ -11,7 +11,7 @@ crate-type = ["lib"]
 alloy-primitives = { workspace = true }
 alloy-sol-types = { workspace = true }
 stylus-sdk = { workspace = true, optional = true }
-common = { workspace = true, features = ["stylus", "amount-sqrt"] }
+common = { workspace = true }
 
 [dev-dependencies]
 stylus-sdk = { workspace = true, features = ["stylus-test"] }
@@ -25,8 +25,20 @@ abacus-formulas = { workspace = true }
 [features]
 default = []
 debug = []
-stylus = ["stylus-sdk"]
-stylus-test = ["stylus", "debug"]
-reentrant = ["stylus-sdk/reentrant", "common/reentrant"]
-export-abi = ["stylus-sdk/export-abi"]
-test-debug = ["debug", "stylus-sdk/debug", "common/debug", "common/stylus-test"]
+
+# if we're compiling smart-contracts
+stylus = [
+    "common/stylus",
+    "stylus-sdk",
+    "stylus-sdk/mini-alloc",
+    "stylus-sdk/reentrant",
+]
+
+# if we're compiling smart-contracts with debug enabled
+stylus-debug = ["common/stylus-debug", "stylus", "stylus-sdk/debug", "debug"]
+
+# if we're compiling smart-contracts tests
+stylus-test = ["common/stylus-test", "stylus-sdk", "stylus-sdk/stylus-test"]
+
+# if we're exporting Solidity ABI for contracts
+stylus-export-abi = ["stylus-sdk/export-abi"]

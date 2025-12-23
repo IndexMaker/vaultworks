@@ -150,7 +150,11 @@ impl Banker {
         let new_asset_margin_id = Clerk::SCRATCH_2;
 
         self.submit_vector_bytes(gate_to_clerk_chamber, new_asset_names_id.to(), asset_names)?;
-        self.submit_vector_bytes(gate_to_clerk_chamber, new_asset_margin_id.to(), asset_margin)?;
+        self.submit_vector_bytes(
+            gate_to_clerk_chamber,
+            new_asset_margin_id.to(),
+            asset_margin,
+        )?;
 
         // Compile VIL program, which we will send to DeVIL for execution.
         //
@@ -234,6 +238,36 @@ impl Banker {
         let num_registry = 16;
         self.execute_vector_program(gate_to_clerk_chamber, update, num_registry)?;
         Ok(())
+    }
+
+    pub fn fetch_supply(&mut self, vendor_id: U128) -> Result<(Vec<u8>, Vec<u8>), Vec<u8>> {
+        let mut storage = Keep::storage();
+
+        let account = storage.accounts.setter(vendor_id);
+        account.only_owner(self.attendee())?;
+
+        let gate_to_clerk_chamber = storage.clerk.get_clerk_address();
+        let supply_short =
+            self.fetch_vector_bytes(gate_to_clerk_chamber, account.supply_short.get().to())?;
+        let supply_long =
+            self.fetch_vector_bytes(gate_to_clerk_chamber, account.supply_long.get().to())?;
+
+        Ok((supply_long, supply_short))
+    }
+
+    pub fn fetch_delta(&mut self, vendor_id: U128) -> Result<(Vec<u8>, Vec<u8>), Vec<u8>> {
+        let mut storage = Keep::storage();
+
+        let account = storage.accounts.setter(vendor_id);
+        account.only_owner(self.attendee())?;
+
+        let gate_to_clerk_chamber = storage.clerk.get_clerk_address();
+        let delta_short =
+            self.fetch_vector_bytes(gate_to_clerk_chamber, account.delta_short.get().to())?;
+        let delta_long =
+            self.fetch_vector_bytes(gate_to_clerk_chamber, account.delta_long.get().to())?;
+
+        Ok((delta_long, delta_short))
     }
 }
 

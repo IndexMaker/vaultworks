@@ -25,18 +25,12 @@ impl StorageSlot {
         // 3. If non-wasm32 without export-abi -> use struct syntax.
         // 4. Everything else -> use tuple syntax.
 
-        #[cfg(all(
-            not(target_arch = "wasm32"),
-            any(feature = "reentrant", not(feature = "export-abi"))
-        ))]
+        #[cfg(not(target_arch = "wasm32"))]
         let host = VM {
             host: alloc::boxed::Box::new(stylus_sdk::host::WasmVM {}),
         };
 
-        #[cfg(not(all(
-            not(target_arch = "wasm32"),
-            any(feature = "reentrant", not(feature = "export-abi"))
-        )))]
+        #[cfg(target_arch = "wasm32")]
         let host = VM(stylus_sdk::host::WasmVM {});
 
         // SAFETY: Truncation is safe here because ST::SLOT_BYTES is never

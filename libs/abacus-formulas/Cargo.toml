@@ -16,6 +16,12 @@ vector-macros = { workspace = true }
 
 [features]
 debug = ["common/debug"]
+
+# if we're compiling smart-contracts
 stylus = ["common/stylus"]
-reentrant = ["common/reentrant"]
-stylus-test = ["stylus", "common/stylus-test", "debug"]
+
+# if we're compiling smart-contracts with debug enabled
+stylus-debug = ["common/stylus-debug"]
+
+# if we're compiling smart-contracts tests
+stylus-test = ["common/stylus-test"]

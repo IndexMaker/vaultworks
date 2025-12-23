@@ -11,7 +11,7 @@ use abacus_formulas::{
     execute_buy_order::execute_buy_order, solve_quadratic::solve_quadratic,
     update_market_data::update_market_data, update_quote::update_quote,
 };
-use alloy_primitives::U128;
+use alloy_primitives::{Address, U128};
 use common::vector::Vector;
 use common_contracts::contracts::{
     keep::{Clerk, Keep},
@@ -245,6 +245,46 @@ impl Factor {
             executed_index_quantities.to_vec(),
             executed_asset_quantities.to_vec(),
         ))
+    }
+
+    pub fn fetch_market_data(
+        &self,
+        vendor_id: U128,
+    ) -> Result<(Vec<u8>, Vec<u8>, Vec<u8>), Vec<u8>> {
+        let storage = Keep::storage();
+        let account = storage.accounts.get(vendor_id);
+        let gate_to_clerk_chamber = storage.clerk.get_clerk_address();
+
+        let liquidity =
+            self.fetch_vector_bytes(gate_to_clerk_chamber, account.liquidity.get().to())?;
+        let prices = self.fetch_vector_bytes(gate_to_clerk_chamber, account.prices.get().to())?;
+        let slopes = self.fetch_vector_bytes(gate_to_clerk_chamber, account.slopes.get().to())?;
+
+        Ok((liquidity, prices, slopes))
+    }
+
+    pub fn fetch_index_quote(&self, index: U128) -> Result<Vec<u8>, Vec<u8>> {
+        let storage = Keep::storage();
+        let vault = storage.vaults.get(index);
+        let gate_to_clerk_chamber = storage.clerk.get_clerk_address();
+
+        let quote = self.fetch_vector_bytes(gate_to_clerk_chamber, vault.quote.get().to())?;
+
+        Ok(quote)
+    }
+
+    pub fn get_order_count(&self, index: U128) -> Result<U128, Vec<u8>> {
+        let storage = Keep::storage();
+        let vault = storage.vaults.get(index);
+        
+        Ok(U128::ZERO)
+    }
+
+    pub fn get_order(&self, index: U128, offset: U128) -> Result<(Address, Vec<u8>), Vec<u8>> {
+        let storage = Keep::storage();
+        let vault = storage.vaults.get(index);
+        
+        Ok((Address::ZERO, vec![]))
     }
 }
 
