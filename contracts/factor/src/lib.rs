@@ -14,7 +14,7 @@ use abacus_formulas::{
 use alloy_primitives::{Address, U128};
 use common::vector::Vector;
 use common_contracts::contracts::{
-    keep::{Clerk, Keep},
+    keep::{ClerkChamber, Keep},
     keep_calls::KeepCalls,
 };
 use stylus_sdk::prelude::*;
@@ -55,12 +55,12 @@ impl Factor {
         let account = storage.accounts.setter(vendor_id);
         account.only_owner(self.attendee())?;
 
-        let gate_to_clerk_chamber = storage.clerk.get_clerk_address();
+        let gate_to_clerk_chamber = storage.clerk_chamber.get_gate_address();
 
-        let asset_names_id = Clerk::SCRATCH_1;
-        let asset_liquidity_id = Clerk::SCRATCH_2;
-        let asset_prices_id = Clerk::SCRATCH_3;
-        let asset_slopes_id = Clerk::SCRATCH_4;
+        let asset_names_id = ClerkChamber::SCRATCH_1;
+        let asset_liquidity_id = ClerkChamber::SCRATCH_2;
+        let asset_prices_id = ClerkChamber::SCRATCH_3;
+        let asset_slopes_id = ClerkChamber::SCRATCH_4;
 
         self.submit_vector_bytes(gate_to_clerk_chamber, asset_names_id.to(), asset_names)?;
         self.submit_vector_bytes(
@@ -96,7 +96,7 @@ impl Factor {
         let storage = Keep::storage();
         let vault = storage.vaults.get(index);
         let account = storage.accounts.get(vendor_id);
-        let gate_to_clerk_chamber = storage.clerk.get_clerk_address();
+        let gate_to_clerk_chamber = storage.clerk_chamber.get_gate_address();
 
         // Compile VIL program, which we will send to DeVIL for execution
         //
@@ -133,7 +133,6 @@ impl Factor {
         }
         Ok(())
     }
-
     /// Submit BUY Index order
     ///
     /// Add collateral amount to user's order, and match for immediate execution.
@@ -150,23 +149,23 @@ impl Factor {
         let mut storage = Keep::storage();
         let mut vault = storage.vaults.setter(index);
         let account = storage.accounts.get(vendor_id);
-        let gate_to_clerk_chamber = storage.clerk.get_clerk_address();
+        let gate_to_clerk_chamber = storage.clerk_chamber.get_gate_address();
         let user = self.attendee();
 
-        let asset_contribution_fractions_id = Clerk::SCRATCH_1;
+        let asset_contribution_fractions_id = ClerkChamber::SCRATCH_1;
         self.submit_vector_bytes(
             gate_to_clerk_chamber,
             asset_contribution_fractions_id.to(),
             asset_contribution_fractions,
         )?;
 
-        let executed_asset_quantities_id = Clerk::SCRATCH_2;
-        let executed_index_quantities_id = Clerk::SCRATCH_3;
+        let executed_asset_quantities_id = ClerkChamber::SCRATCH_2;
+        let executed_index_quantities_id = ClerkChamber::SCRATCH_3;
 
         let solve_quadratic_id = {
             let mut id = storage.solve_quadratic_id.get();
             if id.is_zero() {
-                id = storage.clerk.next_vector();
+                id = storage.clerk_chamber.next_vector();
                 let code = solve_quadratic();
                 self.submit_vector_bytes(gate_to_clerk_chamber, id.to(), code)?;
                 storage.solve_quadratic_id.set(id);
@@ -178,11 +177,12 @@ impl Factor {
 
         // Allocate new Index order or extend to existing one
         let index_order_id = {
-            let mut set_id = vault.orders.setter(user);
+            let mut set_id = vault.orders_long.setter(user);
             let old_id = set_id.get();
             if old_id.is_zero() {
-                let new_id = storage.clerk.next_vector();
+                let new_id = storage.clerk_chamber.next_vector();
                 set_id.set(new_id);
+                vault.founders.push(user);
                 self.submit_vector_bytes(
                     gate_to_clerk_chamber,
                     new_id.to(),
@@ -247,13 +247,34 @@ impl Factor {
         ))
     }
 
+    pub fn submit_sell_order(
+        &mut self,
+        vendor_id: U128,
+        index: U128,
+        itp_added: U128,
+        itp_removed: U128,
+        max_order_size: u128,
+        asset_contribution_fractions: Vec<u8>,
+    ) -> Result<(Vec<u8>, Vec<u8>, Vec<u8>), Vec<u8>> {
+        Err(b"Not implemented yet".into())
+    }
+
+    pub fn submit_rebalance_order(
+        &mut self,
+        vendor_id: U128,
+        new_assets: Vec<u8>,
+        new_weigthts: Vec<u8>,
+    ) -> Result<(), Vec<u8>> {
+        Err(b"Not implemented yet".into())
+    }
+
     pub fn fetch_market_data(
         &self,
         vendor_id: U128,
     ) -> Result<(Vec<u8>, Vec<u8>, Vec<u8>), Vec<u8>> {
         let storage = Keep::storage();
         let account = storage.accounts.get(vendor_id);
-        let gate_to_clerk_chamber = storage.clerk.get_clerk_address();
+        let gate_to_clerk_chamber = storage.clerk_chamber.get_gate_address();
 
         let liquidity =
             self.fetch_vector_bytes(gate_to_clerk_chamber, account.liquidity.get().to())?;
@@ -266,27 +287,49 @@ impl Factor {
     pub fn fetch_index_quote(&self, index: U128) -> Result<Vec<u8>, Vec<u8>> {
         let storage = Keep::storage();
         let vault = storage.vaults.get(index);
-        let gate_to_clerk_chamber = storage.clerk.get_clerk_address();
-
+        let gate_to_clerk_chamber = storage.clerk_chamber.get_gate_address();
         let quote = self.fetch_vector_bytes(gate_to_clerk_chamber, vault.quote.get().to())?;
-
         Ok(quote)
     }
 
     pub fn get_order_count(&self, index: U128) -> Result<U128, Vec<u8>> {
         let storage = Keep::storage();
         let vault = storage.vaults.get(index);
-        
-        Ok(U128::ZERO)
+        let total_order_count = U128::from(vault.founders.len());
+        Ok(total_order_count)
     }
 
-    pub fn get_order(&self, index: U128, offset: U128) -> Result<(Address, Vec<u8>), Vec<u8>> {
+    pub fn get_orders(
+        &self,
+        index: U128,
+        start_from: u128,
+        max_count: u128,
+    ) -> Result<Vec<(Address, Vec<u8>, Vec<u8>)>, Vec<u8>> {
         let storage = Keep::storage();
         let vault = storage.vaults.get(index);
-        
-        Ok((Address::ZERO, vec![]))
+        let gate_to_clerk_chamber = storage.clerk_chamber.get_gate_address();
+
+        let end = start_from + max_count.min(vault.founders.len() as u128);
+        let mut result = vec![];
+
+        for i in start_from..end {
+            if let Some(address) = vault.founders.get(i) {
+                let order_long_id = vault.orders_long.get(address);
+                let order_short_id = vault.orders_short.get(address);
+                let order_long = if !order_long_id.is_zero() {
+                    self.fetch_vector_bytes(gate_to_clerk_chamber, order_long_id.to())?
+                } else {
+                    amount_vec!(0, 0, 0).to_vec()
+                };
+                let order_short = if !order_short_id.is_zero() {
+                    self.fetch_vector_bytes(gate_to_clerk_chamber, order_short_id.to())?
+                } else {
+                    amount_vec!(0, 0, 0).to_vec()
+                };
+                result.push((address, order_long, order_short));
+            }
+        }
+
+        Ok(result)
     }
 }
-
-#[cfg(test)]
-mod test {}

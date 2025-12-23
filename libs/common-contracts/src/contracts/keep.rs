@@ -4,7 +4,7 @@ use alloy_primitives::{uint, Address, U128, U256};
 use stylus_sdk::{
     keccak_const,
     prelude::*,
-    storage::{StorageAddress, StorageMap, StorageU128},
+    storage::{StorageAddress, StorageMap, StorageU128, StorageVec},
 };
 
 use crate::contracts::storage::StorageSlot;
@@ -19,21 +19,43 @@ pub const KEEP_STORAGE_SLOT: U256 = {
 #[storage]
 pub struct Vault {
     pub gate_to_vault: StorageAddress,
+
+    // Index definition
     pub assets: StorageU128,  // Labels  = [u128; num_assets]
     pub weights: StorageU128, // Vector  = [Amount; num_assets]
-    pub quote: StorageU128,   // Vector  = [Capacity, Price, Slope]
-    pub orders: StorageMap<Address, StorageU128>, // Mapping = {User Address => Vector = [USDC Remaining, USDC Spent, ITP Minted]}
-    pub queue: StorageU128,                       // Labels  = [u128; num_orders]
+
+    // Index pricing
+    pub quote: StorageU128, // Vector  = [Capacity, Price, Slope]
+
+    // Traders who founded that vault, or who redeemed the token
+    pub founders: StorageVec<StorageAddress>, // List of addresses that founded this vault
+    pub orders_long: StorageMap<Address, StorageU128>, // Mapping = {User Address => Vector = [USDC Remaining, USDC Spent, ITP Minted]}
+    pub orders_short: StorageMap<Address, StorageU128>, // Mapping = {User Address => Vector = [ITP Remaining, ITP Burned, USDC Withdrawn]}
+
+    // Stats across vendors
+    pub vendors: StorageVec<StorageU128>, // List of vendor IDs that participated
+    pub vendor_order_long: StorageMap<U128, StorageU128>, // Mapping = {Vendor ID => Vector = [ITP Remaining, ITP Burned, USDC Withdrawn]}
+    pub vendor_order_short: StorageMap<U128, StorageU128>, // Mapping = {Vendor ID => Vector = [ITP Remaining, ITP Burned, USDC Withdrawn]}
+
+    // Totals
+    pub total_order_long: StorageU128, // Vector = [USDC Remaining, USDC Spent, ITP Minted]
+    pub total_order_short: StorageU128, // Vector = [ITP Remaining, ITP Burned, USDC Withdrawn]
+
+    // Rebalance vectors
+    pub rebalance_weights_long: StorageU128, // Vector = [Amount; num_assets]
+    pub rebalance_weights_short: StorageU128, // Vector = [Amount; num_assets]
 }
 
 #[storage]
 pub struct Account {
     owner: StorageAddress,
+
     // TODO: These will be very long vectors, e.g. 2M components.
     // We will optimise Clerk and Abacus to provide partial load/store
     // and we'll store chunks in mapping.
-    pub assets: StorageU128,       // Vector = [Name; num_assets]
-    pub margin: StorageU128,       // Vector = [Margin; num_assets]
+    pub assets: StorageU128, // Vector = [Name; num_assets]
+    pub margin: StorageU128, // Vector = [Margin; num_assets]
+
     // Delta = Suppy - Demand
     pub supply_long: StorageU128,  // Vector = [+Supply; num_assets]
     pub supply_short: StorageU128, // Vector = [-Supply; num_assets]
@@ -41,16 +63,17 @@ pub struct Account {
     pub demand_short: StorageU128, // Vector = [-Demand; num_assets]
     pub delta_long: StorageU128,   // Vector = [+Delta; num_assets]
     pub delta_short: StorageU128,  // Vector = [-Delta; num_assets]
+    
     // Market Data
-    pub liquidity: StorageU128,    // Vector = [Liquidity; num_assets]
-    pub prices: StorageU128,       // Vector = [Price; num_assets]
-    pub slopes: StorageU128,       // Vector = [Slope; num_assets]
+    pub liquidity: StorageU128, // Vector = [Liquidity; num_assets]
+    pub prices: StorageU128,    // Vector = [Price; num_assets]
+    pub slopes: StorageU128,    // Vector = [Slope; num_assets]
 }
 
 impl Account {
     pub fn is_owner(&self, address: Address) -> bool {
         self.owner.get() == address
-    } 
+    }
 
     pub fn only_owner(&self, address: Address) -> Result<(), Vec<u8>> {
         let owner = self.owner.get();
@@ -77,12 +100,12 @@ impl Account {
 }
 
 #[storage]
-pub struct Clerk {
+pub struct ClerkChamber {
     gate_to_clerk_chamber: StorageAddress,
     last_vector: StorageU128,
 }
 
-impl Clerk {
+impl ClerkChamber {
     pub const SCRATCH_1: U128 = uint!(1_U128);
     pub const SCRATCH_2: U128 = uint!(2_U128);
     pub const SCRATCH_3: U128 = uint!(3_U128);
@@ -101,7 +124,7 @@ impl Clerk {
         value
     }
 
-    pub fn get_clerk_address(&self) -> Address {
+    pub fn get_gate_address(&self) -> Address {
         self.gate_to_clerk_chamber.get()
     }
 }
@@ -110,7 +133,7 @@ impl Clerk {
 pub struct Keep {
     pub vaults: StorageMap<U128, Vault>,
     pub accounts: StorageMap<U128, Account>,
-    pub clerk: Clerk,
+    pub clerk_chamber: ClerkChamber,
     pub constable: StorageAddress,
     pub worksman: StorageAddress,
     pub scribe: StorageAddress,

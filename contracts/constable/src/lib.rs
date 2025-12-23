@@ -165,10 +165,10 @@ impl Constable {
         if storage.constable.get().is_zero() {
             Err(b"Constable was not appointed")?;
         }
-        if !storage.clerk.get_clerk_address().is_zero() {
+        if !storage.clerk_chamber.get_gate_address().is_zero() {
             Err(b"Clerk already cast")?;
         }
-        storage.clerk.initialize(gate_to_clerk_chamber);
+        storage.clerk_chamber.initialize(gate_to_clerk_chamber);
         Ok(())
     }
 

@@ -15,7 +15,7 @@ export DEPLOY_PRIVATE_KEY=`cat some-test-key`
 
 Address can be obtained using:
 ```
-export DEPLOYER_ADDRESS=`cast wallet address DEPLOY_PRIVATE_KEY`
+export DEPLOYER_ADDRESS=`cast wallet address $DEPLOY_PRIVATE_KEY`
 ```
 
 Also RPC URL is needed for running scenarios:
