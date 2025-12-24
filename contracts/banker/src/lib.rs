@@ -95,9 +95,13 @@ impl Banker {
             account.slopes.set(storage.clerk_chamber.next_vector());
             account.liquidity.set(storage.clerk_chamber.next_vector());
             account.supply_long.set(storage.clerk_chamber.next_vector());
-            account.supply_short.set(storage.clerk_chamber.next_vector());
+            account
+                .supply_short
+                .set(storage.clerk_chamber.next_vector());
             account.demand_long.set(storage.clerk_chamber.next_vector());
-            account.demand_short.set(storage.clerk_chamber.next_vector());
+            account
+                .demand_short
+                .set(storage.clerk_chamber.next_vector());
             account.delta_long.set(storage.clerk_chamber.next_vector());
             account.delta_short.set(storage.clerk_chamber.next_vector());
             account.margin.set(storage.clerk_chamber.next_vector());
@@ -240,22 +244,36 @@ impl Banker {
         Ok(())
     }
 
-    pub fn fetch_assets(&mut self, vendor_id: U128) -> Result<(Vec<u8>, Vec<u8>), Vec<u8>> {
+    //
+    // Query methods
+    //
+
+    pub fn get_vendor_assets(&mut self, vendor_id: U128) -> Result<(Vec<u8>, Vec<u8>), Vec<u8>> {
         let mut storage = Keep::storage();
 
         let account = storage.accounts.setter(vendor_id);
         account.only_owner(self.attendee())?;
 
         let gate_to_clerk_chamber = storage.clerk_chamber.get_gate_address();
-        let assets =
-            self.fetch_vector_bytes(gate_to_clerk_chamber, account.assets.get().to())?;
-        let margin =
-            self.fetch_vector_bytes(gate_to_clerk_chamber, account.margin.get().to())?;
+        let assets = self.fetch_vector_bytes(gate_to_clerk_chamber, account.assets.get().to())?;
+        let margin = self.fetch_vector_bytes(gate_to_clerk_chamber, account.margin.get().to())?;
 
         Ok((assets, margin))
     }
 
-    pub fn fetch_supply(&mut self, vendor_id: U128) -> Result<(Vec<u8>, Vec<u8>), Vec<u8>> {
+    pub fn get_vendor_margin(&mut self, vendor_id: U128) -> Result<Vec<u8>, Vec<u8>> {
+        let mut storage = Keep::storage();
+
+        let account = storage.accounts.setter(vendor_id);
+        account.only_owner(self.attendee())?;
+
+        let gate_to_clerk_chamber = storage.clerk_chamber.get_gate_address();
+        let margin = self.fetch_vector_bytes(gate_to_clerk_chamber, account.margin.get().to())?;
+
+        Ok(margin)
+    }
+
+    pub fn get_vendor_supply(&mut self, vendor_id: U128) -> Result<(Vec<u8>, Vec<u8>), Vec<u8>> {
         let mut storage = Keep::storage();
 
         let account = storage.accounts.setter(vendor_id);
@@ -270,7 +288,22 @@ impl Banker {
         Ok((supply_long, supply_short))
     }
 
-    pub fn fetch_delta(&mut self, vendor_id: U128) -> Result<(Vec<u8>, Vec<u8>), Vec<u8>> {
+    pub fn get_vendor_demand(&mut self, vendor_id: U128) -> Result<(Vec<u8>, Vec<u8>), Vec<u8>> {
+        let mut storage = Keep::storage();
+
+        let account = storage.accounts.setter(vendor_id);
+        account.only_owner(self.attendee())?;
+
+        let gate_to_clerk_chamber = storage.clerk_chamber.get_gate_address();
+        let demand_short =
+            self.fetch_vector_bytes(gate_to_clerk_chamber, account.demand_short.get().to())?;
+        let demand_long =
+            self.fetch_vector_bytes(gate_to_clerk_chamber, account.demand_long.get().to())?;
+
+        Ok((demand_long, demand_short))
+    }
+
+    pub fn get_vendor_delta(&mut self, vendor_id: U128) -> Result<(Vec<u8>, Vec<u8>), Vec<u8>> {
         let mut storage = Keep::storage();
 
         let account = storage.accounts.setter(vendor_id);

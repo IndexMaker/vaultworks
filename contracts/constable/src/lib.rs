@@ -82,6 +82,16 @@ impl Constable {
             ],
             required_role: CASTLE_VENDOR_ROLE.into(),
         })?;
+        self.top_level_call(ICastle::createPublicFunctionsCall {
+            contract_address: banker,
+            function_selectors: vec![
+                IBanker::getVendorAssetsCall::SELECTOR.into(),
+                IBanker::getVendorMarginCall::SELECTOR.into(),
+                IBanker::getVendorSupplyCall::SELECTOR.into(),
+                IBanker::getVendorDemandCall::SELECTOR.into(),
+                IBanker::getVendorDeltaCall::SELECTOR.into(),
+            ],
+        })?;
         Ok(())
     }
 
@@ -99,16 +109,36 @@ impl Constable {
         self.top_level_call(ICastle::createProtectedFunctionsCall {
             contract_address: factor,
             function_selectors: vec![
+                IFactor::submitRebalanceOrderCall::SELECTOR.into(),
+            ],
+            required_role: CASTLE_ISSUER_ROLE.into(),
+        })?;
+        self.top_level_call(ICastle::createProtectedFunctionsCall {
+            contract_address: factor,
+            function_selectors: vec![
                 IFactor::updateIndexQuoteCall::SELECTOR.into(),
                 IFactor::updateMultipleIndexQuotesCall::SELECTOR.into(),
                 IFactor::submitBuyOrderCall::SELECTOR.into(),
+                IFactor::submitSellOrderCall::SELECTOR.into(),
             ],
             required_role: CASTLE_KEEPER_ROLE.into(),
         })?;
-        // self.top_level_call(ICastle::createPublicFunctionsCall {
-        //     contract_address: factor,
-        //     function_selectors: vec![IFactor::submitBuyOrderCall::SELECTOR.into()],
-        // })?;
+        self.top_level_call(ICastle::createPublicFunctionsCall {
+            contract_address: factor,
+            function_selectors: vec![
+                IFactor::getMarketDataCall::SELECTOR.into(),
+                IFactor::getIndexAssetsCall::SELECTOR.into(),
+                IFactor::getIndexWeightsCall::SELECTOR.into(),
+                IFactor::getIndexQuoteCall::SELECTOR.into(),
+                IFactor::getTraderOrderCall::SELECTOR.into(),
+                IFactor::getTraderCountCall::SELECTOR.into(),
+                IFactor::getTraderOrderAtCall::SELECTOR.into(),
+                IFactor::getVendorOrderCall::SELECTOR.into(),
+                IFactor::getVendorCountCall::SELECTOR.into(),
+                IFactor::getVendorOrderAtCall::SELECTOR.into(),
+                IFactor::getTotalOrderCall::SELECTOR.into(),
+            ],
+        })?;
         Ok(())
     }
 

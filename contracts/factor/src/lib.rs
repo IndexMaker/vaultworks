@@ -8,13 +8,13 @@ extern crate alloc;
 use alloc::vec::Vec;
 
 use abacus_formulas::{
-    execute_buy_order::execute_buy_order, solve_quadratic::solve_quadratic,
+    execute_buy_order::execute_buy_order, solve_quadratic_bid::solve_quadratic_bid,
     update_market_data::update_market_data, update_quote::update_quote,
 };
 use alloy_primitives::{Address, U128};
 use common::vector::Vector;
 use common_contracts::contracts::{
-    keep::{ClerkChamber, Keep},
+    keep::{ClerkChamber, Keep, Vault},
     keep_calls::KeepCalls,
 };
 use stylus_sdk::prelude::*;
@@ -23,6 +23,225 @@ use vector_macros::amount_vec;
 #[storage]
 #[entrypoint]
 pub struct Factor;
+
+impl Factor {
+    fn init_solve_quadratic_bid(&mut self, storage: &mut Keep) -> Result<U128, Vec<u8>> {
+        // Q_buy = (sqrt(P^2 + 4 * S * C_buy) - P) / 2 * S
+        let solve_quadratic_id = {
+            let mut id = storage.solve_quadratic_id.get();
+            if id.is_zero() {
+                id = storage.clerk_chamber.next_vector();
+                let code = solve_quadratic_bid();
+                self.submit_vector_bytes(storage.clerk_chamber.get_gate_address(), id.to(), code)?;
+                storage.solve_quadratic_id.set(id);
+                id
+            } else {
+                id
+            }
+        };
+        Ok(solve_quadratic_id)
+    }
+
+    fn init_solve_quadratic_ask(&mut self, storage: &mut Keep) -> Result<U128, Vec<u8>> {
+        // Q_sell = (P - sqrt(P^2 - 4 * S * C_sell)) / 2 * S
+        Err(b"Not implemented".into())
+    }
+
+    fn init_trader_bid(
+        &mut self,
+        vault: &mut Vault,
+        clerk_chamber: &mut ClerkChamber,
+        trader_address: Address,
+    ) -> Result<U128, Vec<u8>> {
+        let mut set_bid_id = vault.traders_bids.setter(trader_address);
+
+        let bid_id = set_bid_id.get();
+        if !bid_id.is_zero() {
+            return Ok(bid_id);
+        }
+
+        let bid_id = clerk_chamber.next_vector();
+        set_bid_id.set(bid_id);
+
+        self.submit_vector_bytes(
+            clerk_chamber.get_gate_address(),
+            bid_id.to(),
+            amount_vec![0, 0, 0].to_vec(),
+        )?;
+
+        if vault.traders_asks.get(trader_address).is_zero() {
+            vault.traders.push(trader_address);
+        }
+
+        Ok(bid_id)
+    }
+
+    fn init_trader_ask(
+        &mut self,
+        vault: &mut Vault,
+        clerk_chamber: &mut ClerkChamber,
+        trader_address: Address,
+    ) -> Result<U128, Vec<u8>> {
+        let mut set_ask_id = vault.traders_asks.setter(trader_address);
+
+        let ask_id = set_ask_id.get();
+        if !ask_id.is_zero() {
+            return Ok(ask_id);
+        }
+
+        let ask_id = clerk_chamber.next_vector();
+        set_ask_id.set(ask_id);
+
+        self.submit_vector_bytes(
+            clerk_chamber.get_gate_address(),
+            ask_id.to(),
+            amount_vec![0, 0, 0].to_vec(),
+        )?;
+
+        if vault.traders_bids.get(trader_address).is_zero() {
+            vault.traders.push(trader_address);
+        }
+
+        Ok(ask_id)
+    }
+
+    fn init_vendor_quote(
+        &mut self,
+        vault: &mut Vault,
+        clerk_chamber: &mut ClerkChamber,
+        vendor_id: U128,
+    ) -> Result<U128, Vec<u8>> {
+        let mut set_quote_id = vault.vendor_quotes.setter(vendor_id);
+
+        let quote_id = set_quote_id.get();
+        if !quote_id.is_zero() {
+            return Ok(quote_id);
+        }
+
+        let quote_id = clerk_chamber.next_vector();
+        set_quote_id.set(quote_id);
+
+        self.submit_vector_bytes(
+            clerk_chamber.get_gate_address(),
+            quote_id.to(),
+            amount_vec![0, 0, 0].to_vec(),
+        )?;
+
+        if vault.vendors_bids.get(vendor_id).is_zero()
+            && vault.vendors_asks.get(vendor_id).is_zero()
+        {
+            vault.vendors.push(vendor_id);
+        }
+
+        Ok(quote_id)
+    }
+
+    fn init_vendor_bid(
+        &mut self,
+        vault: &mut Vault,
+        clerk_chamber: &mut ClerkChamber,
+        vendor_id: U128,
+    ) -> Result<U128, Vec<u8>> {
+        let mut set_bid_id = vault.vendors_bids.setter(vendor_id);
+
+        let bid_id = set_bid_id.get();
+        if !bid_id.is_zero() {
+            return Ok(bid_id);
+        }
+
+        let bid_id = clerk_chamber.next_vector();
+        set_bid_id.set(bid_id);
+
+        self.submit_vector_bytes(
+            clerk_chamber.get_gate_address(),
+            bid_id.to(),
+            amount_vec![0, 0, 0].to_vec(),
+        )?;
+
+        if vault.vendor_quotes.get(vendor_id).is_zero()
+            && vault.vendors_asks.get(vendor_id).is_zero()
+        {
+            vault.vendors.push(vendor_id);
+        }
+
+        Ok(bid_id)
+    }
+
+    fn init_vendor_ask(
+        &mut self,
+        vault: &mut Vault,
+        clerk_chamber: &mut ClerkChamber,
+        vendor_id: U128,
+    ) -> Result<U128, Vec<u8>> {
+        let mut set_ask_id = vault.vendors_asks.setter(vendor_id);
+
+        let ask_id = set_ask_id.get();
+        if !ask_id.is_zero() {
+            return Ok(ask_id);
+        }
+
+        let ask_id = clerk_chamber.next_vector();
+        set_ask_id.set(ask_id);
+
+        self.submit_vector_bytes(
+            clerk_chamber.get_gate_address(),
+            ask_id.to(),
+            amount_vec![0, 0, 0].to_vec(),
+        )?;
+
+        if vault.vendor_quotes.get(vendor_id).is_zero()
+            && vault.vendors_bids.get(vendor_id).is_zero()
+        {
+            vault.vendors.push(vendor_id);
+        }
+
+        Ok(ask_id)
+    }
+
+    fn init_total_bid(
+        &mut self,
+        vault: &mut Vault,
+        clerk_chamber: &mut ClerkChamber,
+    ) -> Result<U128, Vec<u8>> {
+        let bid_id = vault.total_bid.get();
+        if !bid_id.is_zero() {
+            return Ok(bid_id);
+        }
+
+        let bid_id = clerk_chamber.next_vector();
+        vault.total_bid.set(bid_id);
+
+        self.submit_vector_bytes(
+            clerk_chamber.get_gate_address(),
+            bid_id.to(),
+            amount_vec![0, 0, 0].to_vec(),
+        )?;
+
+        Ok(bid_id)
+    }
+
+    fn init_total_ask(
+        &mut self,
+        vault: &mut Vault,
+        clerk_chamber: &mut ClerkChamber,
+    ) -> Result<U128, Vec<u8>> {
+        let ask_id = vault.total_ask.get();
+        if !ask_id.is_zero() {
+            return Ok(ask_id);
+        }
+
+        let ask_id = clerk_chamber.next_vector();
+        vault.total_ask.set(ask_id);
+
+        self.submit_vector_bytes(
+            clerk_chamber.get_gate_address(),
+            ask_id.to(),
+            amount_vec![0, 0, 0].to_vec(),
+        )?;
+
+        Ok(ask_id)
+    }
+}
 
 #[public]
 impl Factor {
@@ -92,9 +311,13 @@ impl Factor {
     /// Scan inventory assets, supply, delta, prices and liquidity and
     /// compute capacity, price and slope for an Index.
     ///
-    pub fn update_index_quote(&mut self, vendor_id: U128, index: U128) -> Result<(), Vec<u8>> {
-        let storage = Keep::storage();
-        let vault = storage.vaults.get(index);
+    pub fn update_index_quote(&mut self, vendor_id: U128, index_id: U128) -> Result<(), Vec<u8>> {
+        let mut storage = Keep::storage();
+        let mut vault = storage.vaults.setter(index_id);
+
+        let vendor_quote_id =
+            self.init_vendor_quote(&mut vault, &mut storage.clerk_chamber, vendor_id)?;
+
         let account = storage.accounts.get(vendor_id);
         let gate_to_clerk_chamber = storage.clerk_chamber.get_gate_address();
 
@@ -108,7 +331,7 @@ impl Factor {
         let update = update_quote(
             vault.assets.get().to(),
             vault.weights.get().to(),
-            vault.quote.get().to(),
+            vendor_quote_id.to(),
             account.assets.get().to(),
             account.prices.get().to(),
             account.slopes.get().to(),
@@ -126,10 +349,10 @@ impl Factor {
     pub fn update_multiple_index_quotes(
         &mut self,
         vendor_id: U128,
-        indexes: Vec<U128>,
+        index_ids: Vec<U128>,
     ) -> Result<(), Vec<u8>> {
-        for index in indexes {
-            self.update_index_quote(vendor_id, index)?;
+        for index_id in index_ids {
+            self.update_index_quote(vendor_id, index_id)?;
         }
         Ok(())
     }
@@ -140,17 +363,34 @@ impl Factor {
     pub fn submit_buy_order(
         &mut self,
         vendor_id: U128,
-        index: U128,
+        index_id: U128,
         collateral_added: u128,
         collateral_removed: u128,
         max_order_size: u128,
         asset_contribution_fractions: Vec<u8>,
     ) -> Result<(Vec<u8>, Vec<u8>, Vec<u8>), Vec<u8>> {
         let mut storage = Keep::storage();
-        let mut vault = storage.vaults.setter(index);
+
+        // Allocate Quadratic Solver
+        let solve_quadratic_id = self.init_solve_quadratic_bid(&mut storage)?;
+
+        let mut vault = storage.vaults.setter(index_id);
+        let trader_address = self.attendee();
+
+        // Allocate new Index order or get existing one
+        let index_order_id =
+            self.init_trader_bid(&mut vault, &mut storage.clerk_chamber, trader_address)?;
+
+        let vendor_quote_id =
+            self.init_vendor_quote(&mut vault, &mut storage.clerk_chamber, vendor_id)?;
+
+        let vendor_order_id =
+            self.init_vendor_bid(&mut vault, &mut storage.clerk_chamber, vendor_id)?;
+
+        let total_order_id = self.init_total_bid(&mut vault, &mut storage.clerk_chamber)?;
+
         let account = storage.accounts.get(vendor_id);
         let gate_to_clerk_chamber = storage.clerk_chamber.get_gate_address();
-        let user = self.attendee();
 
         let asset_contribution_fractions_id = ClerkChamber::SCRATCH_1;
         self.submit_vector_bytes(
@@ -162,38 +402,6 @@ impl Factor {
         let executed_asset_quantities_id = ClerkChamber::SCRATCH_2;
         let executed_index_quantities_id = ClerkChamber::SCRATCH_3;
 
-        let solve_quadratic_id = {
-            let mut id = storage.solve_quadratic_id.get();
-            if id.is_zero() {
-                id = storage.clerk_chamber.next_vector();
-                let code = solve_quadratic();
-                self.submit_vector_bytes(gate_to_clerk_chamber, id.to(), code)?;
-                storage.solve_quadratic_id.set(id);
-                id
-            } else {
-                id
-            }
-        };
-
-        // Allocate new Index order or extend to existing one
-        let index_order_id = {
-            let mut set_id = vault.orders_long.setter(user);
-            let old_id = set_id.get();
-            if old_id.is_zero() {
-                let new_id = storage.clerk_chamber.next_vector();
-                set_id.set(new_id);
-                vault.founders.push(user);
-                self.submit_vector_bytes(
-                    gate_to_clerk_chamber,
-                    new_id.to(),
-                    amount_vec![0, 0, 0].to_vec(),
-                )?;
-                new_id
-            } else {
-                old_id
-            }
-        };
-
         // Compile VIL program, which we will send to DeVIL for execution.
         //
         // The program:
@@ -204,7 +412,9 @@ impl Factor {
         //  - Index quantity executed and remaining
         //
         let update = execute_buy_order(
-            index_order_id.to(),
+            index_order_id.to(), // single trader orders aggregated per vault (we don't store individual orders)
+            //TODO: vendor_order_id, -- needs to sum up all trader orders per vendor per vault
+            //TODO: total_order_id, -- needst to sum up all trader orders per vault
             collateral_added,
             collateral_removed,
             max_order_size,
@@ -212,7 +422,7 @@ impl Factor {
             executed_asset_quantities_id.to(),
             vault.assets.get().to(),
             vault.weights.get().to(),
-            vault.quote.get().to(),
+            vendor_quote_id.to(),
             account.assets.get().to(),
             account.supply_long.get().to(),
             account.supply_short.get().to(),
@@ -250,12 +460,19 @@ impl Factor {
     pub fn submit_sell_order(
         &mut self,
         vendor_id: U128,
-        index: U128,
+        index_id: U128,
         itp_added: U128,
         itp_removed: U128,
         max_order_size: u128,
         asset_contribution_fractions: Vec<u8>,
     ) -> Result<(Vec<u8>, Vec<u8>, Vec<u8>), Vec<u8>> {
+        //
+        // This needs to use:
+        //  - solve_quadratic_ask
+        //  - traders_asks
+        //  - vendors_asks
+        //  - total_asks
+        //
         Err(b"Not implemented yet".into())
     }
 
@@ -265,71 +482,212 @@ impl Factor {
         new_assets: Vec<u8>,
         new_weigthts: Vec<u8>,
     ) -> Result<(), Vec<u8>> {
+        //
+        // This needs to:
+        //  - compute rebalance_weights_long = max(0, weights - new_weights) -- assets long in inventory (sell them)
+        //  - compute rebalance_weights_short = max(0, new_weights - weights) -- assets short in inventory (buy more)
+        //
         Err(b"Not implemented yet".into())
     }
 
-    pub fn fetch_market_data(
-        &self,
-        vendor_id: U128,
-    ) -> Result<(Vec<u8>, Vec<u8>, Vec<u8>), Vec<u8>> {
+    //
+    // Query methods
+    //
+
+    pub fn get_market_data(&self, vendor_id: U128) -> Result<(Vec<u8>, Vec<u8>, Vec<u8>), Vec<u8>> {
         let storage = Keep::storage();
         let account = storage.accounts.get(vendor_id);
         let gate_to_clerk_chamber = storage.clerk_chamber.get_gate_address();
 
         let liquidity =
             self.fetch_vector_bytes(gate_to_clerk_chamber, account.liquidity.get().to())?;
+
         let prices = self.fetch_vector_bytes(gate_to_clerk_chamber, account.prices.get().to())?;
         let slopes = self.fetch_vector_bytes(gate_to_clerk_chamber, account.slopes.get().to())?;
 
         Ok((liquidity, prices, slopes))
     }
 
-    pub fn fetch_index_quote(&self, index: U128) -> Result<Vec<u8>, Vec<u8>> {
+    pub fn get_index_assets(&self, index_id: U128) -> Result<Vec<u8>, Vec<u8>> {
         let storage = Keep::storage();
-        let vault = storage.vaults.get(index);
+        let vault = storage.vaults.get(index_id);
         let gate_to_clerk_chamber = storage.clerk_chamber.get_gate_address();
-        let quote = self.fetch_vector_bytes(gate_to_clerk_chamber, vault.quote.get().to())?;
-        Ok(quote)
+        let data = self.fetch_vector_bytes(gate_to_clerk_chamber, vault.assets.get().to())?;
+        Ok(data)
     }
 
-    pub fn get_order_count(&self, index: U128) -> Result<U128, Vec<u8>> {
+    pub fn get_index_weights(&self, index_id: U128) -> Result<Vec<u8>, Vec<u8>> {
         let storage = Keep::storage();
-        let vault = storage.vaults.get(index);
-        let total_order_count = U128::from(vault.founders.len());
-        Ok(total_order_count)
+        let vault = storage.vaults.get(index_id);
+        let gate_to_clerk_chamber = storage.clerk_chamber.get_gate_address();
+        let data = self.fetch_vector_bytes(gate_to_clerk_chamber, vault.weights.get().to())?;
+        Ok(data)
     }
 
-    pub fn get_orders(
-        &self,
-        index: U128,
-        start_from: u128,
-        max_count: u128,
-    ) -> Result<Vec<(Address, Vec<u8>, Vec<u8>)>, Vec<u8>> {
+    pub fn get_index_quote(&self, index_id: U128, vendor_id: U128) -> Result<Vec<u8>, Vec<u8>> {
         let storage = Keep::storage();
-        let vault = storage.vaults.get(index);
+        let vault = storage.vaults.get(index_id);
         let gate_to_clerk_chamber = storage.clerk_chamber.get_gate_address();
-
-        let end = start_from + max_count.min(vault.founders.len() as u128);
-        let mut result = vec![];
-
-        for i in start_from..end {
-            if let Some(address) = vault.founders.get(i) {
-                let order_long_id = vault.orders_long.get(address);
-                let order_short_id = vault.orders_short.get(address);
-                let order_long = if !order_long_id.is_zero() {
-                    self.fetch_vector_bytes(gate_to_clerk_chamber, order_long_id.to())?
-                } else {
-                    amount_vec!(0, 0, 0).to_vec()
-                };
-                let order_short = if !order_short_id.is_zero() {
-                    self.fetch_vector_bytes(gate_to_clerk_chamber, order_short_id.to())?
-                } else {
-                    amount_vec!(0, 0, 0).to_vec()
-                };
-                result.push((address, order_long, order_short));
-            }
+        let quote_id = vault.vendor_quotes.get(vendor_id);
+        if quote_id.is_zero() {
+            Err(b"No such quote")?;
         }
+        let data = self.fetch_vector_bytes(gate_to_clerk_chamber, quote_id.to())?;
+        Ok(data)
+    }
 
+    pub fn get_trader_order(
+        &self,
+        index_id: U128,
+        trader: Address,
+    ) -> Result<(Vec<u8>, Vec<u8>), Vec<u8>> {
+        let storage = Keep::storage();
+        let vault = storage.vaults.get(index_id);
+        let gate_to_clerk_chamber = storage.clerk_chamber.get_gate_address();
+
+        let bid_id = vault.traders_bids.get(trader);
+
+        let bid = if !bid_id.is_zero() {
+            self.fetch_vector_bytes(gate_to_clerk_chamber, bid_id.to())?
+        } else {
+            amount_vec!(0, 0, 0).to_vec()
+        };
+
+        let ask_id = vault.traders_asks.get(trader);
+        let ask = if !ask_id.is_zero() {
+            self.fetch_vector_bytes(gate_to_clerk_chamber, ask_id.to())?
+        } else {
+            amount_vec!(0, 0, 0).to_vec()
+        };
+
+        Ok((bid, ask))
+    }
+
+    pub fn get_trader_count(&self, index_id: U128) -> Result<U128, Vec<u8>> {
+        let storage = Keep::storage();
+        let vault = storage.vaults.get(index_id);
+
+        let result = U128::from(vault.traders.len());
         Ok(result)
+    }
+
+    pub fn get_trader_order_at(
+        &self,
+        index_id: U128,
+        offset: u128,
+    ) -> Result<(Address, Vec<u8>, Vec<u8>), Vec<u8>> {
+        let storage = Keep::storage();
+        let vault = storage.vaults.get(index_id);
+        let gate_to_clerk_chamber = storage.clerk_chamber.get_gate_address();
+
+        if let Some(address) = vault.traders.get(offset) {
+            let bid_id = vault.traders_bids.get(address);
+
+            let bid = if !bid_id.is_zero() {
+                self.fetch_vector_bytes(gate_to_clerk_chamber, bid_id.to())?
+            } else {
+                amount_vec!(0, 0, 0).to_vec()
+            };
+
+            let ask_id = vault.traders_asks.get(address);
+            let ask = if !ask_id.is_zero() {
+                self.fetch_vector_bytes(gate_to_clerk_chamber, ask_id.to())?
+            } else {
+                amount_vec!(0, 0, 0).to_vec()
+            };
+
+            Ok((address, bid, ask))
+        } else {
+            Err(b"No such order".into())
+        }
+    }
+
+    pub fn get_vendor_order(
+        &self,
+        index_id: U128,
+        vendor_id: U128,
+    ) -> Result<(Vec<u8>, Vec<u8>), Vec<u8>> {
+        let storage = Keep::storage();
+        let vault = storage.vaults.get(index_id);
+        let gate_to_clerk_chamber = storage.clerk_chamber.get_gate_address();
+
+        let bid_id = vault.vendors_bids.get(vendor_id);
+
+        let bid = if !bid_id.is_zero() {
+            self.fetch_vector_bytes(gate_to_clerk_chamber, bid_id.to())?
+        } else {
+            amount_vec!(0, 0, 0).to_vec()
+        };
+
+        let ask_id = vault.vendors_asks.get(vendor_id);
+        let ask = if !ask_id.is_zero() {
+            self.fetch_vector_bytes(gate_to_clerk_chamber, ask_id.to())?
+        } else {
+            amount_vec!(0, 0, 0).to_vec()
+        };
+
+        Ok((bid, ask))
+    }
+
+    pub fn get_vendor_count(&self, index_id: U128) -> Result<U128, Vec<u8>> {
+        let storage = Keep::storage();
+        let vault = storage.vaults.get(index_id);
+
+        let result = U128::from(vault.vendors.len());
+        Ok(result)
+    }
+
+    pub fn get_vendor_order_at(
+        &self,
+        index_id: U128,
+        offset: u128,
+    ) -> Result<(U128, Vec<u8>, Vec<u8>), Vec<u8>> {
+        let storage = Keep::storage();
+        let vault = storage.vaults.get(index_id);
+        let gate_to_clerk_chamber = storage.clerk_chamber.get_gate_address();
+
+        if let Some(vendor_id) = vault.vendors.get(offset) {
+            let bid_id = vault.vendors_bids.get(vendor_id);
+
+            let bid = if !bid_id.is_zero() {
+                self.fetch_vector_bytes(gate_to_clerk_chamber, bid_id.to())?
+            } else {
+                amount_vec!(0, 0, 0).to_vec()
+            };
+
+            let ask_id = vault.vendors_asks.get(vendor_id);
+            let ask = if !ask_id.is_zero() {
+                self.fetch_vector_bytes(gate_to_clerk_chamber, ask_id.to())?
+            } else {
+                amount_vec!(0, 0, 0).to_vec()
+            };
+
+            Ok((vendor_id, bid, ask))
+        } else {
+            Err(b"No such order".into())
+        }
+    }
+
+    pub fn get_total_order(&self, index_id: U128) -> Result<(Vec<u8>, Vec<u8>), Vec<u8>> {
+        let storage = Keep::storage();
+        let vault = storage.vaults.get(index_id);
+        let gate_to_clerk_chamber = storage.clerk_chamber.get_gate_address();
+
+        let bid_id = vault.total_bid.get();
+
+        let bid = if !bid_id.is_zero() {
+            self.fetch_vector_bytes(gate_to_clerk_chamber, bid_id.to())?
+        } else {
+            amount_vec!(0, 0, 0).to_vec()
+        };
+
+        let ask_id = vault.total_ask.get();
+        let ask = if !ask_id.is_zero() {
+            self.fetch_vector_bytes(gate_to_clerk_chamber, ask_id.to())?
+        } else {
+            amount_vec!(0, 0, 0).to_vec()
+        };
+
+        Ok((bid, ask))
     }
 }

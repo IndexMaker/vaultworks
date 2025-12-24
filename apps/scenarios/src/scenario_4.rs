@@ -1,5 +1,5 @@
 use abacus_formulas::{
-    execute_buy_order::execute_buy_order, solve_quadratic::solve_quadratic,
+    execute_buy_order::execute_buy_order, solve_quadratic_bid::solve_quadratic_bid,
 };
 use amount_macros::amount;
 use common::{labels::Labels, log_msg, vector::Vector};
@@ -76,7 +76,7 @@ pub async fn run_scenario(client: &TxClient, abacus_address: Address) -> eyre::R
         .send()
         .await?;
 
-    let solve_quadratic_code = solve_quadratic();
+    let solve_quadratic_code = solve_quadratic_bid();
 
     log_msg!("Solve Quadratic Code: {:?}", solve_quadratic_code);
 

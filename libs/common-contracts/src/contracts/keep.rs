@@ -24,26 +24,31 @@ pub struct Vault {
     pub assets: StorageU128,  // Labels  = [u128; num_assets]
     pub weights: StorageU128, // Vector  = [Amount; num_assets]
 
-    // Index pricing
-    pub quote: StorageU128, // Vector  = [Capacity, Price, Slope]
-
-    // Traders who founded that vault, or who redeemed the token
-    pub founders: StorageVec<StorageAddress>, // List of addresses that founded this vault
-    pub orders_long: StorageMap<Address, StorageU128>, // Mapping = {User Address => Vector = [USDC Remaining, USDC Spent, ITP Minted]}
-    pub orders_short: StorageMap<Address, StorageU128>, // Mapping = {User Address => Vector = [ITP Remaining, ITP Burned, USDC Withdrawn]}
-
-    // Stats across vendors
-    pub vendors: StorageVec<StorageU128>, // List of vendor IDs that participated
-    pub vendor_order_long: StorageMap<U128, StorageU128>, // Mapping = {Vendor ID => Vector = [ITP Remaining, ITP Burned, USDC Withdrawn]}
-    pub vendor_order_short: StorageMap<U128, StorageU128>, // Mapping = {Vendor ID => Vector = [ITP Remaining, ITP Burned, USDC Withdrawn]}
-
-    // Totals
-    pub total_order_long: StorageU128, // Vector = [USDC Remaining, USDC Spent, ITP Minted]
-    pub total_order_short: StorageU128, // Vector = [ITP Remaining, ITP Burned, USDC Withdrawn]
-
     // Rebalance vectors
     pub rebalance_weights_long: StorageU128, // Vector = [Amount; num_assets]
     pub rebalance_weights_short: StorageU128, // Vector = [Amount; num_assets]
+
+    // Index pricing (TBD: could be mapping per vendor)
+    pub vendor_quotes: StorageMap<U128, StorageU128>, // Mapping = { Vendor ID => Vector  = [Capacity, Price, Slope] }
+
+    // Traders who founded that vault, or who redeemed the token
+    pub traders: StorageVec<StorageAddress>, // List of addresses that trade this ITP token
+    pub traders_bids: StorageMap<Address, StorageU128>, // Mapping = {User Address => Vector = [USDC Remaining, USDC Spent, ITP Minted]}
+    pub traders_asks: StorageMap<Address, StorageU128>, // Mapping = {User Address => Vector = [ITP Remaining, ITP Burned, USDC Withdrawn]}
+
+    // These are needed for ERC-4626 to know the share in total liquidity
+    // {{
+
+    // Stats across vendors
+    pub vendors: StorageVec<StorageU128>, // List of vendor IDs that participated
+    pub vendors_bids: StorageMap<U128, StorageU128>, // Mapping = {Vendor ID => Vector = [ITP Remaining, ITP Burned, USDC Withdrawn]}
+    pub vendors_asks: StorageMap<U128, StorageU128>, // Mapping = {Vendor ID => Vector = [ITP Remaining, ITP Burned, USDC Withdrawn]}
+
+    // Totals
+    pub total_bid: StorageU128, // Vector = [USDC Remaining, USDC Spent, ITP Minted]
+    pub total_ask: StorageU128, // Vector = [ITP Remaining, ITP Burned, USDC Withdrawn]
+
+    // }}
 }
 
 #[storage]

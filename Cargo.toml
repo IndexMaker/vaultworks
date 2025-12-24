@@ -48,9 +48,7 @@ alloy-primitives = { version = "=0.8.20", default-features = false, features = [
 abacus-formulas = { path = "./libs/abacus-formulas" }
 abacus-macros = { path = "./proc-macros/abacus-macros" }
 abacus-runtime = { path = "./libs/abacus-runtime" }
-alloy-sol-macro = { version = "=0.8.20", default-features = false }
-alloy-sol-macro-expander = { version = "=0.8.20", default-features = false }
-alloy-sol-macro-input = { version = "=0.8.20", default-features = false }
+alloy-sol-macro = "=0.8.20"
 alloy-sol-types = "=0.8.20"
 amount-macros = { path = "./proc-macros/amount-macros" }
 chrono = "0.4.42"
