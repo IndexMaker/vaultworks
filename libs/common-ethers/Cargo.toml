@@ -16,7 +16,8 @@ alloy-sol-types = { workspace = true }
 clap = { workspace = true, features = ["derive"] }
 chrono = { workspace = true }
 common = { workspace = true, features = [
-    "with-ethers", "vec-u128",
+    "with-ethers",
+    "vec-u128",
 ], default-features = false }
 eyre = { workspace = true }
 ethers = { workspace = true }

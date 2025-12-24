@@ -23,6 +23,7 @@ dependencies = [
  "alloy-sol-types",
  "amount-macros",
  "common",
+ "common-contracts",
  "dotenv",
  "ethers",
  "eyre",
@@ -861,6 +862,7 @@ dependencies = [
  "alloy-sol-types",
  "amount-macros",
  "common",
+ "common-contracts",
  "dotenv",
  "ethers",
  "eyre",
@@ -1105,6 +1107,7 @@ dependencies = [
  "alloy-sol-types",
  "amount-macros",
  "common",
+ "common-contracts",
  "dotenv",
  "ethers",
  "eyre",
@@ -1205,6 +1208,7 @@ dependencies = [
  "alloy-sol-types",
  "amount-macros",
  "common",
+ "common-contracts",
  "dotenv",
  "ethers",
  "eyre",
@@ -1284,6 +1288,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "common-contracts"
+version = "0.1.0"
+dependencies = [
+ "abacus-formulas",
+ "abacus-macros",
+ "alloy-primitives",
+ "alloy-sol-types",
+ "amount-macros",
+ "common",
+ "labels-macros",
+ "stylus-sdk",
+ "vector-macros",
+]
+
+[[package]]
 name = "common-ethers"
 version = "0.1.0"
 dependencies = [
@@ -1350,6 +1369,7 @@ dependencies = [
  "alloy-primitives",
  "alloy-sol-types",
  "common",
+ "common-contracts",
  "dotenv",
  "ethers",
  "eyre",
@@ -2076,6 +2096,7 @@ dependencies = [
  "alloy-sol-types",
  "amount-macros",
  "common",
+ "common-contracts",
  "dotenv",
  "ethers",
  "eyre",
@@ -2429,6 +2450,7 @@ dependencies = [
  "alloy-sol-types",
  "amount-macros",
  "common",
+ "common-contracts",
  "dotenv",
  "ethers",
  "eyre",
@@ -4333,6 +4355,7 @@ dependencies = [
  "alloy-primitives",
  "alloy-sol-types",
  "common",
+ "common-contracts",
  "dotenv",
  "ethers",
  "eyre",
@@ -5956,6 +5979,7 @@ dependencies = [
  "alloy-primitives",
  "alloy-sol-types",
  "common",
+ "common-contracts",
  "dotenv",
  "ethers",
  "eyre",

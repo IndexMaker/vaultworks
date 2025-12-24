@@ -12,7 +12,7 @@ use futures::future::join_all;
 use itertools::Itertools;
 use std::borrow::Borrow;
 use std::sync::Arc;
-use std::{env, str::FromStr};
+use std::str::FromStr;
 
 pub struct TxSender {
     client: Arc<SignerMiddleware<Provider<Http>, LocalWallet>>,

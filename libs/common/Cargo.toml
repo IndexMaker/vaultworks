@@ -16,14 +16,21 @@ stylus-sdk = { workspace = true, features = ["stylus-test"] }
 
 [features]
 default = ["vec-u8"]
+amount-sqrt = []
 debug = []
 vec-u128 = []
 vec-u8 = []
-amount-sqrt = []
-stylus = ["stylus-sdk"]
-stylus-test = ["stylus", "debug"]
-reentrant = ["stylus-sdk/reentrant"]
-export-abi = ["stylus-sdk/export-abi"]
+
+# if we're compiling smart-contracts
+stylus = ["stylus-sdk", "stylus-sdk/mini-alloc", "stylus-sdk/reentrant"]
+
+# if we're compiling smart-contracts with debug enabled
+stylus-debug = ["stylus", "stylus-sdk/debug", "debug"]
+
+# if we're compiling smart-contracts tests
+stylus-test = ["stylus-sdk", "stylus-sdk/stylus-test"]
+
+# if we're compiling app that uses ethers
 with-ethers = ["ethers"]
 
 [lib]

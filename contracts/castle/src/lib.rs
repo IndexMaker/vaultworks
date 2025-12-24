@@ -11,14 +11,14 @@ use alloy_primitives::{aliases::B32, Address, B256, U256};
 
 use alloy_sol_types::SolCall;
 use alloy_sol_types::SolEvent;
-use common::{
+use common::log_msg;
+use common_contracts::{
     contracts::{
         acl::AccessControlList,
         calls::InnerCall,
         castle::{CastleStorage, CASTLE_ADMIN_ROLE},
     },
     interfaces::{castle::ICastle, constable::IConstable},
-    log_msg,
 };
 use stylus_sdk::{prelude::*, ArbResult};
 

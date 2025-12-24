@@ -5,22 +5,22 @@ edition = "2021"
 description = "IndexMaker Gate (Proxy)"
 
 [dependencies]
+abacus-formulas = { workspace = true }
+abacus-macros = { workspace = true }
 alloy-primitives = { workspace = true }
 alloy-sol-types = { workspace = true }
 amount-macros = { workspace = true }
 common = { workspace = true, features = ["stylus"] }
-abacus-macros = { workspace = true }
 hex = { workspace = true }
-abacus-formulas = { workspace = true }
 labels-macros = { workspace = true }
 openzeppelin-stylus = { workspace = true }
 openzeppelin-stylus-proc = { workspace = true }
-stylus-sdk = { workspace = true }
+stylus-sdk = { workspace = true, features = ["reentrant"]}
 vector-macros = { workspace = true }
 
 [dev-dependencies]
 alloy-primitives = { workspace = true, features = ["sha3-keccak"] }
-common = { workspace = true, features = ["stylus"] }
+common = { workspace = true, features = ["stylus-test"] }
 dotenv = { workspace = true }
 ethers = { workspace = true }
 eyre = { workspace = true }
@@ -29,12 +29,12 @@ tokio = { workspace = true, features = ["full"] }
 
 [features]
 default = ["mini-alloc"]
-export-abi = ["stylus-sdk/export-abi", "openzeppelin-stylus/export-abi", "common/export-abi"]
+export-abi = ["stylus-sdk/export-abi", "openzeppelin-stylus/export-abi"]
 test-debug = ["stylus-sdk/debug", "common/debug", "common/stylus-test"]
 mini-alloc = ["stylus-sdk/mini-alloc"]
 
 [[bin]]
-name = "dior"
+name = "gate"
 path = "src/main.rs"
 
 [lib]

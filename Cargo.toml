@@ -18,6 +18,7 @@ members = [
     "libs/abacus-formulas",
     "libs/abacus-runtime",
     "libs/common",
+    "libs/common-contracts",
     "libs/common-ethers",
 
     # Native Application Package
@@ -47,14 +48,13 @@ alloy-primitives = { version = "=0.8.20", default-features = false, features = [
 abacus-formulas = { path = "./libs/abacus-formulas" }
 abacus-macros = { path = "./proc-macros/abacus-macros" }
 abacus-runtime = { path = "./libs/abacus-runtime" }
-alloy-sol-macro = { version = "=0.8.20", default-features = false }
-alloy-sol-macro-expander = { version = "=0.8.20", default-features = false }
-alloy-sol-macro-input = { version = "=0.8.20", default-features = false }
+alloy-sol-macro = "=0.8.20"
 alloy-sol-types = "=0.8.20"
 amount-macros = { path = "./proc-macros/amount-macros" }
 chrono = "0.4.42"
 clap = "4.5"
 common = { path = "libs/common" }
+common-contracts= { path = "libs/common-contracts" }
 common-ethers = { path = "libs/common-ethers" }
 dotenv = "0.15.0"
 ethers = "2.0"

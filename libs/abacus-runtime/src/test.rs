@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use abacus_formulas::execute_buy_order::execute_buy_order;
-use abacus_formulas::solve_quadratic::solve_quadratic;
+use abacus_formulas::solve_quadratic_bid::solve_quadratic_bid;
 use abacus_macros::abacus;
 use common::{labels::Labels, log_msg, vector::Vector};
 use labels_macros::label_vec;
@@ -269,7 +269,7 @@ mod test_scenarios {
         vio.store_vector(margin_id, amount_vec![0.2, 0.2, 0.2, 20.0, 0.2])
             .unwrap();
 
-        vio.store_code(solve_quadratic_id, solve_quadratic())
+        vio.store_code(solve_quadratic_id, solve_quadratic_bid())
             .unwrap();
 
         let code = execute_buy_order(

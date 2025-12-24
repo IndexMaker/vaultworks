@@ -8,7 +8,7 @@ extern crate alloc;
 use alloc::vec::Vec;
 
 use alloy_primitives::Address;
-use common::contracts::keep::Keep;
+use common_contracts::contracts::keep::Keep;
 use stylus_sdk::prelude::*;
 
 #[storage]

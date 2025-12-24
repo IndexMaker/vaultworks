@@ -1,3 +1,4 @@
+#[cfg(feature = "amount-sqrt")]
 use crate::amount::Amount;
 
 /// Solve quadratic equation:

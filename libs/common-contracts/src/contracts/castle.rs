@@ -8,7 +8,9 @@ use stylus_sdk::{
     storage::{StorageAddress, StorageGuard, StorageMap},
 };
 
-use crate::{contracts::acl::Role, log_msg};
+use common::log_msg;
+
+use crate::contracts::acl::Role;
 
 use super::{acl::AccessControlList, delegate::Delegate, storage::StorageSlot};
 

@@ -2,10 +2,11 @@ use alloc::vec::Vec;
 
 use alloy_primitives::Address;
 
+use common::vector::Vector;
+
 use crate::{
     contracts::calls::InnerCall,
     interfaces::{abacus::IAbacus, clerk::IClerk, scribe::IScribe, worksman::IWorksman},
-    vector::Vector,
 };
 
 pub trait KeepCalls {
@@ -13,29 +14,29 @@ pub trait KeepCalls {
 
     fn submit_vector_bytes(
         &mut self,
-        gate_to_clerk: Address,
+        gate_to_clerk_chamber: Address,
         vector_id: u128,
         data: Vec<u8>,
     ) -> Result<Vec<u8>, Vec<u8>>;
 
     fn fetch_vector_bytes(
         &self,
-        gate_to_clerk: Address,
+        gate_to_clerk_chamber: Address,
         vector_id: u128,
     ) -> Result<Vec<u8>, Vec<u8>>;
 
     fn fetch_vector_from_clerk(
         &self,
-        gate_to_clerk: Address,
+        gate_to_clerk_chamber: Address,
         vector_id: u128,
     ) -> Result<Vector, Vec<u8>> {
-        let data = self.fetch_vector_bytes(gate_to_clerk, vector_id)?;
+        let data = self.fetch_vector_bytes(gate_to_clerk_chamber, vector_id)?;
         Ok(Vector::from_vec(data))
     }
 
     fn execute_vector_program(
         &mut self,
-        gate_to_clerk: Address,
+        gate_to_clerk_chamber: Address,
         code: Vec<u8>,
         num_registry: u128,
     ) -> Result<(), Vec<u8>>;
@@ -60,12 +61,12 @@ where
 
     fn submit_vector_bytes(
         &mut self,
-        gate_to_clerk: Address,
+        gate_to_clerk_chamber: Address,
         vector_id: u128,
         data: Vec<u8>,
     ) -> Result<Vec<u8>, Vec<u8>> {
         let result = self.external_call(
-            gate_to_clerk,
+            gate_to_clerk_chamber,
             IClerk::storeCall {
                 id: vector_id,
                 data,
@@ -76,20 +77,23 @@ where
 
     fn fetch_vector_bytes(
         &self,
-        gate_to_clerk: Address,
+        gate_to_clerk_chamber: Address,
         vector_id: u128,
     ) -> Result<Vec<u8>, Vec<u8>> {
-        let result = self.static_call(gate_to_clerk, IClerk::loadCall { id: vector_id })?;
+        let result = self.static_call(gate_to_clerk_chamber, IClerk::loadCall { id: vector_id })?;
         Ok(result)
     }
 
     fn execute_vector_program(
         &mut self,
-        gate_to_clerk: Address,
+        gate_to_clerk_chamber: Address,
         code: Vec<u8>,
         num_registry: u128,
     ) -> Result<(), Vec<u8>> {
-        self.external_call(gate_to_clerk, IAbacus::executeCall { code, num_registry })?;
+        self.external_call(
+            gate_to_clerk_chamber,
+            IAbacus::executeCall { code, num_registry },
+        )?;
         Ok(())
     }
 
@@ -114,8 +118,9 @@ where
     }
 
     fn verify_signature(&mut self, scribe: Address, data: Vec<u8>) -> Result<bool, Vec<u8>> {
-        let verfication_result_bytes = self.inner_call(scribe, IScribe::verifySignatureCall { data })?;
-        let result_byte: [u8; 1] = verfication_result_bytes [31..32]
+        let verfication_result_bytes =
+            self.inner_call(scribe, IScribe::verifySignatureCall { data })?;
+        let result_byte: [u8; 1] = verfication_result_bytes[31..32]
             .try_into()
             .map_err(|_| b"Bad signature verification")?;
         Ok(result_byte[0] == 1u8)

@@ -8,10 +8,10 @@ extern crate alloc;
 use alloc::vec::Vec;
 
 use alloy_primitives::{Address, U128};
-use common::{
+use common::log_msg;
+use common_contracts::{
     contracts::{calls::InnerCall, clerk::ClerkStorage, keep_calls::KeepCalls},
     interfaces::abacus::IAbacus,
-    log_msg,
 };
 use stylus_sdk::prelude::*;
 

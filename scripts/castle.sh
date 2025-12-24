@@ -147,7 +147,7 @@ if [ "$SKIP_CLERK" = false ]; then
     fi
 
     echo "--- Attaching Clerk to Castle ---"
-    contract_send "$TARGET_ADDRESS" "appendClerk(address)" "$CLERK_TARGET"
+    contract_send "$TARGET_ADDRESS" "appendClerkChamber(address)" "$CLERK_TARGET"
 fi
 
 echo "---------------------------"

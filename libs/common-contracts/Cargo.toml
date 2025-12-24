@@ -1,15 +1,17 @@
 [package]
-name = "abacus-runtime"
+name = "common-contracts"
 version = "0.1.0"
 edition = "2021"
-description = "IndexMaker Abacus Runtime: Vector Intermediate Language Virtual Machine (VIL VM)"
+description = "IndexMaker Common Contracts"
 
 [lib]
 crate-type = ["lib"]
 
 [dependencies]
+alloy-primitives = { workspace = true }
+alloy-sol-types = { workspace = true }
 stylus-sdk = { workspace = true, optional = true }
-common = { workspace = true, features = ["amount-sqrt"] }
+common = { workspace = true }
 
 [dev-dependencies]
 stylus-sdk = { workspace = true, features = ["stylus-test"] }
@@ -22,10 +24,15 @@ abacus-formulas = { workspace = true }
 
 [features]
 default = []
-debug = ["common/debug"]
+debug = []
 
 # if we're compiling smart-contracts
-stylus = ["common/stylus", "stylus-sdk", "stylus-sdk/mini-alloc", "stylus-sdk/reentrant"]
+stylus = [
+    "common/stylus",
+    "stylus-sdk",
+    "stylus-sdk/mini-alloc",
+    "stylus-sdk/reentrant",
+]
 
 # if we're compiling smart-contracts with debug enabled
 stylus-debug = ["common/stylus-debug", "stylus", "stylus-sdk/debug", "debug"]
@@ -33,5 +40,5 @@ stylus-debug = ["common/stylus-debug", "stylus", "stylus-sdk/debug", "debug"]
 # if we're compiling smart-contracts tests
 stylus-test = ["common/stylus-test", "stylus-sdk", "stylus-sdk/stylus-test"]
 
-# if we want to run unit tests with debug
-test-debug = ["stylus-test", "debug"]
+# if we're exporting Solidity ABI for contracts
+stylus-export-abi = ["stylus-sdk/export-abi"]
