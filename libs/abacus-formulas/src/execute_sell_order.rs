@@ -61,7 +61,7 @@ pub fn execute_sell_order(
         STR         _Price                      // Stack: [Slope]
         STR         _Slope                      // Stack: []
 
-        // Compute CapacityLimit = MIN( (DeltaLong + MIN(Margin - DeltaShort, Capacity * AssetWeights)) / AssetWeights)
+        // Compute CapacityLimit = MIN( (DeltaShort + MIN(Margin - DeltaLong, Capacity * AssetWeights)) / AssetWeights)
         LDL         asset_names_id              // Stack: [AssetNames]
         LDL         market_asset_names_id       // Stack: [AN = AssetNames, MAN = MarketAssetNames]
         LDV         asset_contribution_fractions_id // Stack: [AN, MAN, ACF = AssetContributionFractions]
