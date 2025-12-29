@@ -481,9 +481,16 @@ S \cdot Q^2 + P \cdot Q - C_{\text{eff}} = 0
 
 The maximum quantity is found by taking the positive root of the solution:
 
-\[
-Q_{\text{max, pricing}} = \frac{\sqrt{P^2 + 4 \cdot S \cdot C_{\text{eff}}} - P}{2 \cdot S}
-\]
+    \begin{itemize}
+        \item \textbf{For a Buy Order}:
+        \[
+        Q_{\text{buy, max, pricing}} = \frac{\sqrt{P^2 + 4 \cdot S \cdot C_{\text{eff}}} - P}{2 \cdot S}
+        \]
+        \item \textbf{For a Sell Order}:
+        \[
+        Q_{\text{sell, max, pricing}} = \frac{P - \sqrt{P^2 - 4 \cdot S \cdot C_{\text{eff}}}}{2 \cdot S}
+        \]
+    \end{itemize}
 
 \subsection{Step 3: Margin-Based Capacity Limit (\textsl{CL}) with Progressive Constraint}
 \label{sec:margin_capacity_limit}
