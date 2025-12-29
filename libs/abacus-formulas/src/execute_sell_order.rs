@@ -1,6 +1,6 @@
 use abacus_macros::abacus;
 
-/// Execute Buy Index Order
+/// Execute Sell Index Order
 /// 
 pub fn execute_sell_order(
     order_id: u128,
