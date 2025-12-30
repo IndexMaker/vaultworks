@@ -8,7 +8,7 @@ extern crate alloc;
 use alloc::vec::Vec;
 
 use abacus_formulas::{
-    execute_buy_order::execute_buy_order, execute_sell_order::execute_sell_order, solve_quadratic_bid::solve_quadratic_bid, update_market_data::update_market_data, update_quote::update_quote
+    execute_buy_order::execute_buy_order, execute_sell_order::execute_sell_order, solve_quadratic_ask::solve_quadratic_ask, solve_quadratic_bid::solve_quadratic_bid, update_market_data::update_market_data, update_quote::update_quote
 };
 use alloy_primitives::{Address, U128};
 use common::vector::Vector;
@@ -27,12 +27,12 @@ impl Factor {
     fn init_solve_quadratic_bid(&mut self, storage: &mut Keep) -> Result<U128, Vec<u8>> {
         // Q_buy = (sqrt(P^2 + 4 * S * C_buy) - P) / 2 * S
         let solve_quadratic_id = {
-            let mut id = storage.solve_quadratic_id.get();
+            let mut id = storage.solve_quadratic_bid_id.get();
             if id.is_zero() {
                 id = storage.clerk_chamber.next_vector();
                 let code = solve_quadratic_bid();
                 self.submit_vector_bytes(storage.clerk_chamber.get_gate_address(), id.to(), code)?;
-                storage.solve_quadratic_id.set(id);
+                storage.solve_quadratic_bid_id.set(id);
                 id
             } else {
                 id
@@ -43,7 +43,19 @@ impl Factor {
 
     fn init_solve_quadratic_ask(&mut self, storage: &mut Keep) -> Result<U128, Vec<u8>> {
         // Q_sell = (P - sqrt(P^2 - 4 * S * C_sell)) / 2 * S
-        Err(b"Not implemented".into())
+        let solve_quadratic_id = {
+            let mut id = storage.solve_quadratic_ask_id.get();
+            if id.is_zero() {
+                id = storage.clerk_chamber.next_vector();
+                let code = solve_quadratic_ask();
+                self.submit_vector_bytes(storage.clerk_chamber.get_gate_address(), id.to(), code)?;
+                storage.solve_quadratic_ask_id.set(id);
+                id
+            } else {
+                id
+            }
+        };
+        Ok(solve_quadratic_id)
     }
 
     fn init_trader_bid(

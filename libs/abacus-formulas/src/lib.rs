@@ -3,6 +3,7 @@ pub mod create_market;
 pub mod execute_buy_order;
 pub mod execute_sell_order;
 pub mod solve_quadratic_bid;
+pub mod solve_quadratic_ask;
 pub mod update_margin;
 pub mod update_market_data;
 pub mod update_quote;
