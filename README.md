@@ -38,6 +38,8 @@ The ecosystem is structured as a **Castle**—a high-integrity environment—whe
 
 **White Papers** are included.
 
+- [Technical Brief - Systematic Risk Controls And Execution Framework](/docs/Technical%20Brief%20-%20Systematic%20Risk%20Controls%20And%20Execution%20Framework.pdf)
+
 - [Gas-Efficient Vector Processing for On-Chain Index Order Execution](/docs/Gas-Efficient%20Vector%20Processing%20for%20On-Chain%20Index%20Order%20Execution.pdf)
 
 - [VIL VM Technical Specification](/docs/VIL%20VM%20Technical%20Specification.pdf)
