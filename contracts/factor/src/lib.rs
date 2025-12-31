@@ -8,8 +8,7 @@ extern crate alloc;
 use alloc::vec::Vec;
 
 use abacus_formulas::{
-    execute_buy_order::execute_buy_order, solve_quadratic_bid::solve_quadratic_bid,
-    update_market_data::update_market_data, update_quote::update_quote,
+    execute_buy_order::execute_buy_order, execute_sell_order::execute_sell_order, solve_quadratic_ask::solve_quadratic_ask, solve_quadratic_bid::solve_quadratic_bid, update_market_data::update_market_data, update_quote::update_quote
 };
 use alloy_primitives::{Address, U128};
 use common::vector::Vector;
@@ -28,12 +27,12 @@ impl Factor {
     fn init_solve_quadratic_bid(&mut self, storage: &mut Keep) -> Result<U128, Vec<u8>> {
         // Q_buy = (sqrt(P^2 + 4 * S * C_buy) - P) / 2 * S
         let solve_quadratic_id = {
-            let mut id = storage.solve_quadratic_id.get();
+            let mut id = storage.solve_quadratic_bid_id.get();
             if id.is_zero() {
                 id = storage.clerk_chamber.next_vector();
                 let code = solve_quadratic_bid();
                 self.submit_vector_bytes(storage.clerk_chamber.get_gate_address(), id.to(), code)?;
-                storage.solve_quadratic_id.set(id);
+                storage.solve_quadratic_bid_id.set(id);
                 id
             } else {
                 id
@@ -44,7 +43,19 @@ impl Factor {
 
     fn init_solve_quadratic_ask(&mut self, storage: &mut Keep) -> Result<U128, Vec<u8>> {
         // Q_sell = (P - sqrt(P^2 - 4 * S * C_sell)) / 2 * S
-        Err(b"Not implemented".into())
+        let solve_quadratic_id = {
+            let mut id = storage.solve_quadratic_ask_id.get();
+            if id.is_zero() {
+                id = storage.clerk_chamber.next_vector();
+                let code = solve_quadratic_ask();
+                self.submit_vector_bytes(storage.clerk_chamber.get_gate_address(), id.to(), code)?;
+                storage.solve_quadratic_ask_id.set(id);
+                id
+            } else {
+                id
+            }
+        };
+        Ok(solve_quadratic_id)
     }
 
     fn init_trader_bid(
@@ -461,19 +472,97 @@ impl Factor {
         &mut self,
         vendor_id: U128,
         index_id: U128,
-        itp_added: U128,
-        itp_removed: U128,
+        collateral_added: u128,
+        collateral_removed: u128,
         max_order_size: u128,
         asset_contribution_fractions: Vec<u8>,
     ) -> Result<(Vec<u8>, Vec<u8>, Vec<u8>), Vec<u8>> {
+        let mut storage = Keep::storage();
+
+        // Allocate Quadratic Solver
+        let solve_quadratic_id = self.init_solve_quadratic_ask(&mut storage)?;
+
+        let mut vault = storage.vaults.setter(index_id);
+        let trader_address = self.attendee();
+
+        // Allocate new Index order or get existing one
+        let index_order_id =
+            self.init_trader_ask(&mut vault, &mut storage.clerk_chamber, trader_address)?;
+
+        let vendor_quote_id =
+            self.init_vendor_quote(&mut vault, &mut storage.clerk_chamber, vendor_id)?;
+
+        let vendor_order_id =
+            self.init_vendor_ask(&mut vault, &mut storage.clerk_chamber, vendor_id)?;
+
+        let total_order_id = self.init_total_ask(&mut vault, &mut storage.clerk_chamber)?;
+
+        let account = storage.accounts.get(vendor_id);
+        let gate_to_clerk_chamber = storage.clerk_chamber.get_gate_address();
+
+        let asset_contribution_fractions_id = ClerkChamber::SCRATCH_1;
+        self.submit_vector_bytes(
+            gate_to_clerk_chamber,
+            asset_contribution_fractions_id.to(),
+            asset_contribution_fractions,
+        )?;
+
+        let executed_asset_quantities_id = ClerkChamber::SCRATCH_2;
+        let executed_index_quantities_id = ClerkChamber::SCRATCH_3;
+
+        // Compile VIL program, which we will send to DeVIL for execution.
         //
-        // This needs to use:
-        //  - solve_quadratic_ask
-        //  - traders_asks
-        //  - vendors_asks
-        //  - total_asks
+        // The program:
+        //  - updates user's order with new collateral
+        //  - executes portion of the order that fits within Index capacity
+        //  - updates demand and delta vectors
+        //  - returns amount of collateral remaining and spent, and
+        //  - Index quantity executed and remaining
         //
-        Err(b"Not implemented yet".into())
+        let update = execute_sell_order(
+            index_order_id.to(), // single trader orders aggregated per vault (we don't store individual orders)
+            //TODO: vendor_order_id, -- needs to sum up all trader orders per vendor per vault
+            //TODO: total_order_id, -- needst to sum up all trader orders per vault
+            collateral_added,
+            collateral_removed,
+            max_order_size,
+            executed_index_quantities_id.to(),
+            executed_asset_quantities_id.to(),
+            vault.assets.get().to(),
+            vault.weights.get().to(),
+            vendor_quote_id.to(),
+            account.assets.get().to(),
+            account.supply_long.get().to(),
+            account.supply_short.get().to(),
+            account.demand_long.get().to(),
+            account.demand_short.get().to(),
+            account.delta_long.get().to(),
+            account.delta_short.get().to(),
+            account.margin.get().to(),
+            asset_contribution_fractions_id.to(),
+            solve_quadratic_id.to(),
+        );
+        let num_registry = 16;
+        self.execute_vector_program(gate_to_clerk_chamber, update, num_registry)?;
+
+        // TODO: Fetch results
+        // - executed and remaining Index quantity
+        // - collateral remaining and spent
+        // - mint token if fully executed
+        let executed_asset_quantities =
+            self.fetch_vector_from_clerk(gate_to_clerk_chamber, executed_asset_quantities_id.to())?;
+
+        let executed_index_quantities =
+            self.fetch_vector_from_clerk(gate_to_clerk_chamber, executed_index_quantities_id.to())?;
+
+        let index_order =
+            self.fetch_vector_from_clerk(gate_to_clerk_chamber, index_order_id.to())?;
+
+        Ok((
+            index_order.to_vec(),
+            executed_index_quantities.to_vec(),
+            executed_asset_quantities.to_vec(),
+        ))
     }
 
     pub fn submit_rebalance_order(

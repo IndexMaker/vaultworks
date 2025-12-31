@@ -142,7 +142,8 @@ pub struct Keep {
     pub constable: StorageAddress,
     pub worksman: StorageAddress,
     pub scribe: StorageAddress,
-    pub solve_quadratic_id: StorageU128,
+    pub solve_quadratic_bid_id: StorageU128,
+    pub solve_quadratic_ask_id: StorageU128,
 }
 
 impl Keep {

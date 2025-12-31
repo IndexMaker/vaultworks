@@ -60,7 +60,7 @@ fn sqrt_u256(n: U256) -> Option<U256> {
     Some(current)
 }
 
-#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub struct Amount(pub u128);
 
 impl Amount {
@@ -237,6 +237,13 @@ impl core::fmt::Display for Amount {
         };
 
         write!(f, "{}.{}", integral, final_frac_str)
+    }
+}
+
+#[cfg(any(not(feature = "stylus"), feature = "debug"))]
+impl core::fmt::Debug for Amount {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        write!(f, "amount!({})", self)
     }
 }
 

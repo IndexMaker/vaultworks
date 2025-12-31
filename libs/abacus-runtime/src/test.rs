@@ -176,6 +176,7 @@ mod unit_tests {
 mod test_scenarios {
     use abacus_formulas::{
         add_market_assets::add_market_assets, create_market::create_market,
+        execute_sell_order::execute_sell_order, solve_quadratic_ask::solve_quadratic_ask,
         update_margin::update_margin, update_market_data::update_market_data,
         update_quote::update_quote, update_supply::update_supply,
     };
@@ -183,7 +184,7 @@ mod test_scenarios {
 
     use super::*;
 
-    /// All round test verifies that majority of VIL functionality works as expected.
+    /// All round BUY order test verifies that majority of VIL functionality works as expected.
     ///
     /// We test:
     /// - load and store of vectors (externally via VectorIO)
@@ -224,7 +225,7 @@ mod test_scenarios {
         let delta_short_id = 107;
         let margin_id = 108;
         let asset_contribution_fractions_id = 109;
-        let solve_quadratic_id = 10;
+        let solve_quadratic_bid_id = 10;
 
         let collateral_added = amount!(100.0);
         let collateral_removed = amount!(50.0);
@@ -269,7 +270,7 @@ mod test_scenarios {
         vio.store_vector(margin_id, amount_vec![0.2, 0.2, 0.2, 20.0, 0.2])
             .unwrap();
 
-        vio.store_code(solve_quadratic_id, solve_quadratic_bid())
+        vio.store_code(solve_quadratic_bid_id, solve_quadratic_bid())
             .unwrap();
 
         let code = execute_buy_order(
@@ -291,7 +292,7 @@ mod test_scenarios {
             delta_short_id,
             margin_id,
             asset_contribution_fractions_id,
-            solve_quadratic_id,
+            solve_quadratic_bid_id,
         );
 
         let order_before = vio.load_vector(index_order_id).unwrap();
@@ -358,6 +359,166 @@ mod test_scenarios {
             amount_vec![0.05999001995, 0.05, 0.0399001995, 9.95001995, 0.15].data
         );
         assert_eq!(delta_long.data, amount_vec![0, 0, 0, 0, 0].data);
+    }
+
+    /// Comprehensive SELL order test verifying VIL execution and market impact logic.
+    ///
+    /// We test:
+    /// - Multi-stage collateral updates (addition and removal) prior to execution.
+    /// - Dynamic Capacity Limit (CL) calculation via VMIN over margin-constrained assets.
+    /// - Execution throttling where Margin/Capacity constraints override available Collateral.
+    /// - Inverse solving for Index Quantity using the vectorized quadratic sub-routine.
+    /// - Linear scaling of Asset Quantities based on non-uniform asset weights.
+    /// - Market state mutation: sparse Demand Long depletion and overflow into Demand Short.
+    /// - Delta imbalance recalculation across the entire market asset set.
+    ///
+    /// Key VIL features exercised:
+    /// - Register-based parameter passing for complex mathematical sub-programs.
+    /// - Saturating vector arithmetic (SSB) for calculating net market demand.
+    /// - Label-based joins for aligning Index-specific assets with global Market vectors.
+    /// - Multi-vector packing and unpacking into single registry slots (Order State).
+    ///
+    /// The test specifically confirms that the "Slippage" (S) curve correctly reduces 
+    /// the effective withdrawal amount, and that the VM accurately solves for the 
+    /// required Index Burn to satisfy the capped output.
+    #[test]
+    fn test_sell_index() {
+        let mut vio = test_utils::TestVectorIO::new();
+        let index_order_id = 10001;
+        let executed_asset_quantities_id = 10002;
+        let executed_index_quantities_id = 10003;
+        let asset_names_id = 1001;
+        let weights_id = 1002;
+        let quote_id = 1003;
+        let market_asset_names_id = 101;
+        let supply_long_id = 102;
+        let supply_short_id = 103;
+        let demand_long_id = 104;
+        let demand_short_id = 105;
+        let delta_long_id = 106;
+        let delta_short_id = 107;
+        let margin_id = 108;
+        let asset_contribution_fractions_id = 109;
+        let solve_quadratic_ask_id = 10;
+
+        let collateral_added = amount!(0.75);
+        let collateral_removed = amount!(0.25);
+        let max_order_size = amount!(10000.0);
+
+        vio.store_labels(asset_names_id, label_vec![51, 53, 54])
+            .unwrap();
+
+        vio.store_vector(weights_id, amount_vec![0.100, 1.000, 100.0])
+            .unwrap();
+
+        vio.store_vector(asset_contribution_fractions_id, amount_vec![1, 1, 1])
+            .unwrap();
+
+        vio.store_vector(quote_id, amount_vec![10.00, 10_000, 100.0])
+            .unwrap();
+
+        vio.store_vector(index_order_id, amount_vec![1.00, 0, 0])
+            .unwrap();
+
+        vio.store_labels(market_asset_names_id, label_vec![51, 52, 53, 54, 55])
+            .unwrap();
+
+        vio.store_vector(demand_short_id, amount_vec![0, 0, 0.0, 0.0, 1.0])
+            .unwrap();
+
+        vio.store_vector(demand_long_id, amount_vec![1.0, 0.0, 1.0, 60.0, 0.0])
+            .unwrap();
+
+        vio.store_vector(supply_short_id, amount_vec![0.5, 0, 0, 0, 0])
+            .unwrap();
+
+        vio.store_vector(supply_long_id, amount_vec![0, 0, 1.5, 50.0, 0])
+            .unwrap();
+
+        vio.store_vector(delta_short_id, amount_vec![0, 0, 0, 0, 0])
+            .unwrap();
+
+        vio.store_vector(delta_long_id, amount_vec![0, 0, 0, 0, 0])
+            .unwrap();
+
+        vio.store_vector(margin_id, amount_vec![0.5, 0.5, 0.5, 100.0, 0.5])
+            .unwrap();
+
+        vio.store_code(solve_quadratic_ask_id, solve_quadratic_ask())
+            .unwrap();
+
+        let code = execute_sell_order(
+            index_order_id,
+            collateral_added.to_u128_raw(),
+            collateral_removed.to_u128_raw(),
+            max_order_size.to_u128_raw(),
+            executed_index_quantities_id,
+            executed_asset_quantities_id,
+            asset_names_id,
+            weights_id,
+            quote_id,
+            market_asset_names_id,
+            supply_long_id,
+            supply_short_id,
+            demand_long_id,
+            demand_short_id,
+            delta_long_id,
+            delta_short_id,
+            margin_id,
+            asset_contribution_fractions_id,
+            solve_quadratic_ask_id,
+        );
+
+        let order_before = vio.load_vector(index_order_id).unwrap();
+
+        let num_registers = 16;
+
+        let mut program = VectorVM::new(&mut vio);
+        let mut stack = Stack::new(num_registers);
+        let result = program.execute_with_stack(code, &mut stack);
+
+        if let Err(err) = result {
+            log_stack!(&stack);
+            panic!("Failed to execute test: {:?}", err);
+        }
+
+        let order_after = vio.load_vector(index_order_id).unwrap();
+        let quote = vio.load_vector(quote_id).unwrap();
+        let weigths = vio.load_vector(weights_id).unwrap();
+        let index_quantites = vio.load_vector(executed_index_quantities_id).unwrap();
+        let asset_quantites = vio.load_vector(executed_asset_quantities_id).unwrap();
+        let demand_short = vio.load_vector(demand_short_id).unwrap();
+        let demand_long = vio.load_vector(demand_long_id).unwrap();
+        let delta_short = vio.load_vector(delta_short_id).unwrap();
+        let delta_long = vio.load_vector(delta_long_id).unwrap();
+
+        log_msg!("\n-= Program complete =-");
+        log_msg!("\n[in] Index Order = {:0.9}", order_before);
+        log_msg!("[in] Collateral Added = {:0.9}", collateral_added);
+        log_msg!("[in] Collateral Removed = {:0.9}", collateral_removed);
+        log_msg!("[in] Index Quote = {:0.9}", quote);
+        log_msg!("[in] Asset Weights = {:0.9}", weigths);
+        log_msg!("\n[out] Index Order = {:0.9}", order_after);
+        log_msg!("[out] Index Quantities = {:0.9}", index_quantites);
+        log_msg!("[out] Asset Quantities = {:0.9}", asset_quantites);
+        log_msg!("\n[out] Demand Short = {:0.9}", demand_short);
+        log_msg!("[out] Demand Long = {:0.9}", demand_long);
+        log_msg!("\n[out] Delta Short = {:0.9}", delta_short);
+        log_msg!("[out] Delta Long = {:0.9}", delta_long);
+
+        assert_eq!(order_before.data, amount_vec![1.00, 0, 0].data);
+        assert_eq!(quote.data, amount_vec![10, 10_000, 100].data);
+        assert_eq!(weigths.data, amount_vec![0.1, 1, 100,].data);
+
+        // these are exact expected fixed point decimal values as raw u128
+        assert_eq!(order_after.data, amount_vec![1.0, 0.5, 4975.0].data);
+        assert_eq!(index_quantites.data, amount_vec![0.5, 1.0].data);
+        assert_eq!(asset_quantites.data, amount_vec![0.05, 0.5, 50.0].data);
+        assert_eq!(
+            demand_long.data,
+            amount_vec![0.95, 0.0, 0.5, 10.0, 0.0].data
+        );
+        assert_eq!(demand_short.data, amount_vec![0.0, 0.0, 0.0, 0.0, 1.0].data);
     }
 
     #[test]
