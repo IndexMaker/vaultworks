@@ -99,7 +99,7 @@ pub fn execute_sell_order(
         LDR         _Slope                      // Stack: [CL, M, C, S = Slope]
         MUL         1                           // Stack: [CL, M, C, SC = S * C]
         LDR         _Price                      // Stack: [CL, M, C, SC, P]
-        ADD         1                           // Stack: [CL, M, C, SC, P + SC]
+        SSB         1                           // Stack: [CL, M, C, SC, P - SC]
         MUL         2                           // Stack: [CL, M, C, SC, W = C * (P + SC)]
         MIN         3                           // Stack: [CL, M, C, SC, WC = MIN(W, M)]
         STR         _WithdrawAmount             // Stack: [CL, M, C]
