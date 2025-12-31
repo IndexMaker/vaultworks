@@ -159,7 +159,31 @@ pub async fn run_scenario(client: &TxClient, castle_address: Address) -> eyre::R
             .send()
             .await?;
 
-        log_msg!("Order placement result: {:?}", result);
+        log_msg!("Buy order placement result: {:?}", result);
+    }
+    
+    {
+        log_msg!("Submit Sell Order");
+
+        let collateral_added = amount!(0.1);
+        let collateral_removed = amount!(0);
+        let max_order_size = amount!(1000.0);
+        let acf = amount_vec!(1.0, 1.0, 1.0, 0.5, 0.5);
+
+        let result = client
+            .begin_tx()
+            .add(factor.submit_sell_order(
+                vendor_id,
+                index_id,
+                collateral_added.to_u128_raw(),
+                collateral_removed.to_u128_raw(),
+                max_order_size.to_u128_raw(),
+                acf.to_vec(),
+            ))
+            .send()
+            .await?;
+
+        log_msg!("Sell order placement result: {:?}", result);
     }
 
     Ok(())
