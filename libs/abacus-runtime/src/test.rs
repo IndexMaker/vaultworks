@@ -306,6 +306,8 @@ mod test_scenarios {
         );
 
         let order_before = vio.load_vector(index_order_id).unwrap();
+        let vendor_order_before = vio.load_vector(vendor_order_id).unwrap();
+        let total_order_before = vio.load_vector(total_order_id).unwrap();
 
         let num_registers = 22;
 
@@ -319,6 +321,8 @@ mod test_scenarios {
         }
 
         let order_after = vio.load_vector(index_order_id).unwrap();
+        let vendor_order_after = vio.load_vector(vendor_order_id).unwrap();
+        let total_order_after = vio.load_vector(total_order_id).unwrap();
         let quote = vio.load_vector(quote_id).unwrap();
         let weigths = vio.load_vector(weights_id).unwrap();
         let index_quantites = vio.load_vector(executed_index_quantities_id).unwrap();
@@ -330,12 +334,16 @@ mod test_scenarios {
 
         log_msg!("\n-= Program complete =-");
         log_msg!("\n[in] Index Order = {:0.9}", order_before);
-        log_msg!("[in] Collateral Added = {:0.9}", collateral_added);
+        log_msg!("[in] Vendor Order = {:0.9}", vendor_order_before);
+        log_msg!("[in] Total Order = {:0.9}", total_order_before);
+        log_msg!("\n[in] Collateral Added = {:0.9}", collateral_added);
         log_msg!("[in] Collateral Removed = {:0.9}", collateral_removed);
         log_msg!("[in] Index Quote = {:0.9}", quote);
         log_msg!("[in] Asset Weights = {:0.9}", weigths);
         log_msg!("\n[out] Index Order = {:0.9}", order_after);
-        log_msg!("[out] Index Quantities = {:0.9}", index_quantites);
+        log_msg!("[out] Vendor Order = {:0.9}", vendor_order_after);
+        log_msg!("[out] Total Order = {:0.9}", total_order_after);
+        log_msg!("\n[out] Index Quantities = {:0.9}", index_quantites);
         log_msg!("[out] Asset Quantities = {:0.9}", asset_quantites);
         log_msg!("\n[out] Demand Short = {:0.9}", demand_short);
         log_msg!("[out] Demand Long = {:0.9}", demand_long);
@@ -490,6 +498,8 @@ mod test_scenarios {
         );
 
         let order_before = vio.load_vector(index_order_id).unwrap();
+        let vendor_order_before = vio.load_vector(vendor_order_id).unwrap();
+        let total_order_before = vio.load_vector(total_order_id).unwrap();
 
         let num_registers = 22;
 
@@ -503,6 +513,8 @@ mod test_scenarios {
         }
 
         let order_after = vio.load_vector(index_order_id).unwrap();
+        let vendor_order_after = vio.load_vector(vendor_order_id).unwrap();
+        let total_order_after = vio.load_vector(total_order_id).unwrap();
         let quote = vio.load_vector(quote_id).unwrap();
         let weigths = vio.load_vector(weights_id).unwrap();
         let index_quantites = vio.load_vector(executed_index_quantities_id).unwrap();
@@ -514,12 +526,16 @@ mod test_scenarios {
 
         log_msg!("\n-= Program complete =-");
         log_msg!("\n[in] Index Order = {:0.9}", order_before);
-        log_msg!("[in] Collateral Added = {:0.9}", collateral_added);
+        log_msg!("[in] Vendor Order = {:0.9}", vendor_order_before);
+        log_msg!("[in] Total Order = {:0.9}", total_order_before);
+        log_msg!("\n[in] Collateral Added = {:0.9}", collateral_added);
         log_msg!("[in] Collateral Removed = {:0.9}", collateral_removed);
         log_msg!("[in] Index Quote = {:0.9}", quote);
         log_msg!("[in] Asset Weights = {:0.9}", weigths);
         log_msg!("\n[out] Index Order = {:0.9}", order_after);
-        log_msg!("[out] Index Quantities = {:0.9}", index_quantites);
+        log_msg!("[out] Vendor Order = {:0.9}", vendor_order_after);
+        log_msg!("[out] Total Order = {:0.9}", total_order_after);
+        log_msg!("\n[out] Index Quantities = {:0.9}", index_quantites);
         log_msg!("[out] Asset Quantities = {:0.9}", asset_quantites);
         log_msg!("\n[out] Demand Short = {:0.9}", demand_short);
         log_msg!("[out] Demand Long = {:0.9}", demand_long);

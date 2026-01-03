@@ -198,17 +198,29 @@ pub fn execute_sell_order(
         // Compute order vector (Collateral, Burned, Withdrawn)
         LDM         _WithdrawAmount             // Stack: [W = WithdrawAmount]
         LDR         _CappedIndexQuantity        // Stack: [W, CIQ = CappedIndexQuantity]
-        LDR         _Collateral                 // Stack: [W, CIQ, C_old]
+        LDR         _Collateral                 
+        LDM         _CollateralVendor
+        LDM         _CollateralTotal
+        PKV         3                           // Stack: [W, CIQ, C_old]
         SSB         1                           // Stack: [W, CIQ, C_new = C_old - CIQ]
-        LDM         _Burned                     // Stack: [W, CIQ. C_new, B_old = Burned]
+        LDM         _Burned
+        LDM         _BurnedVendor
+        LDM         _BurnedTotal
+        PKV         3                           // Stack: [W, CIQ, C_new, B_old = Burned]
         ADD         2                           // Stack: [W, CIQ, C_new, B_new = B_old + CIQ]
-        SWAP        2                           // Stack: [W, S_new, C_new, CIQ]
-        POPN        1                           // Stack: [W, S_new, C_new]
-        SWAP        2                           // Stack: [C_new, S_new, W]
-        LDM         _Withdrawn                  // Stack: [C_new, S_new, W, W_old]
-        ADD         1                           // Stack: [C_new, S_new, W_new, W]
-        POPN        1                           // Stack: [C_new, S_new, W_new]
-        PKV         3                           // Stack: [(C_new, S_new, W_new)]
+        SWAP        2                           // Stack: [W, B_new, C_new, CIQ]
+        POPN        1                           // Stack: [W, B_new, C_new]
+        SWAP        2                           // Stack: [C_new, B_new, W]
+        LDM         _Withdrawn
+        LDM         _WithdrawnVendor
+        LDM         _WithdrawnTotal
+        PKV         3                           // Stack: [C_new, B_new, W, W_old]
+        ADD         1                           // Stack: [C_new, B_new, W, W_new]
+        SWAP        1                           // Stack: [C_new, B_new, W_new]
+        POPN        1                           // Stack: [C_new, B_new, W_new]
+        T           3                           // Stack: [Order, Vendor, Total]
+        STV         total_order_id              // Stack: []
+        STV         vendor_order_id             // Stack: []
         STV         order_id                    // Stack: []
 
         // Store Executed Index Quantity and Remaining Quantity

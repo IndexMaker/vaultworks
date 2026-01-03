@@ -1,4 +1,5 @@
 use abacus_macros::abacus;
+use common::abacus::instruction_set::OP_ADD;
 
 /// Execute Buy Index Order
 /// 
@@ -200,30 +201,45 @@ pub fn execute_buy_order(
         MUL         1                               // Stack: [CIQ, CS = (CIQ * EP)]
         
         // Compute Order Remaining Collateral 
-        LDM         _Collateral                     // Stack: [CIQ, CS, C]
+        LDM         _Collateral                     // Stack: [CIQ, CS, C_order]
+        LDM         _CollateralVendor               // Stack: [CIQ, CS, C_order, C_vendor]
+        LDM         _CollateralTotal                // Stack: [CIQ, CS, C_order, C_vendor, C_total]
+        PKV         3                               // Stack: [CIQ, CS, C]
         SSB         1                               // Stack: [CIQ, CS, CR = (C - CS)]
         SWAP        1                               // Stack: [CIQ, CR, CS]
 
         // Compute Order Spent Collateral
-        LDM         _Spent                          // Stack: [CIQ, CR, CS, CS_old]
+        LDM         _Spent                          // Stack: [CIQ, CR, CS, CS_old_order]
+        LDM         _SpentVendor                    // Stack: [CIQ, CR, CS, CS_old_order, CS_old_vendor]
+        LDM         _SpentTotal                     // Stack: [CIQ, CR, CS, CS_old_order, CS_old_vendor, CS_old_total]
+        PKV         3                               // Stack: [CIQ, CR, CS, CS_old]
         ADD         1                               // Stack: [CIQ, CR, CS, CS_new = (CS_old + CS)]
         SWAP        1                               // Stack: [CIQ, CR, CS_new, CS]
         POPN        1                               // Stack: [CIQ, CR, CS_new]
         SWAP        1                               // Stack: [CIQ, CS_new, CR]
         SWAP        2                               // Stack: [CR, CS_new, CIQ]
 
+        LDM         _Minted                         // Stack: [CR, CS_new, CIQ, Minted_order]
+        LDM         _MintedVendor                   // Stack: [CR, CS_new, CIQ, Minted_order, Minted_vendor]
+        LDM         _MintedTotal                    // Stack: [CR, CS_new, CIQ, Minted_order, Minted_vendor, Minted_total]
+        PKV         3                               // Stack: [CR, CS_new, CIQ, Minted]
+        ADD         1                               // Stack: [CR, CS_new, CIQ, Minted_new]
+        SWAP        1                               // Stack: [CR, CS_new, Minted_new, CIQ]
+        POPN        1
+
         // Store Updated Order 
-        PKV         3                               // Stack: [(CR, CS_new, CIQ)]
+        T           3                               // Stack: [Order, Vendor, Total]
+        STV         total_order_id                  // Stack: [Order, Vendor]
+        STV         vendor_order_id                 // Stack: [Order]
         STV         order_id                        // Stack: []
-
-
+        
         // Store Executed Index Quantity and Remaining Quantity
         LDM         _CappedIndexQuantity            // Stack: [CIQ]
         LDM         _IndexQuantity                  // Stack: [CIQ, IndexQuantity]
         SUB         1                               // Stack: [CIQ, RIQ = (IndexQuantity - CIQ)]
         PKV         2                               // Stack: [(CIQ, RIQ)]
         STV         executed_index_quantities_id    // Stack: []
-        
+
         // Store Executed Asset Quantities
         LDM         _AssetQuantities
         STV         executed_asset_quantities_id
