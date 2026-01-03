@@ -61,16 +61,6 @@ pub fn execute_buy_order(
         STR         _Collateral                 // Stack: [Collateral_old, C.Removed]
         POPN        2                           // Stack: []
 
-        // Store updated Order = (Collateral, Spent, Minted)
-        //
-        // Note that if we fail Margin Test we still want to keep user's order updated.
-        //
-        LDR         _Collateral
-        LDR         _Spent
-        LDR         _Minted
-        PKV         3
-        STV         order_id
-
         // Compute Index Quantity
         LDV         index_quote_id              // Stack: [Quote = (Capacity, Price, Slope)]
         UNPK                                    // Stack: [Capacity, Price, Slope]
