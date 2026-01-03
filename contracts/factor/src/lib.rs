@@ -445,7 +445,7 @@ impl Factor {
             asset_contribution_fractions_id.to(),
             solve_quadratic_id.to(),
         );
-        let num_registry = 16;
+        let num_registry = 22;
         self.execute_vector_program(gate_to_clerk_chamber, update, num_registry)?;
 
         // TODO: Fetch results
@@ -542,7 +542,7 @@ impl Factor {
             asset_contribution_fractions_id.to(),
             solve_quadratic_id.to(),
         );
-        let num_registry = 16;
+        let num_registry = 22;
         self.execute_vector_program(gate_to_clerk_chamber, update, num_registry)?;
 
         // TODO: Fetch results

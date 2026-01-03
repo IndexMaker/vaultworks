@@ -248,10 +248,10 @@ mod test_scenarios {
         vio.store_vector(index_order_id, amount_vec![950.00, 0, 0])
             .unwrap();
 
-        vio.store_vector(vendor_order_id, amount_vec![0, 20000, 2.0])
+        vio.store_vector(vendor_order_id, amount_vec![1950, 20000, 2.0])
             .unwrap();
 
-        vio.store_vector(total_order_id, amount_vec![0, 50000, 5.0])
+        vio.store_vector(total_order_id, amount_vec![2950, 50000, 5.0])
             .unwrap();
 
         vio.store_labels(market_asset_names_id, label_vec![51, 52, 53, 54, 55])
@@ -307,7 +307,7 @@ mod test_scenarios {
 
         let order_before = vio.load_vector(index_order_id).unwrap();
 
-        let num_registers = 16;
+        let num_registers = 22;
 
         let mut program = VectorVM::new(&mut vio);
         let mut stack = Stack::new(num_registers);
@@ -491,7 +491,7 @@ mod test_scenarios {
 
         let order_before = vio.load_vector(index_order_id).unwrap();
 
-        let num_registers = 16;
+        let num_registers = 22;
 
         let mut program = VectorVM::new(&mut vio);
         let mut stack = Stack::new(num_registers);
