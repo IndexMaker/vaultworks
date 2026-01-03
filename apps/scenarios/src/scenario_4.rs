@@ -14,8 +14,10 @@ pub async fn run_scenario(client: &TxClient, abacus_address: Address) -> eyre::R
     let clerk = Clerk::new(abacus_address, client.client());
 
     let index_order_id = 10001;
-    let executed_asset_quantities_id = 10002;
-    let executed_index_quantities_id = 10003;
+    let vendor_order_id = 10002;
+    let total_order_id = 10003;
+    let executed_asset_quantities_id = 10010;
+    let executed_index_quantities_id = 10011;
     let asset_names_id = 1001;
     let weights_id = 1002;
     let quote_id = 1003;
@@ -65,6 +67,8 @@ pub async fn run_scenario(client: &TxClient, abacus_address: Address) -> eyre::R
         ))
         .add(clerk.store(quote_id, amount_vec![10.00, 10_000, 100.0].to_vec()))
         .add(clerk.store(index_order_id, amount_vec![950.00, 0, 0].to_vec()))
+        .add(clerk.store(vendor_order_id, amount_vec![0, 0, 0].to_vec()))
+        .add(clerk.store(total_order_id, amount_vec![0, 0, 0].to_vec()))
         .add(clerk.store(market_asset_names_id, market_asset_names.to_vec()))
         .add(clerk.store(demand_short_id, market_vector(amount!(0)).to_vec()))
         .add(clerk.store(demand_long_id, market_vector(amount!(0.1)).to_vec()))
@@ -88,6 +92,8 @@ pub async fn run_scenario(client: &TxClient, abacus_address: Address) -> eyre::R
 
     let code = execute_buy_order(
         index_order_id,
+        vendor_order_id,
+        total_order_id,
         collateral_added.to_u128_raw(),
         collateral_removed.to_u128_raw(),
         max_order_size.to_u128_raw(),
@@ -111,7 +117,7 @@ pub async fn run_scenario(client: &TxClient, abacus_address: Address) -> eyre::R
     log_msg!("Code: {:?}", code);
 
     let order_before = Vector::from_vec(clerk.load(index_order_id).call().await?);
-    let num_registers = 16;
+    let num_registers = 22;
 
     client
         .begin_tx()
