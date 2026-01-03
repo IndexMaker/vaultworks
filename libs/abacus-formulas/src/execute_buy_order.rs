@@ -4,6 +4,8 @@ use abacus_macros::abacus;
 /// 
 pub fn execute_buy_order(
     order_id: u128,
+    vendor_order_id: u128,
+    total_order_id: u128,
     collateral_added: u128,
     collateral_removed: u128,
     max_order_size: u128,

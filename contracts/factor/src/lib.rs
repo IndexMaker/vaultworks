@@ -424,8 +424,8 @@ impl Factor {
         //
         let update = execute_buy_order(
             index_order_id.to(), // single trader orders aggregated per vault (we don't store individual orders)
-            //TODO: vendor_order_id, -- needs to sum up all trader orders per vendor per vault
-            //TODO: total_order_id, -- needst to sum up all trader orders per vault
+            vendor_order_id.to(),
+            total_order_id.to(),
             collateral_added,
             collateral_removed,
             max_order_size,
@@ -521,8 +521,8 @@ impl Factor {
         //
         let update = execute_sell_order(
             index_order_id.to(), // single trader orders aggregated per vault (we don't store individual orders)
-            //TODO: vendor_order_id, -- needs to sum up all trader orders per vendor per vault
-            //TODO: total_order_id, -- needst to sum up all trader orders per vault
+            vendor_order_id.to(),
+            total_order_id.to(),
             collateral_added,
             collateral_removed,
             max_order_size,

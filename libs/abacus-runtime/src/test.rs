@@ -211,8 +211,10 @@ mod test_scenarios {
     fn test_buy_index() {
         let mut vio = test_utils::TestVectorIO::new();
         let index_order_id = 10001;
-        let executed_asset_quantities_id = 10002;
-        let executed_index_quantities_id = 10003;
+        let vendor_order_id = 10002;
+        let total_order_id = 10003;
+        let executed_asset_quantities_id = 10010;
+        let executed_index_quantities_id = 10011;
         let asset_names_id = 1001;
         let weights_id = 1002;
         let quote_id = 1003;
@@ -246,6 +248,12 @@ mod test_scenarios {
         vio.store_vector(index_order_id, amount_vec![950.00, 0, 0])
             .unwrap();
 
+        vio.store_vector(vendor_order_id, amount_vec![0, 20000, 2.0])
+            .unwrap();
+
+        vio.store_vector(total_order_id, amount_vec![0, 50000, 5.0])
+            .unwrap();
+
         vio.store_labels(market_asset_names_id, label_vec![51, 52, 53, 54, 55])
             .unwrap();
 
@@ -275,6 +283,8 @@ mod test_scenarios {
 
         let code = execute_buy_order(
             index_order_id,
+            vendor_order_id,
+            total_order_id,
             collateral_added.to_u128_raw(),
             collateral_removed.to_u128_raw(),
             max_order_size.to_u128_raw(),
@@ -385,8 +395,10 @@ mod test_scenarios {
     fn test_sell_index() {
         let mut vio = test_utils::TestVectorIO::new();
         let index_order_id = 10001;
-        let executed_asset_quantities_id = 10002;
-        let executed_index_quantities_id = 10003;
+        let vendor_order_id = 10002;
+        let total_order_id = 10003;
+        let executed_asset_quantities_id = 10010;
+        let executed_index_quantities_id = 10011;
         let asset_names_id = 1001;
         let weights_id = 1002;
         let quote_id = 1003;
@@ -420,6 +432,12 @@ mod test_scenarios {
         vio.store_vector(index_order_id, amount_vec![1.00, 0, 0])
             .unwrap();
 
+        vio.store_vector(vendor_order_id, amount_vec![0, 0, 0])
+            .unwrap();
+
+        vio.store_vector(total_order_id, amount_vec![0, 0, 0])
+            .unwrap();
+
         vio.store_labels(market_asset_names_id, label_vec![51, 52, 53, 54, 55])
             .unwrap();
 
@@ -449,6 +467,8 @@ mod test_scenarios {
 
         let code = execute_sell_order(
             index_order_id,
+            vendor_order_id,
+            total_order_id,
             collateral_added.to_u128_raw(),
             collateral_removed.to_u128_raw(),
             max_order_size.to_u128_raw(),
