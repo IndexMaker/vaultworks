@@ -55,7 +55,7 @@ pub fn execute_transfer(
         STR     _ReceiverSpent  // [ITP_amount, C_amount, ITP_mint, rC_rem]
         STR     _ReceiverRemain // [ITP_amount, C_amount, ITP_mint]
         POPN    3               // []
-        
+ 
         // =============================
         // * * * COMMIT NEW VALUES * * *
         // =============================

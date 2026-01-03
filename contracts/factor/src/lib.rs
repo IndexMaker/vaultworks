@@ -8,7 +8,10 @@ extern crate alloc;
 use alloc::vec::Vec;
 
 use abacus_formulas::{
-    execute_buy_order::execute_buy_order, execute_sell_order::execute_sell_order, solve_quadratic_ask::solve_quadratic_ask, solve_quadratic_bid::solve_quadratic_bid, update_market_data::update_market_data, update_quote::update_quote
+    execute_buy_order::execute_buy_order, execute_sell_order::execute_sell_order,
+    execute_transfer::execute_transfer, solve_quadratic_ask::solve_quadratic_ask,
+    solve_quadratic_bid::solve_quadratic_bid, update_market_data::update_market_data,
+    update_quote::update_quote,
 };
 use alloy_primitives::{Address, U128};
 use common::vector::Vector;
@@ -579,9 +582,64 @@ impl Factor {
         Err(b"Not implemented yet".into())
     }
 
+    pub fn submit_transfer_order(
+        &mut self,
+        index_id: U128,
+        receiver: Address,
+        amount: u128,
+    ) -> Result<(), Vec<u8>> {
+        let mut storage = Keep::storage();
+        let mut vault = storage.vaults.setter(index_id);
+        let sender = self.attendee();
+
+        let sender_bid_id = self.init_trader_bid(&mut vault, &mut storage.clerk_chamber, sender)?;
+        let sender_ask_id = self.init_trader_ask(&mut vault, &mut storage.clerk_chamber, sender)?;
+        let receiver_bid_id =
+            self.init_trader_bid(&mut vault, &mut storage.clerk_chamber, receiver)?;
+
+        let gate_to_clerk_chamber = storage.clerk_chamber.get_gate_address();
+
+        // TODO: query balance before transaction to check if sufficient instead of 
+        // relying on execute_transfer() to fail in such case, so that we have friendly
+        // error message.
+        let (sender_bid_bytes, sender_ask_bytes) = self.get_trader_order(index_id, sender)?;
+        let sender_bid = Vector::from_vec(sender_bid_bytes);
+        let sender_ask = Vector::from_vec(sender_ask_bytes);
+        let sender_minted = sender_bid.data[2];
+        let sender_redeem = sender_ask.data[0];
+        let sender_balance = sender_minted.checked_sub(sender_redeem).ok_or_else(|| b"Unexpected minted < redeem")?;
+        if sender_balance.to_u128_raw() < amount {
+            Err(b"Insufficient amount of Index token")?;
+        }
+
+        let update = execute_transfer(
+            sender_bid_id.to(),
+            sender_ask_id.to(),
+            receiver_bid_id.to(),
+            amount,
+        );
+
+        let num_registry = 6;
+        self.execute_vector_program(gate_to_clerk_chamber, update, num_registry)?;
+
+        Ok(())
+    }
+
     //
     // Query methods
     //
+
+    // ERC-20 & ERC-4626
+    // @{
+    // pub fn get_trader_balance() {}  // bid.ITP_minted - ask.ITP_rem ; trader's balance excludes part they submitted in sell order
+    // pub fn get_trader_assets() {}   // for i..n_chunks: balance_i * (quote.P + balance_i * quote.S) ; chunk balance by max-order-size
+    // pub fn get_total_supply() {}    // total.bid.ITP_minted - total.ask.ITP_burned ; total supply includes all ITP that is not burned
+    // pub fn get_total_assets() {}    // for i..n_chunks: supply_i * (quote.P + supply_i * quote.S) ; chunk supply by max-order-size
+    // pub fn convert_to_shares() {}   // solve quadratic for max-order-size (n_chunks - 1) times and once for remainder
+    // pub fn convert_to_assets() {}   // for i..n_chunks: amount_i * (quote.P + amount_i * quote.S) ; chunk amount by max-order-size
+    // pub fn preview_deposit() {}     // same(ish) as convert_to_shares()
+    // pub fn preview_redeem() {}      // same(ish) as convert_to_redeem()
+    // @}
 
     pub fn get_market_data(&self, vendor_id: U128) -> Result<(Vec<u8>, Vec<u8>, Vec<u8>), Vec<u8>> {
         let storage = Keep::storage();
