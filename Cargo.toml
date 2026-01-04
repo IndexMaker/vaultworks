@@ -12,6 +12,7 @@ members = [
     "contracts/guildmaster",
     "contracts/scribe",
     "contracts/treasury",
+    "contracts/vault",
     "contracts/worksman",
 
     # Library Packages

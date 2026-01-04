@@ -10,9 +10,11 @@ sol! {
 
         function submitBuyOrder(uint128 vendor_id, uint128 index_id, uint128 collateral_added, uint128 collateral_removed, uint128 max_order_size, uint8[] memory asset_contribution_fractions) external returns (uint8[] memory, uint8[] memory, uint8[] memory);
 
-        function submitSellOrder(uint128 vendor_id, uint128 index_id, uint128 itp_added, uint128 itp_removed, uint128 max_order_size, uint8[] memory asset_contribution_fractions) external returns (uint8[] memory, uint8[] memory, uint8[] memory);
+        function submitSellOrder(uint128 vendor_id, uint128 index_id, uint128 collateral_added, uint128 collateral_removed, uint128 max_order_size, uint8[] memory asset_contribution_fractions) external returns (uint8[] memory, uint8[] memory, uint8[] memory);
 
         function submitRebalanceOrder(uint128 vendor_id, uint8[] memory new_assets, uint8[] memory new_weigthts) external;
+
+        function submitTransferOrder(uint128 index_id, address receiver, uint128 amount) external;
 
         function getMarketData(uint128 vendor_id) external view returns (uint8[] memory, uint8[] memory, uint8[] memory);
 

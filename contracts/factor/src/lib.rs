@@ -629,18 +629,6 @@ impl Factor {
     // Query methods
     //
 
-    // ERC-20 & ERC-4626
-    // @{
-    // pub fn get_trader_balance() {}  // bid.ITP_minted - ask.ITP_rem ; trader's balance excludes part they submitted in sell order
-    // pub fn get_trader_assets() {}   // for i..n_chunks: balance_i * (quote.P + balance_i * quote.S) ; chunk balance by max-order-size
-    // pub fn get_total_supply() {}    // total.bid.ITP_minted - total.ask.ITP_burned ; total supply includes all ITP that is not burned
-    // pub fn get_total_assets() {}    // for i..n_chunks: supply_i * (quote.P + supply_i * quote.S) ; chunk supply by max-order-size
-    // pub fn convert_to_shares() {}   // solve quadratic for max-order-size (n_chunks - 1) times and once for remainder
-    // pub fn convert_to_assets() {}   // for i..n_chunks: amount_i * (quote.P + amount_i * quote.S) ; chunk amount by max-order-size
-    // pub fn preview_deposit() {}     // same(ish) as convert_to_shares()
-    // pub fn preview_redeem() {}      // same(ish) as convert_to_redeem()
-    // @}
-
     pub fn get_market_data(&self, vendor_id: U128) -> Result<(Vec<u8>, Vec<u8>, Vec<u8>), Vec<u8>> {
         let storage = Keep::storage();
         let account = storage.accounts.get(vendor_id);
