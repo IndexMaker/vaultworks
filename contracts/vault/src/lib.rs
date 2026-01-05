@@ -8,10 +8,15 @@ extern crate alloc;
 use alloc::{string::String, vec::Vec};
 
 use alloy_primitives::{uint, Address, B256, U256, U32, U8};
-use alloy_sol_types::{sol, SolCall, SolEvent};
+use alloy_sol_types::{sol, SolEvent};
 use common::{amount::Amount, vector::Vector};
 use common_contracts::{
-    contracts::{calls::InnerCall, keep_calls::KeepCalls, storage::StorageSlot},
+    contracts::{
+        calls::InnerCall,
+        formulas::{Order, Quote},
+        keep_calls::KeepCalls,
+        storage::StorageSlot,
+    },
     interfaces::factor::IFactor,
 };
 use stylus_sdk::{
@@ -20,7 +25,7 @@ use stylus_sdk::{
     prelude::*,
     storage::{
         StorageAddress, StorageBool, StorageMap, StorageString, StorageU128, StorageU256,
-        StorageU32,
+        StorageU32, StorageVec,
     },
 };
 
@@ -34,14 +39,6 @@ pub const VAULT_STORAGE_SLOT: U256 = {
 pub const VERSION_NUMBER: U32 = uint!(1_U32);
 pub const UPGRADE_INTERFACE_VERSION: &str = "5.0.0";
 
-const ORDER_REMAIN_OFFSET: usize = 0;
-const ORDER_SPENT_OFFSET: usize = 1;
-const ORDER_REALIZED_OFFSET: usize = 2;
-
-const QUOTE_CAPACITY_OFFSET: usize = 0;
-const QUOTE_PRICE_OFFSET: usize = 1;
-const QUOTE_SLOPE_OFFSET: usize = 2;
-
 sol! {
     interface IERC20 {
         event Transfer(address indexed from, address indexed to, uint256 value);
@@ -51,37 +48,202 @@ sol! {
         function transferFrom(address from, address to, uint256 value) external returns (bool);
     }
 
+    event Deposit(address indexed sender, address indexed owner, uint256 assets, uint256 shares);
+    event Withdraw(address indexed sender, address indexed receiver, address indexed owner, uint256 assets, uint256 shares);
+
     event DepositRequest(address controller, address owner, uint256 requestId, address sender, uint256 assets);
+    event RedeemRequest(address controller, address owner, uint256 requestId, address sender, uint256 shares);
+
+    event OperatorSet(address controller, address operator, bool approved);
 }
 
 #[storage]
 struct Request {
-    pending_request: StorageU256,
-    claimable_request: StorageU256,
+    pending_request: StorageU128,
+    claimable_request: StorageU128,
+    claimable_amount: StorageU128,
 }
 
 impl Request {
-    fn pending(&self) -> U256 {
-        self.pending_request.get()
+    fn pending(&self) -> Amount {
+        Amount::from_u128(self.pending_request.get())
     }
 
-    fn claimable(&self) -> U256 {
-        self.claimable_request.get()
+    fn claimable(&self) -> Amount {
+        Amount::from_u128(self.claimable_request.get())
     }
 
-    fn request(&mut self, assets: U256) -> Result<(), Vec<u8>> {
-        let current = self.pending_request.get();
-        let result = current.checked_add(assets).ok_or_else(|| b"MathOverflow")?;
-        self.pending_request.set(result);
+    fn request(&mut self, amount: Amount) -> Result<(), Vec<u8>> {
+        let current = Amount::from_u128(self.pending_request.get());
+        let result = current.checked_add(amount).ok_or_else(|| b"MathOverflow")?;
+        self.pending_request.set(result.to_u128());
         Ok(())
     }
 
-    fn claim(&mut self, assets: U256) -> Result<(), Vec<u8>> {
-        let current = self.claimable_request.get();
-        let result = current
-            .checked_sub(assets)
+    fn update(&mut self, spent: Amount, ready: Amount) -> Result<Amount, Vec<u8>> {
+        let pending = Amount::from_u128(self.pending_request.get());
+        let claimable = Amount::from_u128(self.claimable_request.get());
+        let amount = Amount::from_u128(self.claimable_amount.get());
+
+        let pending_new = pending.checked_sub(spent).ok_or_else(|| b"MathOverflow")?;
+        let claimable_new = claimable
+            .checked_add(spent)
+            .ok_or_else(|| b"MathOverflow")?;
+        let amount_new = amount.checked_add(ready).ok_or_else(|| b"MathOverflow")?;
+
+        self.pending_request.set(pending_new.to_u128());
+        self.claimable_request.set(claimable_new.to_u128());
+        self.claimable_amount.set(amount_new.to_u128());
+
+        Ok(amount_new)
+    }
+
+    fn claim(&mut self, amount: Amount) -> Result<Amount, Vec<u8>> {
+        let current = Amount::from_u128(self.claimable_request.get());
+        let claimable = Amount::from_u128(self.claimable_amount.get());
+
+        let to_claim = if amount == claimable {
+            // use total claimable
+            claimable
+        } else {
+            // distribute pro-rata
+            claimable
+                .checked_mul(amount)
+                .and_then(|x| x.checked_div(current))
+                .ok_or_else(|| b"MathOverflow")?
+        };
+
+        let current_new = current
+            .checked_sub(amount)
             .ok_or_else(|| b"Insufficient Claimable")?;
-        self.claimable_request.set(result);
+
+        let claimable_new = claimable
+            .checked_sub(to_claim)
+            .ok_or_else(|| b"Insufficient Claimable")?;
+
+        self.claimable_request.set(current_new.to_u128());
+        self.claimable_amount.set(claimable_new.to_u128());
+
+        Ok(to_claim)
+    }
+}
+
+#[storage]
+pub struct Requests {
+    last_claimed_id: StorageU256,
+    last_request_id: StorageU256,
+    total_claimable: StorageU128,
+    requests: StorageMap<U256, Request>,
+}
+
+impl Requests {
+    fn pending(&self, request_id: U256) -> Amount {
+        self.requests.get(request_id).pending()
+    }
+
+    fn claimable(&self, request_id: U256) -> Amount {
+        self.requests.get(request_id).claimable()
+    }
+
+    fn request(&mut self, amount: Amount) -> Result<U256, Vec<u8>> {
+        let last_id = self.last_request_id.get();
+        let new_id = last_id
+            .checked_add(U256::ONE)
+            .ok_or_else(|| b"MathOverflow")?;
+        self.last_request_id.set(new_id);
+        let mut setter = self.requests.setter(last_id);
+        setter.request(amount)?;
+        Ok(last_id)
+    }
+
+    fn update(
+        &mut self,
+        request_id: U256,
+        spent: Amount,
+        ready: Amount,
+    ) -> Result<Amount, Vec<u8>> {
+        let mut request = self.requests.setter(request_id);
+        request.update(spent, ready)
+    }
+
+    fn claim(&mut self, mut amount: Amount) -> Result<Amount, Vec<u8>> {
+        let total_claimable = Amount::from_u128(self.total_claimable.get());
+        if total_claimable < amount {
+            Err(b"Insufficient Claimable")?;
+        }
+        let mut first_id = self.last_claimed_id.get();
+        let last_id = self.last_request_id.get();
+        let mut total_claimed = Amount::ZERO;
+
+        while first_id <= last_id {
+            let mut request = self.requests.setter(first_id);
+            let claimable = request.claimable();
+
+            let amount_remain = amount
+                .saturating_sub(claimable)
+                .ok_or_else(|| b"UnexpectedMathError")?;
+
+            if amount_remain.is_zero() {
+                let to_claim = claimable
+                    .checked_sub(amount)
+                    .ok_or_else(|| b"UnexpectedMathError")?;
+
+                let claimed = request.claim(to_claim)?;
+                total_claimed = total_claimed
+                    .checked_add(claimed)
+                    .ok_or_else(|| b"MathOverflow")?;
+
+                self.last_claimed_id.set(first_id);
+
+                return Ok(total_claimed);
+            } else {
+                let claimed = request.claim(claimable)?;
+
+                total_claimed = total_claimed
+                    .checked_add(claimed)
+                    .ok_or_else(|| b"MathOverflow")?;
+
+                amount = amount_remain;
+
+                first_id = first_id
+                    .checked_add(U256::ONE)
+                    .ok_or_else(|| b"MathOverflow")?;
+            }
+        }
+
+        Err(b"Insufficient Claimable".into())
+    }
+}
+
+#[storage]
+pub struct Allowance {
+    from_account: StorageMap<Address, StorageU256>,
+}
+
+impl Allowance {
+    pub fn allowance(&self, spender: Address) -> U256 {
+        self.from_account.get(spender)
+    }
+
+    pub fn approve(&mut self, spender: Address, value: U256) -> Result<bool, Vec<u8>> {
+        if spender.is_zero() {
+            Err(b"Invalid Spender")?;
+        }
+        let mut allowance = self.from_account.setter(spender);
+        allowance.set(value);
+        Ok(true)
+    }
+
+    pub fn spend_allowance(&mut self, spender: Address, value: U256) -> Result<(), Vec<u8>> {
+        if spender.is_zero() {
+            Err(b"Invalid Spender")?;
+        }
+        let mut allowance = self.from_account.setter(spender);
+        let current = allowance.get();
+        let remain = current
+            .checked_sub(value)
+            .ok_or_else(|| b"Insufficient Allowance")?;
+        allowance.set(remain);
         Ok(())
     }
 }
@@ -110,10 +272,12 @@ struct VaultStorage {
     name: StorageString,
     symbol: StorageString,
     owner: StorageAddress,
+    custody: StorageAddress,
     collateral_asset: StorageAddress,
-    controller: StorageMap<Address, Operator>,
-    deposit_request: StorageMap<Address, Request>,
-    redeem_request: StorageMap<Address, Request>,
+    operators: StorageMap<Address, Operator>,
+    allowances: StorageMap<Address, Allowance>,
+    deposit_request: StorageMap<Address, Requests>,
+    redeem_request: StorageMap<Address, Requests>,
     gate_to_castle: StorageAddress,
 }
 
@@ -124,10 +288,6 @@ pub struct Vault;
 impl Vault {
     fn _storage() -> VaultStorage {
         StorageSlot::get_slot::<VaultStorage>(VAULT_STORAGE_SLOT)
-    }
-
-    fn _next_request_id(&mut self) -> U256 {
-        U256::ZERO
     }
 
     fn _only_owner(&self, vault: &VaultStorage) -> Result<(), Vec<u8>> {
@@ -235,13 +395,8 @@ impl Vault {
         let (bid, ask) = self._get_order(&vault, account)?;
         let quote = self._get_quote(&vault)?;
 
-        let itp_unburnt = bid.data[ORDER_REALIZED_OFFSET]
-            .checked_sub(ask.data[ORDER_SPENT_OFFSET])
-            .ok_or_else(|| b"MathUnderflow")?;
-
-        let assets_base_value = quote.data[QUOTE_PRICE_OFFSET]
-            .checked_mul(itp_unburnt)
-            .ok_or_else(|| b"MathOverflow")?;
+        let itp_amount = Order::tell_total(bid, ask)?;
+        let assets_base_value = Quote::tell_base_value(quote, itp_amount)?;
 
         Ok(assets_base_value.to_u256())
     }
@@ -252,13 +407,8 @@ impl Vault {
         let (bid, ask) = self._get_total_order(&vault)?;
         let quote = self._get_quote(&vault)?;
 
-        let itp_unburnt = bid.data[ORDER_REALIZED_OFFSET]
-            .checked_sub(ask.data[ORDER_SPENT_OFFSET])
-            .ok_or_else(|| b"MathUnderflow")?;
-
-        let assets_base_value = quote.data[QUOTE_PRICE_OFFSET]
-            .checked_mul(itp_unburnt)
-            .ok_or_else(|| b"MathOverflow")?;
+        let itp_amount = Order::tell_total(bid, ask)?;
+        let assets_base_value = Quote::tell_base_value(quote, itp_amount)?;
 
         Ok(assets_base_value.to_u256())
     }
@@ -267,41 +417,78 @@ impl Vault {
         let vault = Self::_storage();
 
         let quote = self._get_quote(&vault)?;
-        let amount = Amount::try_from_u256(shares).ok_or_else(|| b"MathOverflow")?;
+        let itp_amount = Amount::try_from_u256(shares).ok_or_else(|| b"MathOverflow")?;
+        let base_value = Quote::tell_base_value(quote, itp_amount)?;
 
-        let assets_base_value = quote.data[QUOTE_PRICE_OFFSET]
-            .checked_mul(amount)
-            .ok_or_else(|| b"MathOverflow")?;
-
-        Ok(assets_base_value.to_u256())
+        Ok(base_value.to_u256())
     }
 
     pub fn convert_to_shares(&self, assets: U256) -> Result<U256, Vec<u8>> {
         let vault = Self::_storage();
 
         let quote = self._get_quote(&vault)?;
-        let amount = Amount::try_from_u256(assets).ok_or_else(|| b"MathOverflow")?;
+        let base_value = Amount::try_from_u256(assets).ok_or_else(|| b"MathOverflow")?;
+        let itp_amount = Quote::tell_itp_amount(quote, base_value)?;
 
-        let assets_base_value = amount
-            .checked_div(quote.data[QUOTE_PRICE_OFFSET])
-            .ok_or_else(|| b"MathOverflow")?;
-
-        Ok(assets_base_value.to_u256())
+        Ok(itp_amount.to_u256())
     }
 
-    fn request_deposit(
+    pub fn is_operator(&self, owner: Address, operator: Address) -> bool {
+        let vault = Self::_storage();
+        let operators = vault.operators.getter(owner);
+        operators.is_operator(operator)
+    }
+
+    pub fn set_operator(&mut self, operator: Address, approved: bool) -> bool {
+        let sender = self.attendee();
+        let mut vault = Self::_storage();
+        let mut operators = vault.operators.setter(sender);
+        operators.set_operator(operator, approved);
+
+        let event = OperatorSet {
+            controller: sender,
+            operator,
+            approved,
+        };
+
+        self.vm().emit_log(&event.encode_data(), 1);
+        true
+    }
+
+    pub fn request_deposit(
         &mut self,
         assets: U256,
         controller: Address,
         owner: Address,
     ) -> Result<U256, Vec<u8>> {
+        if assets.is_zero() {
+            Err(b"Shares cannot be zero")?;
+        }
         let mut vault = Self::_storage();
+        let sender = self.attendee();
 
-        let request_id = self._next_request_id();
+        // Any user or their approved operator can send deposit request
+        if sender != owner && !self.is_operator(owner, sender) {
+            Err(b"Sender must be an owner or approved operator")?;
+        }
 
-        let mut request = vault.deposit_request.setter(owner);
-        request.request(assets)?;
+        // Transfer USDC collateral from user to dedicated custody
+        let asset = vault.collateral_asset.get();
+        self.external_call_ret(
+            asset,
+            IERC20::transferFromCall {
+                from: owner,
+                to: vault.custody.get(),
+                value: assets,
+            },
+        )?;
 
+        // Requests from multiple users are aggregated per controller
+        let mut request = vault.deposit_request.setter(controller);
+        let request_id =
+            request.request(Amount::try_from_u256(assets).ok_or_else(|| b"MathOverflow")?)?;
+
+        // Send an event, and it will be picked up by Keeper service
         let request_event = DepositRequest {
             controller,
             owner,
@@ -315,61 +502,248 @@ impl Vault {
         Ok(request_id)
     }
 
-    fn max_deposit(&self, receiver: Address) -> U256 {
-        U256::ZERO
+    pub fn pending_deposit_request(
+        &self,
+        request_id: U256,
+        controller: Address,
+    ) -> Result<U256, Vec<u8>> {
+        let vault = Self::_storage();
+        let request = vault.deposit_request.getter(controller);
+        if request.last_request_id.get().is_zero() {
+            Err(b"NotSuchRequest")?;
+        }
+        let amount = request.pending(request_id);
+        Ok(amount.to_u256())
     }
 
-    fn preview_deposit(&self, assets: U256) -> Result<U256, Vec<u8>> {
-        Err(b"Must deposit via Keeper service".into())
+    pub fn claimable_deposit_request(
+        &self,
+        request_id: U256,
+        controller: Address,
+    ) -> Result<U256, Vec<u8>> {
+        let vault = Self::_storage();
+        let request = vault.deposit_request.getter(controller);
+        if request.last_request_id.get().is_zero() {
+            Err(b"NotSuchRequest")?;
+        }
+        let amount = request.claimable(request_id);
+        Ok(amount.to_u256())
     }
 
-    fn deposit(&mut self, assets: U256, receiver: Address) -> Result<U256, Vec<u8>> {
-        Err(b"Must deposit via Keeper service".into())
+    pub fn claimable_deposit_update(
+        &self,
+        request_id: U256,
+        assets: U256,
+        shares: U256,
+    ) -> Result<(), Vec<u8>> {
+        let mut vault = Self::_storage();
+        let mut request = vault.deposit_request.setter(self.attendee());
+        if request.last_request_id.get().is_zero() {
+            Err(b"NotSuchRequest")?;
+        }
+        request.update(
+            request_id,
+            Amount::try_from_u256(assets).ok_or_else(|| b"MathOverflow")?,
+            Amount::try_from_u256(shares).ok_or_else(|| b"MathOverflow")?,
+        )?;
+        Ok(())
     }
 
-    fn max_redeem(&self, owner: Address) -> U256 {
-        U256::ZERO
+    pub fn deposit(
+        &mut self,
+        assets: U256,
+        receiver: Address,
+        controller: Address,
+    ) -> Result<U256, Vec<u8>> {
+        let mut vault = Self::_storage();
+        let sender = self.attendee();
+
+        // User can claim their shares or controller can claim for the user or
+        // approved operator.
+        if sender != receiver
+            && sender != controller
+            && !self.is_operator(receiver, sender)
+            && !self.is_operator(controller, sender)
+        {
+            Err(b"Sender must be an owner or approved operator")?;
+        }
+
+        let mut request = vault.deposit_request.setter(controller);
+        if request.last_request_id.get().is_zero() {
+            Err(b"NotSuchRequest")?;
+        }
+        let shares =
+            request.claim(Amount::try_from_u256(assets).ok_or_else(|| b"MathOverflow")?)?;
+
+        let event = Deposit {
+            sender: controller,
+            owner: receiver,
+            assets,
+            shares: shares.to_u256(),
+        };
+
+        self.vm().emit_log(&event.encode_data(), 1);
+
+        Ok(shares.to_u256())
     }
 
-    fn preview_redeem(&self, shares: U256) -> Result<U256, Vec<u8>> {
-        Err(b"Must redeem via Keeper service".into())
+    pub fn request_redeem(
+        &mut self,
+        shares: U256,
+        controller: Address,
+        owner: Address,
+    ) -> Result<U256, Vec<u8>> {
+        if shares.is_zero() {
+            Err(b"Shares cannot be zero")?;
+        }
+
+        let mut vault = Self::_storage();
+        let sender = self.attendee();
+
+        // Any user or their approved operator can send redeem request
+        if sender != owner && !self.is_operator(owner, sender) {
+            Err(b"Sender must be an owner or approved operator")?;
+        }
+
+        // Requests from multiple users are aggregated per controller
+        let mut request = vault.redeem_request.setter(controller);
+        let request_id =
+            request.request(Amount::try_from_u256(shares).ok_or_else(|| b"MathOverflow")?)?;
+
+        // Send an event, and it will be picked up by Keeper service
+        let request_event = RedeemRequest {
+            controller,
+            owner,
+            requestId: request_id,
+            sender: self.attendee(),
+            shares,
+        };
+
+        self.vm().emit_log(&request_event.encode_data(), 1);
+
+        Ok(request_id)
     }
 
-    fn redeem(&mut self, shares: U256, receiver: Address, owner: Address) -> Result<U256, Vec<u8>> {
-        Err(b"Must redeem via Keeper service".into())
+    pub fn pending_redeem_request(
+        &self,
+        request_id: U256,
+        controller: Address,
+    ) -> Result<U256, Vec<u8>> {
+        let vault = Self::_storage();
+        let request = vault.redeem_request.getter(controller);
+        if request.last_request_id.get().is_zero() {
+            Err(b"NotSuchRequest")?;
+        }
+        let amount = request.pending(request_id);
+        Ok(amount.to_u256())
     }
 
-    // These don't need to be implemented
-    // @{
-    // fn max_mint(&self, receiver: Address) -> Result<U256, Vec<u8>> {
-    //     Err(b"Mint Unsupported".into())
+    pub fn claimable_redeem_request(
+        &self,
+        request_id: U256,
+        controller: Address,
+    ) -> Result<U256, Vec<u8>> {
+        let vault = Self::_storage();
+        let request = vault.redeem_request.getter(controller);
+        if request.last_request_id.get().is_zero() {
+            Err(b"NotSuchRequest")?;
+        }
+        let amount = request.claimable(request_id);
+        Ok(amount.to_u256())
+    }
+
+    pub fn claimable_redeem_update(
+        &self,
+        request_id: U256,
+        shares: U256,
+        assets: U256,
+    ) -> Result<(), Vec<u8>> {
+        let mut vault = Self::_storage();
+        let mut request = vault.redeem_request.setter(self.attendee());
+        if request.last_request_id.get().is_zero() {
+            Err(b"NotSuchRequest")?;
+        }
+        request.update(
+            request_id,
+            Amount::try_from_u256(shares).ok_or_else(|| b"MathOverflow")?,
+            Amount::try_from_u256(assets).ok_or_else(|| b"MathOverflow")?,
+        )?;
+        Ok(())
+    }
+
+    pub fn redeem(
+        &mut self,
+        shares: U256,
+        receiver: Address,
+        controller: Address,
+    ) -> Result<U256, Vec<u8>> {
+        let mut vault = Self::_storage();
+        let sender = self.attendee();
+
+        // User can claim their USDC or controller can claim for the user or
+        // approved operator.
+        if sender != receiver
+            && sender != controller
+            && !self.is_operator(receiver, sender)
+            && !self.is_operator(controller, sender)
+        {
+            Err(b"Sender must be an owner or approved operator")?;
+        }
+
+        let mut request = vault.redeem_request.setter(controller);
+        if request.last_request_id.get().is_zero() {
+            Err(b"NotSuchRequest")?;
+        }
+        let assets =
+            request.claim(Amount::try_from_u256(shares).ok_or_else(|| b"MathOverflow")?)?;
+
+        // Transfer USDC collateral from dedicated custody to the user
+        let asset = vault.collateral_asset.get();
+        self.external_call_ret(
+            asset,
+            IERC20::transferFromCall {
+                from: vault.custody.get(),
+                to: receiver,
+                value: assets.to_u256(),
+            },
+        )?;
+
+        let event = Withdraw {
+            sender,
+            receiver,
+            owner: controller,
+            assets: assets.to_u256(),
+            shares,
+        };
+
+        self.vm().emit_log(&event.encode_data(), 1);
+
+        Ok(assets.to_u256())
+    }
+
+    // fn max_deposit(&self, receiver: Address) -> U256 {
+    //     U256::ZERO
     // }
 
-    // fn preview_mint(&self, shares: U256) -> Result<U256, Vec<u8>> {
-    //     Err(b"Mint Unsupported".into())
+    // fn preview_deposit(&self, assets: U256) -> Result<U256, Vec<u8>> {
+    //     Err(b"Must deposit via Keeper service".into())
     // }
 
-    // fn mint(&mut self, shares: U256, receiver: Address) -> Result<U256, Vec<u8>> {
-    //     Err(b"Mint Unsupported".into())
+    // fn deposit(&mut self, assets: U256, receiver: Address) -> Result<U256, Vec<u8>> {
+    //     Err(b"Must deposit via Keeper service".into())
     // }
 
-    // fn max_withdraw(&self, owner: Address) -> Result<U256, Vec<u8>> {
-    //     Err(b"Withdraw Unsupported".into())
+    // fn max_redeem(&self, owner: Address) -> U256 {
+    //     U256::ZERO
     // }
 
-    // fn preview_withdraw(&self, assets: U256) -> Result<U256, Vec<u8>> {
-    //     Err(b"Withdraw Unsupported".into())
+    // fn preview_redeem(&self, shares: U256) -> Result<U256, Vec<u8>> {
+    //     Err(b"Must redeem via Keeper service".into())
     // }
 
-    // fn withdraw(
-    //     &mut self,
-    //     assets: U256,
-    //     receiver: Address,
-    //     owner: Address,
-    // ) -> Result<U256, Vec<u8>> {
-    //     Err(b"Withdraw Unsupported".into())
+    // fn redeem(&mut self, shares: U256, receiver: Address, owner: Address) -> Result<U256, Vec<u8>> {
+    //     Err(b"Must redeem via Keeper service".into())
     // }
-    // @}
 
     // ERC20
 
@@ -390,51 +764,31 @@ impl Vault {
     pub fn total_supply(&self) -> Result<U256, Vec<u8>> {
         let vault = Self::_storage();
 
-        let ret = self.static_call_ret(
-            vault.gate_to_castle.get(),
-            IFactor::getTotalOrderCall {
-                index_id: vault.index_id.get().to(),
-            },
-        )?;
+        let (bid, ask) = self._get_total_order(&vault)?;
+        let itp_amount = Order::tell_total(bid, ask)?;
 
-        let bid = Vector::from_vec(ret._0);
-        let ask = Vector::from_vec(ret._1);
-
-        let itp_available = bid.data[ORDER_REALIZED_OFFSET]
-            .checked_sub(ask.data[ORDER_REMAIN_OFFSET])
-            .ok_or_else(|| b"MathUnderflow")?;
-
-        Ok(itp_available.to_u256())
+        Ok(itp_amount.to_u256())
     }
 
     pub fn balance_of(&self, account: Address) -> Result<U256, Vec<u8>> {
         let vault = Self::_storage();
 
-        let ret = self.static_call_ret(
-            vault.gate_to_castle.get(),
-            IFactor::getTraderOrderCall {
-                index_id: vault.index_id.get().to(),
-                trader: account,
-            },
-        )?;
+        let (bid, ask) = self._get_order(&vault, account)?;
+        let itp_amount = Order::tell_available(bid, ask)?;
 
-        let bid = Vector::from_vec(ret._0);
-        let ask = Vector::from_vec(ret._1);
-
-        let itp_available = bid.data[ORDER_REALIZED_OFFSET]
-            .checked_sub(ask.data[ORDER_REMAIN_OFFSET])
-            .ok_or_else(|| b"MathUnderflow")?;
-
-        Ok(itp_available.to_u256())
+        Ok(itp_amount.to_u256())
     }
 
     pub fn transfer(&mut self, to: Address, value: U256) -> Result<(), Vec<u8>> {
         let vault = Self::_storage();
+        let sender = self.attendee();
 
+        // Vault is submitting transfer on behalf of msg.sender (attendee)
         self.external_call(
             vault.gate_to_castle.get(),
             IFactor::submitTransferCall {
                 index_id: vault.index_id.get().to(),
+                sender,
                 receiver: to,
                 amount: Amount::try_from_u256(value)
                     .ok_or_else(|| b"MathOverflow")?
@@ -443,7 +797,7 @@ impl Vault {
         )?;
 
         let event = IERC20::Transfer {
-            from: self.attendee(),
+            from: sender,
             to,
             value,
         };
@@ -453,33 +807,19 @@ impl Vault {
         Ok(())
     }
 
-    pub fn allowance(&self, owner: Address, spender: Address) -> Result<U256, Vec<u8>> {
+    pub fn allowance(&self, owner: Address, spender: Address) -> U256 {
         let vault = Self::_storage();
-        let result = self.static_call_ret(
-            vault.gate_to_castle.get(),
-            IFactor::getTransferAllowanceCall {
-                index_id: vault.index_id.get().to(),
-                sender: owner,
-                receiver: spender,
-            },
-        )?;
-        Ok(U256::from(result._0))
+        let allowances = vault.allowances.get(owner);
+        allowances.allowance(spender)
     }
 
     pub fn approve(&mut self, spender: Address, value: U256) -> Result<bool, Vec<u8>> {
         if spender.is_zero() {
             Err(b"Invalid Spender")?;
         }
-        let vault = Self::_storage();
-        let result = self.external_call_ret(
-            vault.gate_to_castle.get(),
-            IFactor::approveTransferFromCall {
-                index_id: vault.index_id.get().to(),
-                receiver: spender,
-                amount: value.to(),
-            },
-        )?;
-        Ok(result._0)
+        let mut vault = Self::_storage();
+        let mut allowance = vault.allowances.setter(self.attendee());
+        allowance.approve(spender, value)
     }
 
     pub fn transfer_from(
@@ -495,9 +835,20 @@ impl Vault {
             Err(b"Invalid Receiver")?;
         }
         let mut vault = Self::_storage();
-        //spend_allowance(from, value)?;
+        let mut allowance = vault.allowances.setter(self.attendee());
+        allowance.spend_allowance(from, value)?;
 
-        todo!("Transfer From");
+        self.external_call(
+            vault.gate_to_castle.get(),
+            IFactor::submitTransferCall {
+                index_id: vault.index_id.get().to(),
+                sender: from,
+                receiver: to,
+                amount: Amount::try_from_u256(value)
+                    .ok_or_else(|| b"MathOverflow")?
+                    .to_u128_raw(),
+            },
+        )?;
 
         let event = IERC20::Transfer { from, to, value };
 

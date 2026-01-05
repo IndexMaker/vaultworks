@@ -128,11 +128,7 @@ impl Amount {
     }
 
     #[inline]
-    pub fn is_not(&self) -> bool {
-        // Note: we don't want to call this function is_zero(), because we're
-        // representing decimal numbers, and we should compare against some
-        // threshold and not against absolute 0. The function of is_not() is to
-        // tell that amount is not set rather than having zero value.
+    pub fn is_zero(&self) -> bool {
         self.0 == 0
     }
 

@@ -16,6 +16,7 @@ use abacus_formulas::{
 use alloy_primitives::{Address, U128};
 use common::vector::Vector;
 use common_contracts::contracts::{
+    formulas::Order,
     keep::{ClerkChamber, Keep, Vault},
     keep_calls::KeepCalls,
 };
@@ -259,77 +260,6 @@ impl Factor {
 
         Ok(ask_id)
     }
-
-    fn _submit_transfer_from(
-        &mut self,
-        storage: &mut Keep,
-        index_id: U128,
-        sender: Address,
-        receiver: Address,
-        amount: u128,
-    ) -> Result<(), Vec<u8>> {
-        let mut vault = storage.vaults.setter(index_id);
-
-        // Note here we need both Bid & Ask for sender account, but only Bid for
-        // receiver account. The receiver will obtain new ITP in Minted column
-        // together with split cost basis in Spent column of their Bid vector.
-        // We will take Minted colunm from senders Bid vector, and we must subtract
-        // the ITP that sender has currently locked for redeeming by taking Remain
-        // column together with Spent column reflecting ITP they redeemed (burned)
-        // of their Ask vector. Transfer performs rebalancing by splitting cost basis
-        // together with moving minted ITP amount.
-        let sender_bid_id = self._init_trader_bid(&mut vault, &mut storage.clerk_chamber, sender)?;
-        let sender_ask_id = self._init_trader_ask(&mut vault, &mut storage.clerk_chamber, sender)?;
-        let receiver_bid_id =
-            self._init_trader_bid(&mut vault, &mut storage.clerk_chamber, receiver)?;
-
-        let gate_to_clerk_chamber = storage.clerk_chamber.get_gate_address();
-
-        // Optional check: We don't need to check balance here as VIL program
-        // will fail if balance is insufficient, however we want to produce
-        // friendly error message insted of VIL program error.
-        let sender_bid_bytes =
-            self.fetch_vector_bytes(gate_to_clerk_chamber, sender_bid_id.to())?;
-        let sender_ask_bytes =
-            self.fetch_vector_bytes(gate_to_clerk_chamber, sender_ask_id.to())?;
-
-        let sender_bid = Vector::from_vec(sender_bid_bytes);
-        let sender_ask = Vector::from_vec(sender_ask_bytes);
-
-        let sender_itp_minted = sender_bid.data[ORDER_REALIZED_OFFSET];
-        let sender_itp_redeem = sender_ask.data[ORDER_REMAIN_OFFSET];
-        let sender_itp_burned = sender_ask.data[ORDER_SPENT_OFFSET];
-
-        let sender_balance = sender_itp_minted
-            .checked_sub(
-                sender_itp_redeem
-                    .checked_add(sender_itp_burned)
-                    .ok_or_else(|| b"MathOverflow (redeem + burned)")?,
-            )
-            .ok_or_else(|| b"MathUnderflow (minted < (redeem + burned)")?;
-
-        if sender_balance.to_u128_raw() < amount {
-            Err(b"Insufficient amount of Index token")?;
-        }
-
-        // Transfer Assets & Liabilities from account A to account B
-        //
-        // Note: We perform meticulous rebalancing here where side A
-        // gets Minted amount deducted together with Spent, so that
-        // we split cost basis between account A and account B.
-        //
-        let update = execute_transfer(
-            sender_bid_id.to(),
-            sender_ask_id.to(),
-            receiver_bid_id.to(),
-            amount,
-        );
-
-        let num_registry = 6;
-        self.execute_vector_program(gate_to_clerk_chamber, update, num_registry)?;
-
-        Ok(())
-    }
 }
 
 #[public]
@@ -448,7 +378,7 @@ impl Factor {
     /// Submit BUY Index order
     ///
     /// Add collateral amount to user's order, and match for immediate execution.
-    /// 
+    ///
     pub fn submit_buy_order(
         &mut self,
         vendor_id: U128,
@@ -656,41 +586,67 @@ impl Factor {
     pub fn submit_transfer(
         &mut self,
         index_id: U128,
-        receiver: Address,
-        amount: u128,
-    ) -> Result<(), Vec<u8>> {
-        let mut storage = Keep::storage();
-        let sender = self.attendee();
-
-        self._submit_transfer_from(&mut storage, index_id, sender, receiver, amount)
-    }
-
-    pub fn submit_transfer_from(
-        &mut self,
-        index_id: U128,
         sender: Address,
         receiver: Address,
         amount: u128,
     ) -> Result<(), Vec<u8>> {
         let mut storage = Keep::storage();
-        {
-            let mut vault = storage.vaults.setter(index_id);
-            let mut allowance = vault.records.allowances.setter(sender);
-            allowance.spend_allowance(receiver, amount)?;
-        }
-        self._submit_transfer_from(&mut storage, index_id, sender, receiver, amount)
-    }
-
-    pub fn approve_transfer_from(
-        &mut self,
-        index_id: U128,
-        receiver: Address,
-        amount: u128,
-    ) -> Result<bool, Vec<u8>> {
-        let mut storage = Keep::storage();
         let mut vault = storage.vaults.setter(index_id);
-        let mut allowance = vault.records.allowances.setter(self.attendee());
-        allowance.approve(receiver, amount)
+
+        // Transfers are initiated by Vaults on behalf of users and not
+        // by users themselves. This way it is more efficient.
+        if vault.gate_to_vault.get() != self.attendee() {
+            Err(b"Incorrect Vault")?;
+        }
+
+        // Note here we need both Bid & Ask for sender account, but only Bid for
+        // receiver account. The receiver will obtain new ITP in Minted column
+        // together with split cost basis in Spent column of their Bid vector.
+        // We will take Minted colunm from senders Bid vector, and we must subtract
+        // the ITP that sender has currently locked for redeeming by taking Remain
+        // column together with Spent column reflecting ITP they redeemed (burned)
+        // of their Ask vector. Transfer performs rebalancing by splitting cost basis
+        // together with moving minted ITP amount.
+        let sender_bid_id =
+            self._init_trader_bid(&mut vault, &mut storage.clerk_chamber, sender)?;
+        let sender_ask_id =
+            self._init_trader_ask(&mut vault, &mut storage.clerk_chamber, sender)?;
+        let receiver_bid_id =
+            self._init_trader_bid(&mut vault, &mut storage.clerk_chamber, receiver)?;
+
+        let gate_to_clerk_chamber = storage.clerk_chamber.get_gate_address();
+
+        // Optional check: We don't need to check balance here as VIL program
+        // will fail if balance is insufficient, however we want to produce
+        // friendly error message insted of VIL program error.
+        let sender_bid_bytes =
+            self.fetch_vector_bytes(gate_to_clerk_chamber, sender_bid_id.to())?;
+        let sender_ask_bytes =
+            self.fetch_vector_bytes(gate_to_clerk_chamber, sender_ask_id.to())?;
+
+        let sender_balance = Order::tell_available_from_vec(sender_bid_bytes, sender_ask_bytes)?;
+
+        if sender_balance.to_u128_raw() < amount {
+            Err(b"Insufficient amount of Index token")?;
+        }
+
+        // Transfer Assets & Liabilities from account A to account B
+        //
+        // Note: We perform meticulous rebalancing here where side A
+        // gets Minted amount deducted together with Spent, so that
+        // we split cost basis between account A and account B.
+        //
+        let update = execute_transfer(
+            sender_bid_id.to(),
+            sender_ask_id.to(),
+            receiver_bid_id.to(),
+            amount,
+        );
+
+        let num_registry = 6;
+        self.execute_vector_program(gate_to_clerk_chamber, update, num_registry)?;
+
+        Ok(())
     }
 
     //
@@ -737,18 +693,6 @@ impl Factor {
         }
         let data = self.fetch_vector_bytes(gate_to_clerk_chamber, quote_id.to())?;
         Ok(data)
-    }
-
-    pub fn get_transfer_allowance(
-        &mut self,
-        index_id: U128,
-        sender: Address,
-        receiver: Address,
-    ) -> u128 {
-        let storage = Keep::storage();
-        let vault = storage.vaults.get(index_id);
-        let allowance = vault.records.allowances.get(sender);
-        allowance.allowance(receiver)
     }
 
     pub fn get_trader_order(

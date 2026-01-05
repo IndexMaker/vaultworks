@@ -31,6 +31,10 @@ pub const CASTLE_KEEPER_ROLE: [u8; 32] = keccak_const::Keccak256::new()
     .update(b"Castle.KEEPER_ROLE")
     .finalize();
 
+pub const CASTLE_VAULT_ROLE: [u8; 32] = keccak_const::Keccak256::new()
+    .update(b"Castle.VAULT_ROLE")
+    .finalize();
+
 #[storage]
 #[entrypoint]
 pub struct Constable;
@@ -123,13 +127,14 @@ impl Constable {
             ],
             required_role: CASTLE_KEEPER_ROLE.into(),
         })?;
+        self.top_level_call(ICastle::createProtectedFunctionsCall {
+            contract_address: factor,
+            function_selectors: vec![IFactor::submitTransferCall::SELECTOR.into()],
+            required_role: CASTLE_VAULT_ROLE.into(),
+        })?;
         self.top_level_call(ICastle::createPublicFunctionsCall {
             contract_address: factor,
             function_selectors: vec![
-                IFactor::submitTransferCall::SELECTOR.into(),
-                IFactor::submitTransferFromCall::SELECTOR.into(),
-                IFactor::approveTransferFromCall::SELECTOR.into(),
-                IFactor::getTransferAllowanceCall::SELECTOR.into(),
                 IFactor::getMarketDataCall::SELECTOR.into(),
                 IFactor::getIndexAssetsCall::SELECTOR.into(),
                 IFactor::getIndexWeightsCall::SELECTOR.into(),
@@ -216,5 +221,9 @@ impl Constable {
 
     pub fn get_keeper_role(&self) -> B256 {
         CASTLE_KEEPER_ROLE.into()
+    }
+
+    pub fn get_vault_role(&self) -> B256 {
+        CASTLE_VAULT_ROLE.into()
     }
 }

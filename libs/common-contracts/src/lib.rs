@@ -6,6 +6,7 @@ extern crate alloc;
 #[cfg(feature = "stylus")]
 pub mod contracts {
     pub mod acl;
+    pub mod formulas;
     pub mod calls;
     pub mod castle;
     pub mod delegate;

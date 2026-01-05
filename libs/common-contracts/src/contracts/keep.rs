@@ -17,47 +17,8 @@ pub const KEEP_STORAGE_SLOT: U256 = {
 };
 
 #[storage]
-pub struct Allowance {
-    from_account: StorageMap<Address, StorageU128>,
-}
-
-impl Allowance {
-    pub fn allowance(&self, spender: Address) -> u128 {
-        self.from_account.get(spender).to()
-    }
-
-    pub fn approve(&mut self, spender: Address, value: u128) -> Result<bool, Vec<u8>> {
-        if spender.is_zero() {
-            Err(b"Invalid Spender")?;
-        }
-        let mut allowance = self.from_account.setter(spender);
-        allowance.set(U128::from(value));
-        Ok(true)
-    }
-
-    pub fn spend_allowance(&mut self, spender: Address, value: u128) -> Result<(), Vec<u8>> {
-        if spender.is_zero() {
-            Err(b"Invalid Spender")?;
-        }
-        let mut allowance = self.from_account.setter(spender);
-        let current = allowance.get();
-        let remain = current
-            .checked_sub(U128::from(value))
-            .ok_or_else(|| b"Insufficient Allowance")?;
-        allowance.set(remain);
-        Ok(())
-    }
-}
-
-#[storage]
-pub struct VaultRecords {
-    pub allowances: StorageMap<Address, Allowance>,
-}
-
-#[storage]
 pub struct Vault {
     pub gate_to_vault: StorageAddress,
-    pub records: VaultRecords,
 
     // Index definition
     pub assets: StorageU128,  // Labels  = [u128; num_assets]
