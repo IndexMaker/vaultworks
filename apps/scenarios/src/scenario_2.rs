@@ -102,7 +102,7 @@ pub async fn run_scenario(client: &TxClient, abacus_address: Address) -> eyre::R
     log_msg!("Code: {:?}", code);
 
     let order_before = Vector::from_vec(clerk.load(index_order_id).call().await?);
-    let num_registers = 22;
+    let num_registers = 23;
 
     client
         .begin_tx()

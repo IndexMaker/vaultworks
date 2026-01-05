@@ -23,10 +23,6 @@ use common_contracts::contracts::{
 use stylus_sdk::prelude::*;
 use vector_macros::amount_vec;
 
-const ORDER_REMAIN_OFFSET: usize = 0;
-const ORDER_SPENT_OFFSET: usize = 1;
-const ORDER_REALIZED_OFFSET: usize = 2;
-
 #[storage]
 #[entrypoint]
 pub struct Factor;
@@ -453,7 +449,7 @@ impl Factor {
             asset_contribution_fractions_id.to(),
             solve_quadratic_id.to(),
         );
-        let num_registry = 22;
+        let num_registry = 23;
         self.execute_vector_program(gate_to_clerk_chamber, update, num_registry)?;
 
         let executed_asset_quantities =

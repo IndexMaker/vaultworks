@@ -10,8 +10,8 @@ pub const QUOTE_CAPACITY_OFFSET: usize = 0;
 pub const QUOTE_PRICE_OFFSET: usize = 1;
 pub const QUOTE_SLOPE_OFFSET: usize = 2;
 
-pub const REPORT_EXECUTED: usize = 0;
-pub const REPORT_REMAINING: usize = 1;
+pub const REPORT_DELIVERED: usize = 0;
+pub const REPORT_RECEIVED: usize = 1;
 
 pub struct Order;
 
@@ -111,11 +111,11 @@ impl Quote {
 pub struct Report;
 
 impl Report {
-    pub fn executed_quantity(executed: &Vector) -> Amount {
-        executed.data[REPORT_EXECUTED]
+    pub fn delivered_quantity(executed: &Vector) -> Amount {
+        executed.data[REPORT_DELIVERED]
     }
     
-    pub fn remaining_quantity(executed: &Vector) -> Amount {
-        executed.data[REPORT_REMAINING]
+    pub fn received_quantity(executed: &Vector) -> Amount {
+        executed.data[REPORT_RECEIVED]
     }
 }

@@ -310,7 +310,7 @@ mod test_scenarios {
         let vendor_order_before = vio.load_vector(vendor_order_id).unwrap();
         let total_order_before = vio.load_vector(total_order_id).unwrap();
 
-        let num_registers = 22;
+        let num_registers = 23;
 
         let mut program = VectorVM::new(&mut vio);
         let mut stack = Stack::new(num_registers);
@@ -362,7 +362,7 @@ mod test_scenarios {
         );
         assert_eq!(
             index_quantites.data,
-            amount_vec![0.0999001995, 0.000000000].data
+            amount_vec![999.999999986013980025, 0.0999001995].data
         );
         assert_eq!(
             asset_quantites.data,
@@ -549,7 +549,7 @@ mod test_scenarios {
 
         // these are exact expected fixed point decimal values as raw u128
         assert_eq!(order_after.data, amount_vec![1.0, 0.5, 4975.0].data);
-        assert_eq!(index_quantites.data, amount_vec![0.5, 1.0].data);
+        assert_eq!(index_quantites.data, amount_vec![0.5, 4975.0].data);
         assert_eq!(asset_quantites.data, amount_vec![0.05, 0.5, 50.0].data);
         assert_eq!(
             demand_long.data,

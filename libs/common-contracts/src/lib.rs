@@ -11,6 +11,7 @@ pub mod contracts {
     pub mod clerk;
     pub mod delegate;
     pub mod formulas;
+    pub mod gate;
     pub mod keep;
     pub mod keep_calls;
     pub mod storage;

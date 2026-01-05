@@ -7,7 +7,7 @@ extern crate alloc;
 
 use alloc::{string::String, vec::Vec};
 
-use alloy_primitives::{uint, Address, B256, U256, U32, U8};
+use alloy_primitives::{uint, Address, U128, U256, U32, U8};
 use alloy_sol_types::{sol, SolEvent};
 use common::{amount::Amount, vector::Vector};
 use common_contracts::{
@@ -16,14 +16,13 @@ use common_contracts::{
         formulas::{Order, Quote},
         keep_calls::KeepCalls,
         storage::StorageSlot,
-        vault::{VAULT_STORAGE_SLOT, VaultStorage},
+        vault::{VaultStorage, VAULT_STORAGE_SLOT},
     },
     interfaces::factor::IFactor,
 };
-use stylus_sdk::{abi::Bytes, prelude::*};
+use stylus_sdk::prelude::*;
 
 pub const VERSION_NUMBER: U32 = uint!(1_U32);
-pub const UPGRADE_INTERFACE_VERSION: &str = "5.0.0";
 
 sol! {
     interface IERC20 {
@@ -65,15 +64,6 @@ impl Vault {
             Err(b"Version cannot be downgraded")?;
         }
         vault.version.set(VERSION_NUMBER);
-        Ok(())
-    }
-
-    fn _set_collateral_asset(
-        &mut self,
-        vault: &mut VaultStorage,
-        asset: Address,
-    ) -> Result<(), Vec<u8>> {
-        vault.collateral_asset.set(asset);
         Ok(())
     }
 
@@ -141,8 +131,165 @@ impl Vault {
 
 #[public]
 impl Vault {
-    #[constructor]
-    fn constructor(&mut self) {}
+    fn initialize(&mut self, owner: Address) -> Result<(), Vec<u8>> {
+        let mut vault = Self::_storage();
+        self._only_owner(&vault)?;
+        self._set_version(&mut vault)?;
+        self._transfer_ownership(&mut vault, owner)?;
+        Ok(())
+    }
+
+    // pub fn set_version(&mut self) -> Result<(), Vec<u8>> {
+    //     let mut vault = Self::_storage();
+    //     self._only_owner(&vault)?;
+    //     self._set_version(&mut vault)
+    // }
+
+    // pub fn get_version(&self) -> U32 {
+    //     VERSION_NUMBER
+    // }
+
+    pub fn configure(
+        &mut self,
+        index_id: U128,
+        vendor_id: U128,
+        //name: String,
+        //symbol: String,
+        custody: Address,
+        asset: Address,
+    ) -> Result<(), Vec<u8>> {
+        let mut vault = Self::_storage();
+        self._only_owner(&vault)?;
+        vault.index_id.set(index_id);
+        vault.vendor_id.set(vendor_id);
+        // vault.name.set_str(name);
+        // vault.symbol.set_str(symbol);
+        vault.custody.set(custody);
+        vault.collateral_asset.set(asset);
+        Ok(())
+    }
+
+    // ERC20
+
+    pub fn name(&self) -> alloc::string::String {
+        let vault = Self::_storage();
+        vault.name.get_string()
+    }
+
+    pub fn symbol(&self) -> alloc::string::String {
+        let vault = Self::_storage();
+        vault.symbol.get_string()
+    }
+
+    pub fn decimals(&self) -> U8 {
+        U8::from(18)
+    }
+
+    pub fn total_supply(&self) -> Result<U256, Vec<u8>> {
+        let vault = Self::_storage();
+
+        let (bid, ask) = self._get_total_order(&vault)?;
+        let itp_amount = Order::tell_total(bid, ask)?;
+
+        Ok(itp_amount.to_u256())
+    }
+
+    pub fn balance_of(&self, account: Address) -> Result<U256, Vec<u8>> {
+        let vault = Self::_storage();
+
+        let (bid, ask) = self._get_order(&vault, account)?;
+        let itp_amount = Order::tell_available(bid, ask)?;
+
+        Ok(itp_amount.to_u256())
+    }
+
+    pub fn transfer(&mut self, to: Address, value: U256) -> Result<(), Vec<u8>> {
+        let vault = Self::_storage();
+        let sender = self.attendee();
+
+        // Vault is submitting transfer on behalf of msg.sender (attendee)
+        self.external_call(
+            vault.gate_to_castle.get(),
+            IFactor::submitTransferCall {
+                index_id: vault.index_id.get().to(),
+                sender,
+                receiver: to,
+                amount: Amount::try_from_u256(value)
+                    .ok_or_else(|| b"MathOverflow")?
+                    .to_u128_raw(),
+            },
+        )?;
+
+        let event = IERC20::Transfer {
+            from: sender,
+            to,
+            value,
+        };
+
+        self.vm().emit_log(&event.encode_data(), 1);
+
+        Ok(())
+    }
+
+    pub fn allowance(&self, owner: Address, spender: Address) -> U256 {
+        let vault = Self::_storage();
+        let allowances = vault.allowances.get(owner);
+        allowances.allowance(spender)
+    }
+
+    pub fn approve(&mut self, spender: Address, value: U256) -> Result<bool, Vec<u8>> {
+        let sender = self.attendee();
+        if spender.is_zero() {
+            Err(b"Invalid Spender")?;
+        }
+        let mut vault = Self::_storage();
+        let mut allowance = vault.allowances.setter(sender);
+        let result = allowance.approve(spender, value)?;
+
+        let event = IERC20::Approval {
+            owner: sender,
+            spender,
+            value,
+        };
+
+        self.vm().emit_log(&event.encode_data(), 1);
+
+        Ok(result)
+    }
+
+    pub fn transfer_from(
+        &mut self,
+        from: Address,
+        to: Address,
+        value: U256,
+    ) -> Result<bool, Vec<u8>> {
+        if from.is_zero() {
+            Err(b"Invalid Spender")?;
+        }
+        if to.is_zero() {
+            Err(b"Invalid Receiver")?;
+        }
+        let mut vault = Self::_storage();
+        let mut allowance = vault.allowances.setter(self.attendee());
+        allowance.spend_allowance(from, value)?;
+
+        self.external_call(
+            vault.gate_to_castle.get(),
+            IFactor::submitTransferCall {
+                index_id: vault.index_id.get().to(),
+                sender: from,
+                receiver: to,
+                amount: Amount::try_from_u256(value)
+                    .ok_or_else(|| b"MathOverflow")?
+                    .to_u128_raw(),
+            },
+        )?;
+
+        let event = IERC20::Transfer { from, to, value };
+
+        self.vm().emit_log(&event.encode_data(), 1);
+        Ok(true)
+    }
 
     // ERC4626
 
@@ -194,6 +341,32 @@ impl Vault {
 
         Ok(itp_amount.to_u256())
     }
+
+    // fn max_deposit(&self, receiver: Address) -> U256 {
+    //     U256::ZERO
+    // }
+
+    // fn preview_deposit(&self, assets: U256) -> Result<U256, Vec<u8>> {
+    //     Err(b"Must deposit via Keeper service".into())
+    // }
+
+    // fn deposit(&mut self, assets: U256, receiver: Address) -> Result<U256, Vec<u8>> {
+    //     Err(b"Must deposit via Keeper service".into())
+    // }
+
+    // fn max_redeem(&self, owner: Address) -> U256 {
+    //     U256::ZERO
+    // }
+
+    // fn preview_redeem(&self, shares: U256) -> Result<U256, Vec<u8>> {
+    //     Err(b"Must redeem via Keeper service".into())
+    // }
+
+    // fn redeem(&mut self, shares: U256, receiver: Address, owner: Address) -> Result<U256, Vec<u8>> {
+    //     Err(b"Must redeem via Keeper service".into())
+    // }
+
+    // ERC-7540
 
     pub fn is_operator(&self, owner: Address, operator: Address) -> bool {
         let vault = Self::_storage();
@@ -337,6 +510,17 @@ impl Vault {
         let shares =
             request.claim(Amount::try_from_u256(assets).ok_or_else(|| b"MathOverflow")?)?;
 
+        // Transfer ITP from Keeper account to Trader account
+        self.external_call(
+            vault.gate_to_castle.get(),
+            IFactor::submitTransferCall {
+                index_id: vault.index_id.get().to(),
+                sender: controller,
+                receiver,
+                amount: shares.to_u128_raw(),
+            },
+        )?;
+
         let event = Deposit {
             sender: controller,
             owner: receiver,
@@ -366,6 +550,17 @@ impl Vault {
         if sender != owner && !self.is_operator(owner, sender) {
             Err(b"Sender must be an owner or approved operator")?;
         }
+
+        // Transfer ITP from Trader account to Keeper account
+        self.external_call(
+            vault.gate_to_castle.get(),
+            IFactor::submitTransferCall {
+                index_id: vault.index_id.get().to(),
+                sender: owner,
+                receiver: controller,
+                amount: shares.to(),
+            },
+        )?;
 
         // Requests from multiple users are aggregated per controller
         let mut request = vault.redeem_request.setter(controller);
@@ -483,198 +678,50 @@ impl Vault {
         Ok(assets.to_u256())
     }
 
-    // fn max_deposit(&self, receiver: Address) -> U256 {
-    //     U256::ZERO
-    // }
-
-    // fn preview_deposit(&self, assets: U256) -> Result<U256, Vec<u8>> {
-    //     Err(b"Must deposit via Keeper service".into())
-    // }
-
-    // fn deposit(&mut self, assets: U256, receiver: Address) -> Result<U256, Vec<u8>> {
-    //     Err(b"Must deposit via Keeper service".into())
-    // }
-
-    // fn max_redeem(&self, owner: Address) -> U256 {
-    //     U256::ZERO
-    // }
-
-    // fn preview_redeem(&self, shares: U256) -> Result<U256, Vec<u8>> {
-    //     Err(b"Must redeem via Keeper service".into())
-    // }
-
-    // fn redeem(&mut self, shares: U256, receiver: Address, owner: Address) -> Result<U256, Vec<u8>> {
-    //     Err(b"Must redeem via Keeper service".into())
-    // }
-
-    // ERC20
-
-    pub fn name(&self) -> alloc::string::String {
-        let vault = Self::_storage();
-        vault.name.get_string()
-    }
-
-    pub fn symbol(&self) -> alloc::string::String {
-        let vault = Self::_storage();
-        vault.symbol.get_string()
-    }
-
-    pub fn decimals(&self) -> U8 {
-        U8::from(18)
-    }
-
-    pub fn total_supply(&self) -> Result<U256, Vec<u8>> {
-        let vault = Self::_storage();
-
-        let (bid, ask) = self._get_total_order(&vault)?;
-        let itp_amount = Order::tell_total(bid, ask)?;
-
-        Ok(itp_amount.to_u256())
-    }
-
-    pub fn balance_of(&self, account: Address) -> Result<U256, Vec<u8>> {
-        let vault = Self::_storage();
-
-        let (bid, ask) = self._get_order(&vault, account)?;
-        let itp_amount = Order::tell_available(bid, ask)?;
-
-        Ok(itp_amount.to_u256())
-    }
-
-    pub fn transfer(&mut self, to: Address, value: U256) -> Result<(), Vec<u8>> {
-        let vault = Self::_storage();
-        let sender = self.attendee();
-
-        // Vault is submitting transfer on behalf of msg.sender (attendee)
-        self.external_call(
-            vault.gate_to_castle.get(),
-            IFactor::submitTransferCall {
-                index_id: vault.index_id.get().to(),
-                sender,
-                receiver: to,
-                amount: Amount::try_from_u256(value)
-                    .ok_or_else(|| b"MathOverflow")?
-                    .to_u128_raw(),
-            },
-        )?;
-
-        let event = IERC20::Transfer {
-            from: sender,
-            to,
-            value,
-        };
-
-        self.vm().emit_log(&event.encode_data(), 1);
-
-        Ok(())
-    }
-
-    pub fn allowance(&self, owner: Address, spender: Address) -> U256 {
-        let vault = Self::_storage();
-        let allowances = vault.allowances.get(owner);
-        allowances.allowance(spender)
-    }
-
-    pub fn approve(&mut self, spender: Address, value: U256) -> Result<bool, Vec<u8>> {
-        if spender.is_zero() {
-            Err(b"Invalid Spender")?;
-        }
-        let mut vault = Self::_storage();
-        let mut allowance = vault.allowances.setter(self.attendee());
-        allowance.approve(spender, value)
-    }
-
-    pub fn transfer_from(
-        &mut self,
-        from: Address,
-        to: Address,
-        value: U256,
-    ) -> Result<bool, Vec<u8>> {
-        if from.is_zero() {
-            Err(b"Invalid Spender")?;
-        }
-        if to.is_zero() {
-            Err(b"Invalid Receiver")?;
-        }
-        let mut vault = Self::_storage();
-        let mut allowance = vault.allowances.setter(self.attendee());
-        allowance.spend_allowance(from, value)?;
-
-        self.external_call(
-            vault.gate_to_castle.get(),
-            IFactor::submitTransferCall {
-                index_id: vault.index_id.get().to(),
-                sender: from,
-                receiver: to,
-                amount: Amount::try_from_u256(value)
-                    .ok_or_else(|| b"MathOverflow")?
-                    .to_u128_raw(),
-            },
-        )?;
-
-        let event = IERC20::Transfer { from, to, value };
-
-        self.vm().emit_log(&event.encode_data(), 1);
-        Ok(true)
-    }
-
     // UUPS
 
-    #[selector(name = "UPGRADE_INTERFACE_VERSION")]
-    fn upgrade_interface_version(&self) -> String {
-        UPGRADE_INTERFACE_VERSION.into()
-    }
+    // #[selector(name = "UPGRADE_INTERFACE_VERSION")]
+    // fn upgrade_interface_version(&self) -> String {
+    //     UPGRADE_INTERFACE_VERSION.into()
+    // }
 
-    #[payable]
-    pub fn upgrade_to_and_call(
-        &mut self,
-        new_implementation: Address,
-        data: Bytes,
-    ) -> Result<(), Vec<u8>> {
-        let mut vault = Self::_storage();
-        self._only_owner(&vault)?;
-        todo!()
-    }
+    // #[payable]
+    // pub fn upgrade_to_and_call(
+    //     &mut self,
+    //     new_implementation: Address,
+    //     data: Bytes,
+    // ) -> Result<(), Vec<u8>> {
+    //     let vault = Self::_storage();
+    //     self._only_owner(&vault)?;
+    //     let mut implementation = StorageSlot::get_slot::<StorageAddress>(IMPLEMENTATION_SLOT);
+    //     implementation.set(new_implementation);
+    //     unsafe {
+    //         self.vm()
+    //             .delegate_call(&self, new_implementation, data.as_slice())
+    //     }?;
+    //     Ok(())
+    // }
 
-    fn proxiable_uuid(&self) -> Result<B256, Vec<u8>> {
-        todo!()
-    }
-
-    fn initialize(&mut self, owner: Address, asset: Address) -> Result<(), Vec<u8>> {
-        let mut vault = Self::_storage();
-        self._only_owner(&vault)?;
-        self._set_version(&mut vault)?;
-        self._set_collateral_asset(&mut vault, asset)?;
-        self._transfer_ownership(&mut vault, owner)?;
-        Ok(())
-    }
-
-    pub fn set_version(&mut self) -> Result<(), Vec<u8>> {
-        let mut vault = Self::_storage();
-        self._only_owner(&vault)?;
-        self._set_version(&mut vault)
-    }
-
-    pub fn get_version(&self) -> U32 {
-        VERSION_NUMBER
-    }
+    // fn proxiable_uuid(&self) -> Result<B256, Vec<u8>> {
+    //     Ok(IMPLEMENTATION_SLOT)
+    // }
 
     // IOwnable
 
-    fn owner(&self) -> Address {
-        let vault = Self::_storage();
-        vault.owner.get()
-    }
+    // fn owner(&self) -> Address {
+    //     let vault = Self::_storage();
+    //     vault.owner.get()
+    // }
 
-    fn transfer_ownership(&mut self, new_owner: Address) -> Result<(), Vec<u8>> {
-        let mut vault = Self::_storage();
-        self._only_owner(&vault)?;
-        self._transfer_ownership(&mut vault, new_owner)
-    }
+    // fn transfer_ownership(&mut self, new_owner: Address) -> Result<(), Vec<u8>> {
+    //     let mut vault = Self::_storage();
+    //     self._only_owner(&vault)?;
+    //     self._transfer_ownership(&mut vault, new_owner)
+    // }
 
-    fn renounce_ownership(&mut self) -> Result<(), Vec<u8>> {
-        let mut vault = Self::_storage();
-        self._only_owner(&vault)?;
-        self._renounce_ownership(&mut vault)
-    }
+    // fn renounce_ownership(&mut self) -> Result<(), Vec<u8>> {
+    //     let mut vault = Self::_storage();
+    //     self._only_owner(&vault)?;
+    //     self._renounce_ownership(&mut vault)
+    // }
 }

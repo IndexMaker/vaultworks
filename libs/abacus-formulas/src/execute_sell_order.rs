@@ -196,7 +196,7 @@ pub fn execute_sell_order(
         STV         delta_long_id
 
         // Compute order vector (Collateral, Burned, Withdrawn)
-        LDM         _WithdrawAmount             // Stack: [W = WithdrawAmount]
+        LDR         _WithdrawAmount             // Stack: [W = WithdrawAmount]
         LDR         _CappedIndexQuantity        // Stack: [W, CIQ = CappedIndexQuantity]
         LDR         _Collateral                 
         LDM         _CollateralVendor
@@ -225,9 +225,8 @@ pub fn execute_sell_order(
 
         // Store Executed Index Quantity and Remaining Quantity
         LDM         _CappedIndexQuantity            // Stack: [CIQ]
-        LDM         _Collateral                     // Stack: [CIQ, C_old]
-        SUB         1                               // Stack: [CIQ, C_old - CIQ]
-        PKV         2                               // Stack: [(CIQ, RIQ)]
+        LDM         _WithdrawAmount                 // Stack: [CIQ, W]
+        PKV         2                               // Stack: [(CIQ, W)]
         STV         executed_index_quantities_id    // Stack: []
 
         // Store Executed Asset Quantities

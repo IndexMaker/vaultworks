@@ -198,6 +198,8 @@ pub fn execute_buy_order(
         SWAP        1                               // Stack: [CIQ, EP, SQ]
         POPN        1                               // Stack: [CIQ, EP] 
         MUL         1                               // Stack: [CIQ, CS = (CIQ * EP)]
+        LDD         0                               // Stack: [CIQ, CS, CS]
+        STR         _CollateralSpent                // Stack: [CIQ, CS]
         
         // Compute Order Remaining Collateral 
         LDM         _Collateral                     // Stack: [CIQ, CS, C_order]
@@ -233,10 +235,9 @@ pub fn execute_buy_order(
         STV         order_id                        // Stack: []
         
         // Store Executed Index Quantity and Remaining Quantity
-        LDM         _CappedIndexQuantity            // Stack: [CIQ]
-        LDM         _IndexQuantity                  // Stack: [CIQ, IndexQuantity]
-        SUB         1                               // Stack: [CIQ, RIQ = (IndexQuantity - CIQ)]
-        PKV         2                               // Stack: [(CIQ, RIQ)]
+        LDM         _CollateralSpent                // Stack: [CS]
+        LDM         _CappedIndexQuantity            // Stack: [CS, CIQ]
+        PKV         2                               // Stack: [(CS, CIQ)]
         STV         executed_index_quantities_id    // Stack: []
 
         // Store Executed Asset Quantities

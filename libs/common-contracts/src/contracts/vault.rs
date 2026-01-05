@@ -1,6 +1,6 @@
 use alloc::{vec, vec::Vec};
 
-use alloy_primitives::{uint, Address, U256};
+use alloy_primitives::{Address, U128, U256, uint};
 use common::amount::Amount;
 use stylus_sdk::{
     keccak_const,
