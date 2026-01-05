@@ -106,13 +106,13 @@ impl Constable {
             function_selectors: vec![IFactor::submitMarketDataCall::SELECTOR.into()],
             required_role: CASTLE_VENDOR_ROLE.into(),
         })?;
-        self.top_level_call(ICastle::createProtectedFunctionsCall {
-            contract_address: factor,
-            function_selectors: vec![
-                IFactor::submitRebalanceOrderCall::SELECTOR.into(),
-            ],
-            required_role: CASTLE_ISSUER_ROLE.into(),
-        })?;
+        // self.top_level_call(ICastle::createProtectedFunctionsCall {
+        //     contract_address: factor,
+        //     function_selectors: vec![
+        //         IFactor::submitRebalanceOrderCall::SELECTOR.into(),
+        //     ],
+        //     required_role: CASTLE_ISSUER_ROLE.into(),
+        // })?;
         self.top_level_call(ICastle::createProtectedFunctionsCall {
             contract_address: factor,
             function_selectors: vec![
@@ -126,6 +126,10 @@ impl Constable {
         self.top_level_call(ICastle::createPublicFunctionsCall {
             contract_address: factor,
             function_selectors: vec![
+                IFactor::submitTransferCall::SELECTOR.into(),
+                IFactor::submitTransferFromCall::SELECTOR.into(),
+                IFactor::approveTransferFromCall::SELECTOR.into(),
+                IFactor::getTransferAllowanceCall::SELECTOR.into(),
                 IFactor::getMarketDataCall::SELECTOR.into(),
                 IFactor::getIndexAssetsCall::SELECTOR.into(),
                 IFactor::getIndexWeightsCall::SELECTOR.into(),

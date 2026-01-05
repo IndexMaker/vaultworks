@@ -8,13 +8,15 @@ sol! {
 
         function updateMultipleIndexQuotes(uint128 vendor_id, uint128[] memory index_ids) external;
 
-        function submitBuyOrder(uint128 vendor_id, uint128 index_id, uint128 collateral_added, uint128 collateral_removed, uint128 max_order_size, uint8[] memory asset_contribution_fractions) external returns (uint8[] memory, uint8[] memory, uint8[] memory);
+        function submitBuyOrder(uint128 vendor_id, uint128 index_id, address trader_address, uint128 collateral_added, uint128 collateral_removed, uint128 max_order_size, uint8[] memory asset_contribution_fractions) external returns (uint8[] memory, uint8[] memory, uint8[] memory);
 
-        function submitSellOrder(uint128 vendor_id, uint128 index_id, uint128 collateral_added, uint128 collateral_removed, uint128 max_order_size, uint8[] memory asset_contribution_fractions) external returns (uint8[] memory, uint8[] memory, uint8[] memory);
+        function submitSellOrder(uint128 vendor_id, uint128 index_id, address trader_address, uint128 collateral_added, uint128 collateral_removed, uint128 max_order_size, uint8[] memory asset_contribution_fractions) external returns (uint8[] memory, uint8[] memory, uint8[] memory);
 
-        function submitRebalanceOrder(uint128 vendor_id, uint8[] memory new_assets, uint8[] memory new_weigthts) external;
+        function submitTransfer(uint128 index_id, address receiver, uint128 amount) external;
 
-        function submitTransferOrder(uint128 index_id, address receiver, uint128 amount) external;
+        function submitTransferFrom(uint128 index_id, address sender, address receiver, uint128 amount) external;
+
+        function approveTransferFrom(uint128 index_id, address receiver, uint128 amount) external returns (bool);
 
         function getMarketData(uint128 vendor_id) external view returns (uint8[] memory, uint8[] memory, uint8[] memory);
 
@@ -23,6 +25,8 @@ sol! {
         function getIndexWeights(uint128 index_id) external view returns (uint8[] memory);
 
         function getIndexQuote(uint128 index_id, uint128 vendor_id) external view returns (uint8[] memory);
+
+        function getTransferAllowance(uint128 index_id, address sender, address receiver) external returns (uint128);
 
         function getTraderOrder(uint128 index_id, address trader) external view returns (uint8[] memory, uint8[] memory);
 

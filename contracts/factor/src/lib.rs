@@ -22,12 +22,16 @@ use common_contracts::contracts::{
 use stylus_sdk::prelude::*;
 use vector_macros::amount_vec;
 
+const ORDER_REMAIN_OFFSET: usize = 0;
+const ORDER_SPENT_OFFSET: usize = 1;
+const ORDER_REALIZED_OFFSET: usize = 2;
+
 #[storage]
 #[entrypoint]
 pub struct Factor;
 
 impl Factor {
-    fn init_solve_quadratic_bid(&mut self, storage: &mut Keep) -> Result<U128, Vec<u8>> {
+    fn _init_solve_quadratic_bid(&mut self, storage: &mut Keep) -> Result<U128, Vec<u8>> {
         // Q_buy = (sqrt(P^2 + 4 * S * C_buy) - P) / 2 * S
         let solve_quadratic_id = {
             let mut id = storage.solve_quadratic_bid_id.get();
@@ -44,7 +48,7 @@ impl Factor {
         Ok(solve_quadratic_id)
     }
 
-    fn init_solve_quadratic_ask(&mut self, storage: &mut Keep) -> Result<U128, Vec<u8>> {
+    fn _init_solve_quadratic_ask(&mut self, storage: &mut Keep) -> Result<U128, Vec<u8>> {
         // Q_sell = (P - sqrt(P^2 - 4 * S * C_sell)) / 2 * S
         let solve_quadratic_id = {
             let mut id = storage.solve_quadratic_ask_id.get();
@@ -61,7 +65,7 @@ impl Factor {
         Ok(solve_quadratic_id)
     }
 
-    fn init_trader_bid(
+    fn _init_trader_bid(
         &mut self,
         vault: &mut Vault,
         clerk_chamber: &mut ClerkChamber,
@@ -90,7 +94,7 @@ impl Factor {
         Ok(bid_id)
     }
 
-    fn init_trader_ask(
+    fn _init_trader_ask(
         &mut self,
         vault: &mut Vault,
         clerk_chamber: &mut ClerkChamber,
@@ -119,7 +123,7 @@ impl Factor {
         Ok(ask_id)
     }
 
-    fn init_vendor_quote(
+    fn _init_vendor_quote(
         &mut self,
         vault: &mut Vault,
         clerk_chamber: &mut ClerkChamber,
@@ -150,7 +154,7 @@ impl Factor {
         Ok(quote_id)
     }
 
-    fn init_vendor_bid(
+    fn _init_vendor_bid(
         &mut self,
         vault: &mut Vault,
         clerk_chamber: &mut ClerkChamber,
@@ -181,7 +185,7 @@ impl Factor {
         Ok(bid_id)
     }
 
-    fn init_vendor_ask(
+    fn _init_vendor_ask(
         &mut self,
         vault: &mut Vault,
         clerk_chamber: &mut ClerkChamber,
@@ -212,7 +216,7 @@ impl Factor {
         Ok(ask_id)
     }
 
-    fn init_total_bid(
+    fn _init_total_bid(
         &mut self,
         vault: &mut Vault,
         clerk_chamber: &mut ClerkChamber,
@@ -234,7 +238,7 @@ impl Factor {
         Ok(bid_id)
     }
 
-    fn init_total_ask(
+    fn _init_total_ask(
         &mut self,
         vault: &mut Vault,
         clerk_chamber: &mut ClerkChamber,
@@ -254,6 +258,77 @@ impl Factor {
         )?;
 
         Ok(ask_id)
+    }
+
+    fn _submit_transfer_from(
+        &mut self,
+        storage: &mut Keep,
+        index_id: U128,
+        sender: Address,
+        receiver: Address,
+        amount: u128,
+    ) -> Result<(), Vec<u8>> {
+        let mut vault = storage.vaults.setter(index_id);
+
+        // Note here we need both Bid & Ask for sender account, but only Bid for
+        // receiver account. The receiver will obtain new ITP in Minted column
+        // together with split cost basis in Spent column of their Bid vector.
+        // We will take Minted colunm from senders Bid vector, and we must subtract
+        // the ITP that sender has currently locked for redeeming by taking Remain
+        // column together with Spent column reflecting ITP they redeemed (burned)
+        // of their Ask vector. Transfer performs rebalancing by splitting cost basis
+        // together with moving minted ITP amount.
+        let sender_bid_id = self._init_trader_bid(&mut vault, &mut storage.clerk_chamber, sender)?;
+        let sender_ask_id = self._init_trader_ask(&mut vault, &mut storage.clerk_chamber, sender)?;
+        let receiver_bid_id =
+            self._init_trader_bid(&mut vault, &mut storage.clerk_chamber, receiver)?;
+
+        let gate_to_clerk_chamber = storage.clerk_chamber.get_gate_address();
+
+        // Optional check: We don't need to check balance here as VIL program
+        // will fail if balance is insufficient, however we want to produce
+        // friendly error message insted of VIL program error.
+        let sender_bid_bytes =
+            self.fetch_vector_bytes(gate_to_clerk_chamber, sender_bid_id.to())?;
+        let sender_ask_bytes =
+            self.fetch_vector_bytes(gate_to_clerk_chamber, sender_ask_id.to())?;
+
+        let sender_bid = Vector::from_vec(sender_bid_bytes);
+        let sender_ask = Vector::from_vec(sender_ask_bytes);
+
+        let sender_itp_minted = sender_bid.data[ORDER_REALIZED_OFFSET];
+        let sender_itp_redeem = sender_ask.data[ORDER_REMAIN_OFFSET];
+        let sender_itp_burned = sender_ask.data[ORDER_SPENT_OFFSET];
+
+        let sender_balance = sender_itp_minted
+            .checked_sub(
+                sender_itp_redeem
+                    .checked_add(sender_itp_burned)
+                    .ok_or_else(|| b"MathOverflow (redeem + burned)")?,
+            )
+            .ok_or_else(|| b"MathUnderflow (minted < (redeem + burned)")?;
+
+        if sender_balance.to_u128_raw() < amount {
+            Err(b"Insufficient amount of Index token")?;
+        }
+
+        // Transfer Assets & Liabilities from account A to account B
+        //
+        // Note: We perform meticulous rebalancing here where side A
+        // gets Minted amount deducted together with Spent, so that
+        // we split cost basis between account A and account B.
+        //
+        let update = execute_transfer(
+            sender_bid_id.to(),
+            sender_ask_id.to(),
+            receiver_bid_id.to(),
+            amount,
+        );
+
+        let num_registry = 6;
+        self.execute_vector_program(gate_to_clerk_chamber, update, num_registry)?;
+
+        Ok(())
     }
 }
 
@@ -330,7 +405,7 @@ impl Factor {
         let mut vault = storage.vaults.setter(index_id);
 
         let vendor_quote_id =
-            self.init_vendor_quote(&mut vault, &mut storage.clerk_chamber, vendor_id)?;
+            self._init_vendor_quote(&mut vault, &mut storage.clerk_chamber, vendor_id)?;
 
         let account = storage.accounts.get(vendor_id);
         let gate_to_clerk_chamber = storage.clerk_chamber.get_gate_address();
@@ -373,11 +448,12 @@ impl Factor {
     /// Submit BUY Index order
     ///
     /// Add collateral amount to user's order, and match for immediate execution.
-    ///
+    /// 
     pub fn submit_buy_order(
         &mut self,
         vendor_id: U128,
         index_id: U128,
+        trader_address: Address,
         collateral_added: u128,
         collateral_removed: u128,
         max_order_size: u128,
@@ -386,22 +462,21 @@ impl Factor {
         let mut storage = Keep::storage();
 
         // Allocate Quadratic Solver
-        let solve_quadratic_id = self.init_solve_quadratic_bid(&mut storage)?;
+        let solve_quadratic_id = self._init_solve_quadratic_bid(&mut storage)?;
 
         let mut vault = storage.vaults.setter(index_id);
-        let trader_address = self.attendee();
 
         // Allocate new Index order or get existing one
         let index_order_id =
-            self.init_trader_bid(&mut vault, &mut storage.clerk_chamber, trader_address)?;
+            self._init_trader_bid(&mut vault, &mut storage.clerk_chamber, trader_address)?;
 
         let vendor_quote_id =
-            self.init_vendor_quote(&mut vault, &mut storage.clerk_chamber, vendor_id)?;
+            self._init_vendor_quote(&mut vault, &mut storage.clerk_chamber, vendor_id)?;
 
         let vendor_order_id =
-            self.init_vendor_bid(&mut vault, &mut storage.clerk_chamber, vendor_id)?;
+            self._init_vendor_bid(&mut vault, &mut storage.clerk_chamber, vendor_id)?;
 
-        let total_order_id = self.init_total_bid(&mut vault, &mut storage.clerk_chamber)?;
+        let total_order_id = self._init_total_bid(&mut vault, &mut storage.clerk_chamber)?;
 
         let account = storage.accounts.get(vendor_id);
         let gate_to_clerk_chamber = storage.clerk_chamber.get_gate_address();
@@ -451,10 +526,6 @@ impl Factor {
         let num_registry = 22;
         self.execute_vector_program(gate_to_clerk_chamber, update, num_registry)?;
 
-        // TODO: Fetch results
-        // - executed and remaining Index quantity
-        // - collateral remaining and spent
-        // - mint token if fully executed
         let executed_asset_quantities =
             self.fetch_vector_from_clerk(gate_to_clerk_chamber, executed_asset_quantities_id.to())?;
 
@@ -475,6 +546,7 @@ impl Factor {
         &mut self,
         vendor_id: U128,
         index_id: U128,
+        trader_address: Address,
         collateral_added: u128,
         collateral_removed: u128,
         max_order_size: u128,
@@ -483,22 +555,21 @@ impl Factor {
         let mut storage = Keep::storage();
 
         // Allocate Quadratic Solver
-        let solve_quadratic_id = self.init_solve_quadratic_ask(&mut storage)?;
+        let solve_quadratic_id = self._init_solve_quadratic_ask(&mut storage)?;
 
         let mut vault = storage.vaults.setter(index_id);
-        let trader_address = self.attendee();
 
         // Allocate new Index order or get existing one
         let index_order_id =
-            self.init_trader_ask(&mut vault, &mut storage.clerk_chamber, trader_address)?;
+            self._init_trader_ask(&mut vault, &mut storage.clerk_chamber, trader_address)?;
 
         let vendor_quote_id =
-            self.init_vendor_quote(&mut vault, &mut storage.clerk_chamber, vendor_id)?;
+            self._init_vendor_quote(&mut vault, &mut storage.clerk_chamber, vendor_id)?;
 
         let vendor_order_id =
-            self.init_vendor_ask(&mut vault, &mut storage.clerk_chamber, vendor_id)?;
+            self._init_vendor_ask(&mut vault, &mut storage.clerk_chamber, vendor_id)?;
 
-        let total_order_id = self.init_total_ask(&mut vault, &mut storage.clerk_chamber)?;
+        let total_order_id = self._init_total_ask(&mut vault, &mut storage.clerk_chamber)?;
 
         let account = storage.accounts.get(vendor_id);
         let gate_to_clerk_chamber = storage.clerk_chamber.get_gate_address();
@@ -568,61 +639,58 @@ impl Factor {
         ))
     }
 
-    pub fn submit_rebalance_order(
-        &mut self,
-        vendor_id: U128,
-        new_assets: Vec<u8>,
-        new_weigthts: Vec<u8>,
-    ) -> Result<(), Vec<u8>> {
-        //
-        // This needs to:
-        //  - compute rebalance_weights_long = max(0, weights - new_weights) -- assets long in inventory (sell them)
-        //  - compute rebalance_weights_short = max(0, new_weights - weights) -- assets short in inventory (buy more)
-        //
-        Err(b"Not implemented yet".into())
-    }
+    // pub fn submit_rebalance_order(
+    //     &mut self,
+    //     vendor_id: U128,
+    //     new_assets: Vec<u8>,
+    //     new_weigthts: Vec<u8>,
+    // ) -> Result<(), Vec<u8>> {
+    //     //
+    //     // This needs to:
+    //     //  - compute rebalance_weights_long = max(0, weights - new_weights) -- assets long in inventory (sell them)
+    //     //  - compute rebalance_weights_short = max(0, new_weights - weights) -- assets short in inventory (buy more)
+    //     //
+    //     Err(b"Not implemented yet".into())
+    // }
 
-    pub fn submit_transfer_order(
+    pub fn submit_transfer(
         &mut self,
         index_id: U128,
         receiver: Address,
         amount: u128,
     ) -> Result<(), Vec<u8>> {
         let mut storage = Keep::storage();
-        let mut vault = storage.vaults.setter(index_id);
         let sender = self.attendee();
 
-        let sender_bid_id = self.init_trader_bid(&mut vault, &mut storage.clerk_chamber, sender)?;
-        let sender_ask_id = self.init_trader_ask(&mut vault, &mut storage.clerk_chamber, sender)?;
-        let receiver_bid_id =
-            self.init_trader_bid(&mut vault, &mut storage.clerk_chamber, receiver)?;
+        self._submit_transfer_from(&mut storage, index_id, sender, receiver, amount)
+    }
 
-        let gate_to_clerk_chamber = storage.clerk_chamber.get_gate_address();
-
-        // TODO: query balance before transaction to check if sufficient instead of 
-        // relying on execute_transfer() to fail in such case, so that we have friendly
-        // error message.
-        let (sender_bid_bytes, sender_ask_bytes) = self.get_trader_order(index_id, sender)?;
-        let sender_bid = Vector::from_vec(sender_bid_bytes);
-        let sender_ask = Vector::from_vec(sender_ask_bytes);
-        let sender_minted = sender_bid.data[2];
-        let sender_redeem = sender_ask.data[0];
-        let sender_balance = sender_minted.checked_sub(sender_redeem).ok_or_else(|| b"Unexpected minted < redeem")?;
-        if sender_balance.to_u128_raw() < amount {
-            Err(b"Insufficient amount of Index token")?;
+    pub fn submit_transfer_from(
+        &mut self,
+        index_id: U128,
+        sender: Address,
+        receiver: Address,
+        amount: u128,
+    ) -> Result<(), Vec<u8>> {
+        let mut storage = Keep::storage();
+        {
+            let mut vault = storage.vaults.setter(index_id);
+            let mut allowance = vault.records.allowances.setter(sender);
+            allowance.spend_allowance(receiver, amount)?;
         }
+        self._submit_transfer_from(&mut storage, index_id, sender, receiver, amount)
+    }
 
-        let update = execute_transfer(
-            sender_bid_id.to(),
-            sender_ask_id.to(),
-            receiver_bid_id.to(),
-            amount,
-        );
-
-        let num_registry = 6;
-        self.execute_vector_program(gate_to_clerk_chamber, update, num_registry)?;
-
-        Ok(())
+    pub fn approve_transfer_from(
+        &mut self,
+        index_id: U128,
+        receiver: Address,
+        amount: u128,
+    ) -> Result<bool, Vec<u8>> {
+        let mut storage = Keep::storage();
+        let mut vault = storage.vaults.setter(index_id);
+        let mut allowance = vault.records.allowances.setter(self.attendee());
+        allowance.approve(receiver, amount)
     }
 
     //
@@ -669,6 +737,18 @@ impl Factor {
         }
         let data = self.fetch_vector_bytes(gate_to_clerk_chamber, quote_id.to())?;
         Ok(data)
+    }
+
+    pub fn get_transfer_allowance(
+        &mut self,
+        index_id: U128,
+        sender: Address,
+        receiver: Address,
+    ) -> u128 {
+        let storage = Keep::storage();
+        let vault = storage.vaults.get(index_id);
+        let allowance = vault.records.allowances.get(sender);
+        allowance.allowance(receiver)
     }
 
     pub fn get_trader_order(
