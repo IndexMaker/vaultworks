@@ -91,89 +91,46 @@ impl Request {
 
 #[storage]
 pub struct Requests {
-    last_claimed_id: StorageU256,
-    last_request_id: StorageU256,
-    total_claimable: StorageU128,
-    requests: StorageMap<U256, Request>,
+    active: StorageBool,
+    request: Request,
 }
 
 impl Requests {
     pub fn is_active(&self) -> bool {
-        self.last_request_id.get().is_zero()
+        self.active.get()
     }
 
-    pub fn pending(&self, request_id: U256) -> Amount {
-        self.requests.get(request_id).pending()
+    pub fn pending(&self, _: U256) -> Amount {
+        self.request.pending()
     }
 
-    pub fn claimable(&self, request_id: U256) -> Amount {
-        self.requests.get(request_id).claimable()
+    pub fn claimable(&self, _: U256) -> Amount {
+        self.request.claimable()
     }
 
     pub fn request(&mut self, amount: Amount) -> Result<U256, Vec<u8>> {
-        let last_id = self.last_request_id.get();
-        let new_id = last_id
-            .checked_add(U256::ONE)
-            .ok_or_else(|| b"MathOverflow")?;
-        self.last_request_id.set(new_id);
-        let mut setter = self.requests.setter(last_id);
-        setter.request(amount)?;
-        Ok(last_id)
+        self.active.set(true);
+        self.request.request(amount)?;
+        Ok(U256::ZERO)
     }
 
-    pub fn update(
-        &mut self,
-        request_id: U256,
-        spent: Amount,
-        ready: Amount,
-    ) -> Result<Amount, Vec<u8>> {
-        let mut request = self.requests.setter(request_id);
-        request.update(spent, ready)
+    pub fn update(&mut self, _: U256, spent: Amount, ready: Amount) -> Result<Amount, Vec<u8>> {
+        self.request.update(spent, ready)
     }
 
-    pub fn claim(&mut self, mut amount: Amount) -> Result<Amount, Vec<u8>> {
-        let total_claimable = Amount::from_u128(self.total_claimable.get());
-        if total_claimable < amount {
-            Err(b"Insufficient Claimable")?;
-        }
-        let mut first_id = self.last_claimed_id.get();
-        let last_id = self.last_request_id.get();
-        let mut total_claimed = Amount::ZERO;
+    pub fn claim(&mut self, amount: Amount) -> Result<Amount, Vec<u8>> {
+        let claimable = self.request.claimable();
 
-        while first_id <= last_id {
-            let mut request = self.requests.setter(first_id);
-            let claimable = request.claimable();
+        let amount_remain = amount
+            .saturating_sub(claimable)
+            .ok_or_else(|| b"UnexpectedMathError")?;
 
-            let amount_remain = amount
-                .saturating_sub(claimable)
+        if amount_remain.is_zero() {
+            let to_claim = claimable
+                .checked_sub(amount)
                 .ok_or_else(|| b"UnexpectedMathError")?;
 
-            if amount_remain.is_zero() {
-                let to_claim = claimable
-                    .checked_sub(amount)
-                    .ok_or_else(|| b"UnexpectedMathError")?;
-
-                let claimed = request.claim(to_claim)?;
-                total_claimed = total_claimed
-                    .checked_add(claimed)
-                    .ok_or_else(|| b"MathOverflow")?;
-
-                self.last_claimed_id.set(first_id);
-
-                return Ok(total_claimed);
-            } else {
-                let claimed = request.claim(claimable)?;
-
-                total_claimed = total_claimed
-                    .checked_add(claimed)
-                    .ok_or_else(|| b"MathOverflow")?;
-
-                amount = amount_remain;
-
-                first_id = first_id
-                    .checked_add(U256::ONE)
-                    .ok_or_else(|| b"MathOverflow")?;
-            }
+            return self.request.claim(to_claim);
         }
 
         Err(b"Insufficient Claimable".into())
