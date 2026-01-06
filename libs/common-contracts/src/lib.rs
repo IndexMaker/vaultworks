@@ -30,5 +30,8 @@ pub mod interfaces {
     pub mod guildmaster;
     pub mod scribe;
     pub mod treasury;
+    pub mod vault;
+    pub mod vault_native;
+    pub mod vault_requests;
     pub mod worksman;
 }
