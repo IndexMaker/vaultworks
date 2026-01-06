@@ -7,11 +7,12 @@ use ethers::types::Address;
 use itertools::{chain, Itertools};
 use vector_macros::amount_vec;
 
-use common_ethers::{contracts::Clerk, tx_sender::TxClient};
+use common_ethers::{ToBytes, contracts::{Abacus, Clerk}, tx_sender::TxClient};
 
 pub async fn run_scenario(client: &TxClient, abacus_address: Address) -> eyre::Result<()> {
     log_msg!("Scenario 2.");
     let clerk = Clerk::new(abacus_address, client.client());
+    let abacus = Abacus::new(abacus_address, client.client());
 
     let index_order_id = 10001;
     let vendor_order_id = 10002;
@@ -59,24 +60,24 @@ pub async fn run_scenario(client: &TxClient, abacus_address: Address) -> eyre::R
 
     client
         .begin_tx()
-        .add(clerk.store(asset_names_id, asset_names.to_vec()))
-        .add(clerk.store(weights_id, asset_vector(amount!(0.1)).to_vec()))
+        .add(clerk.store(asset_names_id, asset_names.to_vec().to_bytes()))
+        .add(clerk.store(weights_id, asset_vector(amount!(0.1)).to_bytes()))
         .add(clerk.store(
             asset_contribution_fractions_id,
-            asset_vector(amount!(1.0)).to_vec(),
+            asset_vector(amount!(1.0)).to_bytes(),
         ))
-        .add(clerk.store(quote_id, amount_vec![10.00, 10_000, 100.0].to_vec()))
-        .add(clerk.store(index_order_id, amount_vec![950.00, 0, 0].to_vec()))
-        .add(clerk.store(vendor_order_id, amount_vec![0, 0, 0].to_vec()))
-        .add(clerk.store(total_order_id, amount_vec![0, 0, 0].to_vec()))
-        .add(clerk.store(market_asset_names_id, market_asset_names.to_vec()))
-        .add(clerk.store(demand_short_id, market_vector(amount!(0)).to_vec()))
-        .add(clerk.store(demand_long_id, market_vector(amount!(0.1)).to_vec()))
-        .add(clerk.store(supply_short_id, market_vector(amount!(0)).to_vec()))
-        .add(clerk.store(supply_long_id, market_vector(amount!(0.05)).to_vec()))
-        .add(clerk.store(delta_short_id, market_vector(amount!(0)).to_vec()))
-        .add(clerk.store(delta_long_id, market_vector(amount!(0)).to_vec()))
-        .add(clerk.store(margin_id, market_vector(amount!(20.0)).to_vec()))
+        .add(clerk.store(quote_id, amount_vec![10.00, 10_000, 100.0].to_bytes()))
+        .add(clerk.store(index_order_id, amount_vec![950.00, 0, 0].to_bytes()))
+        .add(clerk.store(vendor_order_id, amount_vec![0, 0, 0].to_bytes()))
+        .add(clerk.store(total_order_id, amount_vec![0, 0, 0].to_bytes()))
+        .add(clerk.store(market_asset_names_id, market_asset_names.to_vec().to_bytes()))
+        .add(clerk.store(demand_short_id, market_vector(amount!(0)).to_bytes()))
+        .add(clerk.store(demand_long_id, market_vector(amount!(0.1)).to_bytes()))
+        .add(clerk.store(supply_short_id, market_vector(amount!(0)).to_bytes()))
+        .add(clerk.store(supply_long_id, market_vector(amount!(0.05)).to_bytes()))
+        .add(clerk.store(delta_short_id, market_vector(amount!(0)).to_bytes()))
+        .add(clerk.store(delta_long_id, market_vector(amount!(0)).to_bytes()))
+        .add(clerk.store(margin_id, market_vector(amount!(20.0)).to_bytes()))
         .send()
         .await?;
 
@@ -86,7 +87,7 @@ pub async fn run_scenario(client: &TxClient, abacus_address: Address) -> eyre::R
 
     client
         .begin_tx()
-        .add(clerk.store(solve_quadratic_id, solve_quadratic_code))
+        .add(clerk.store(solve_quadratic_id, solve_quadratic_code.to_bytes()))
         .send()
         .await?;
 
@@ -117,11 +118,11 @@ pub async fn run_scenario(client: &TxClient, abacus_address: Address) -> eyre::R
     log_msg!("Code: {:?}", code);
 
     let order_before = Vector::from_vec(clerk.load(index_order_id).call().await?);
-    let num_registers = 22;
+    let num_registers = 23;
 
     client
         .begin_tx()
-        .add(clerk.execute(code, num_registers))
+        .add(abacus.execute(code.to_bytes(), num_registers))
         .send()
         .await?;
 

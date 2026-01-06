@@ -10,7 +10,7 @@ use alloc::vec::Vec;
 use alloy_primitives::{Address, U128};
 use common::{abacus::program_error::ErrorCode, labels::Labels, vector::Vector};
 use common_contracts::contracts::clerk::ClerkStorage;
-use stylus_sdk::prelude::*;
+use stylus_sdk::{abi::Bytes, prelude::*};
 
 use abacus_runtime::runtime::{VectorIO, VectorVM};
 
@@ -66,14 +66,14 @@ impl Abacus {
 
 #[public]
 impl Abacus {
-    pub fn execute(&mut self, code: Vec<u8>, num_registry: u128) -> Result<(), Vec<u8>> {
+    pub fn execute(&mut self, code: Bytes, num_registry: u128) -> Result<(), Vec<u8>> {
         let mut storage = ClerkStorage::storage();
         storage.only_owner(self._attendee())?;
 
         let mut ref_storage = ClerkStorageRef(&mut storage);
         let mut program = VectorVM::new(&mut ref_storage);
         program
-            .execute(code, num_registry as usize)
+            .execute(code.to_vec(), num_registry as usize)
             .map_err(|err| format!("Program error: {:?}", err))?;
 
         Ok(())

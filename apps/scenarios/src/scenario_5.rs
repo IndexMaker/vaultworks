@@ -6,8 +6,7 @@ use labels_macros::label_vec;
 use vector_macros::amount_vec;
 
 use common_ethers::{
-    contracts::{Banker, Factor, Guildmaster},
-    tx_sender::TxClient,
+    ToBytes, contracts::{Banker, Factor, Guildmaster}, tx_sender::TxClient
 };
 
 pub async fn run_scenario(client: &TxClient, castle_address: Address) -> eyre::Result<()> {
@@ -27,7 +26,7 @@ pub async fn run_scenario(client: &TxClient, castle_address: Address) -> eyre::R
 
         client
             .begin_tx()
-            .add(banker.submit_assets(vendor_id, asset_names.to_vec()))
+            .add(banker.submit_assets(vendor_id, asset_names.to_bytes()))
             .send()
             .await?;
     }
@@ -39,7 +38,7 @@ pub async fn run_scenario(client: &TxClient, castle_address: Address) -> eyre::R
 
         client
             .begin_tx()
-            .add(banker.submit_assets(vendor_id, asset_names.to_vec()))
+            .add(banker.submit_assets(vendor_id, asset_names.to_bytes()))
             .send()
             .await?;
     }
@@ -52,7 +51,7 @@ pub async fn run_scenario(client: &TxClient, castle_address: Address) -> eyre::R
 
         client
             .begin_tx()
-            .add(banker.submit_margin(vendor_id, asset_names.to_vec(), asset_margin.to_vec()))
+            .add(banker.submit_margin(vendor_id, asset_names.to_bytes(), asset_margin.to_bytes()))
             .send()
             .await?;
     }
@@ -68,9 +67,9 @@ pub async fn run_scenario(client: &TxClient, castle_address: Address) -> eyre::R
             .begin_tx()
             .add(banker.submit_supply(
                 vendor_id,
-                asset_names.to_vec(),
-                asset_short.to_vec(),
-                asset_long.to_vec(),
+                asset_names.to_bytes(),
+                asset_short.to_bytes(),
+                asset_long.to_bytes(),
             ))
             .send()
             .await?;
@@ -87,9 +86,9 @@ pub async fn run_scenario(client: &TxClient, castle_address: Address) -> eyre::R
             .begin_tx()
             .add(guildmaster.submit_index(
                 index_id,
-                asset_names.to_vec(),
-                asset_weights.to_vec(),
-                info,
+                asset_names.to_bytes(),
+                asset_weights.to_bytes(),
+                info.to_bytes(),
             ))
             .send()
             .await?;
@@ -102,7 +101,7 @@ pub async fn run_scenario(client: &TxClient, castle_address: Address) -> eyre::R
 
         client
             .begin_tx()
-            .add(guildmaster.submit_vote(index_id, vote))
+            .add(guildmaster.submit_vote(index_id, vote.to_bytes()))
             .send()
             .await?;
     }
@@ -119,10 +118,10 @@ pub async fn run_scenario(client: &TxClient, castle_address: Address) -> eyre::R
             .begin_tx()
             .add(factor.submit_market_data(
                 vendor_id,
-                asset_names.to_vec(),
-                asset_liquidity.to_vec(),
-                asset_prices.to_vec(),
-                asset_slopes.to_vec(),
+                asset_names.to_bytes(),
+                asset_liquidity.to_bytes(),
+                asset_prices.to_bytes(),
+                asset_slopes.to_bytes(),
             ))
             .send()
             .await?;
@@ -151,10 +150,11 @@ pub async fn run_scenario(client: &TxClient, castle_address: Address) -> eyre::R
             .add(factor.submit_buy_order(
                 vendor_id,
                 index_id,
+                client.address(),
                 collateral_added.to_u128_raw(),
                 collateral_removed.to_u128_raw(),
                 max_order_size.to_u128_raw(),
-                acf.to_vec(),
+                acf.to_bytes(),
             ))
             .send()
             .await?;
@@ -175,10 +175,11 @@ pub async fn run_scenario(client: &TxClient, castle_address: Address) -> eyre::R
             .add(factor.submit_sell_order(
                 vendor_id,
                 index_id,
+                client.address(),
                 collateral_added.to_u128_raw(),
                 collateral_removed.to_u128_raw(),
                 max_order_size.to_u128_raw(),
-                acf.to_vec(),
+                acf.to_bytes(),
             ))
             .send()
             .await?;

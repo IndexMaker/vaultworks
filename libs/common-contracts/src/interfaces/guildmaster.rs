@@ -2,14 +2,8 @@ use alloy_sol_types::sol;
 
 sol! {
     interface IGuildmaster  {
-        function submitIndex(
-            uint128 index, 
-            uint8[] memory asset_names, 
-            uint8[] memory asset_weights, 
-            uint8[] memory info) external;
+        function submitIndex(uint128 index, bytes calldata asset_names, bytes calldata asset_weights, bytes calldata info) external;
 
-        function submitVote(
-            uint128 index, 
-            uint8[] memory vote) external;
+        function submitVote(uint128 index, bytes calldata vote) external;
     }
 }

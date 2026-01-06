@@ -14,9 +14,7 @@ use common_contracts::{
     interfaces::{castle::ICastle, worksman::IWorksman},
 };
 use stylus_sdk::{
-    keccak_const,
-    prelude::*,
-    storage::{StorageAddress, StorageBool, StorageMap, StorageVec},
+    abi::Bytes, keccak_const, prelude::*, storage::{StorageAddress, StorageBool, StorageMap, StorageVec}
 };
 
 pub const WORKSMAN_STORAGE_SLOT: U256 = {
@@ -70,7 +68,7 @@ impl Worksman {
         Ok(())
     }
 
-    pub fn build_vault(&mut self, index: U128, info: Vec<u8>) -> Result<Address, Vec<u8>> {
+    pub fn build_vault(&mut self, index: U128, info: Bytes) -> Result<Address, Vec<u8>> {
         let keep = Keep::storage();
         if keep.worksman.get().is_zero() {
             Err(b"Worksman not appointed")?;

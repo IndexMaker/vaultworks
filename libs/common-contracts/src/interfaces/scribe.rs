@@ -4,6 +4,6 @@ sol! {
     interface IScribe  {
         function acceptAppointment(address scribe) external;
 
-        function verifySignature(uint8[] memory data) external returns (bool);
+        function verifySignature(bytes calldata data) external returns (bool);
     }
 }

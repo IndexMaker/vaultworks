@@ -176,9 +176,10 @@ mod unit_tests {
 mod test_scenarios {
     use abacus_formulas::{
         add_market_assets::add_market_assets, create_market::create_market,
-        execute_sell_order::execute_sell_order, solve_quadratic_ask::solve_quadratic_ask,
-        update_margin::update_margin, update_market_data::update_market_data,
-        update_quote::update_quote, update_supply::update_supply,
+        execute_sell_order::execute_sell_order, execute_transfer::execute_transfer,
+        solve_quadratic_ask::solve_quadratic_ask, update_margin::update_margin,
+        update_market_data::update_market_data, update_quote::update_quote,
+        update_supply::update_supply,
     };
     use amount_macros::amount;
 
@@ -309,7 +310,7 @@ mod test_scenarios {
         let vendor_order_before = vio.load_vector(vendor_order_id).unwrap();
         let total_order_before = vio.load_vector(total_order_id).unwrap();
 
-        let num_registers = 22;
+        let num_registers = 23;
 
         let mut program = VectorVM::new(&mut vio);
         let mut stack = Stack::new(num_registers);
@@ -361,7 +362,7 @@ mod test_scenarios {
         );
         assert_eq!(
             index_quantites.data,
-            amount_vec![0.0999001995, 0.000000000].data
+            amount_vec![999.999999986013980025, 0.0999001995].data
         );
         assert_eq!(
             asset_quantites.data,
@@ -396,8 +397,8 @@ mod test_scenarios {
     /// - Label-based joins for aligning Index-specific assets with global Market vectors.
     /// - Multi-vector packing and unpacking into single registry slots (Order State).
     ///
-    /// The test specifically confirms that the "Slippage" (S) curve correctly reduces 
-    /// the effective withdrawal amount, and that the VM accurately solves for the 
+    /// The test specifically confirms that the "Slippage" (S) curve correctly reduces
+    /// the effective withdrawal amount, and that the VM accurately solves for the
     /// required Index Burn to satisfy the capped output.
     #[test]
     fn test_sell_index() {
@@ -548,13 +549,66 @@ mod test_scenarios {
 
         // these are exact expected fixed point decimal values as raw u128
         assert_eq!(order_after.data, amount_vec![1.0, 0.5, 4975.0].data);
-        assert_eq!(index_quantites.data, amount_vec![0.5, 1.0].data);
+        assert_eq!(index_quantites.data, amount_vec![0.5, 4975.0].data);
         assert_eq!(asset_quantites.data, amount_vec![0.05, 0.5, 50.0].data);
         assert_eq!(
             demand_long.data,
             amount_vec![0.95, 0.0, 0.5, 10.0, 0.0].data
         );
         assert_eq!(demand_short.data, amount_vec![0.0, 0.0, 0.0, 0.0, 1.0].data);
+    }
+
+    #[test]
+    fn test_transfer() {
+        let mut vio = test_utils::TestVectorIO::new();
+
+        let sender_bid_id = 10001;
+        let sender_ask_id = 10002;
+        let receiver_bid_id = 10003;
+        let transfer_amount = amount!(0.5);
+
+        vio.store_vector(sender_bid_id, amount_vec![500, 250, 2.5])
+            .unwrap();
+
+        vio.store_vector(sender_ask_id, amount_vec![0.5, 0.5, 50])
+            .unwrap();
+
+        vio.store_vector(receiver_bid_id, amount_vec![200, 100, 1.0])
+            .unwrap();
+
+        let sender_bid_before = vio.load_vector(sender_bid_id).unwrap();
+        let sender_ask_before = vio.load_vector(sender_ask_id).unwrap();
+        let receiver_bid_before = vio.load_vector(receiver_bid_id).unwrap();
+
+        let code = execute_transfer(
+            sender_bid_id,
+            sender_ask_id,
+            receiver_bid_id,
+            transfer_amount.to_u128_raw(),
+        );
+        
+        let num_registers = 6;
+
+        let mut program = VectorVM::new(&mut vio);
+        let mut stack = Stack::new(num_registers);
+        let result = program.execute_with_stack(code, &mut stack);
+
+        if let Err(err) = result {
+            log_stack!(&stack);
+            panic!("Failed to execute test: {:?}", err);
+        }
+        let sender_bid_after = vio.load_vector(sender_bid_id).unwrap();
+        let sender_ask_after = vio.load_vector(sender_ask_id).unwrap();
+        let receiver_bid_after = vio.load_vector(receiver_bid_id).unwrap();
+
+        log_msg!("\n-= Program complete =-");
+        log_msg!("\n[in] Sender Bid = {:0.9}", sender_bid_before);
+        log_msg!("[in] Sender Ask = {:0.9}", sender_ask_before);
+        log_msg!("[in] Receiver Bid = {:0.9}", receiver_bid_before);
+        log_msg!("\n[in] Transfer Amount = {:0.9}", transfer_amount);
+        log_msg!("\n[out] Sender Bid = {:0.9}", sender_bid_after);
+        log_msg!("[out] Sender Ask = {:0.9}", sender_ask_after);
+        log_msg!("[out] Receiver Bid = {:0.9}", receiver_bid_after);
     }
 
     #[test]

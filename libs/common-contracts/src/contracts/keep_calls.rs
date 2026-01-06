@@ -1,6 +1,6 @@
 use alloc::vec::Vec;
 
-use alloy_primitives::Address;
+use alloy_primitives::{Address, Bytes};
 
 use common::vector::Vector;
 
@@ -16,8 +16,8 @@ pub trait KeepCalls {
         &mut self,
         gate_to_clerk_chamber: Address,
         vector_id: u128,
-        data: Vec<u8>,
-    ) -> Result<Vec<u8>, Vec<u8>>;
+        data: impl Into<Bytes>,
+    ) -> Result<(), Vec<u8>>;
 
     fn fetch_vector_bytes(
         &self,
@@ -37,7 +37,7 @@ pub trait KeepCalls {
     fn execute_vector_program(
         &mut self,
         gate_to_clerk_chamber: Address,
-        code: Vec<u8>,
+        code: impl Into<Bytes>,
         num_registry: u128,
     ) -> Result<(), Vec<u8>>;
 
@@ -45,10 +45,14 @@ pub trait KeepCalls {
         &mut self,
         worksman: Address,
         index_id: u128,
-        info: Vec<u8>,
+        info: impl Into<Bytes>,
     ) -> Result<Address, Vec<u8>>;
 
-    fn verify_signature(&mut self, scribe: Address, data: Vec<u8>) -> Result<bool, Vec<u8>>;
+    fn verify_signature(
+        &mut self,
+        scribe: Address,
+        data: impl Into<Bytes>,
+    ) -> Result<bool, Vec<u8>>;
 }
 
 impl<T> KeepCalls for T
@@ -63,16 +67,14 @@ where
         &mut self,
         gate_to_clerk_chamber: Address,
         vector_id: u128,
-        data: Vec<u8>,
-    ) -> Result<Vec<u8>, Vec<u8>> {
-        let result = self.external_call(
-            gate_to_clerk_chamber,
-            IClerk::storeCall {
-                id: vector_id,
-                data,
-            },
-        )?;
-        Ok(result)
+        data: impl Into<Bytes>,
+    ) -> Result<(), Vec<u8>> {
+        let call = IClerk::storeCall {
+            id: vector_id,
+            data: data.into(),
+        };
+        self.external_call(gate_to_clerk_chamber, call)?;
+        Ok(())
     }
 
     fn fetch_vector_bytes(
@@ -80,20 +82,23 @@ where
         gate_to_clerk_chamber: Address,
         vector_id: u128,
     ) -> Result<Vec<u8>, Vec<u8>> {
-        let result = self.static_call(gate_to_clerk_chamber, IClerk::loadCall { id: vector_id })?;
-        Ok(result)
+        let call = IClerk::loadCall { id: vector_id };
+        let IClerk::loadReturn { _0: result } =
+            self.static_call_ret(gate_to_clerk_chamber, call)?;
+        Ok(result.to_vec())
     }
 
     fn execute_vector_program(
         &mut self,
         gate_to_clerk_chamber: Address,
-        code: Vec<u8>,
+        code: impl Into<Bytes>,
         num_registry: u128,
     ) -> Result<(), Vec<u8>> {
-        self.external_call(
-            gate_to_clerk_chamber,
-            IAbacus::executeCall { code, num_registry },
-        )?;
+        let call = IAbacus::executeCall {
+            code: code.into(),
+            num_registry,
+        };
+        self.external_call(gate_to_clerk_chamber, call)?;
         Ok(())
     }
 
@@ -101,28 +106,26 @@ where
         &mut self,
         worksman: Address,
         index_id: u128,
-        info: Vec<u8>,
+        info: impl Into<Bytes>,
     ) -> Result<Address, Vec<u8>> {
-        let gate_to_vault_bytes = self.inner_call(
+        let IWorksman::buildVaultReturn { _0: result } = self.inner_call_ret(
             worksman,
             IWorksman::buildVaultCall {
                 index: index_id,
-                info,
+                info: info.into(),
             },
         )?;
-        let address_bytes: [u8; 20] = gate_to_vault_bytes[12..32]
-            .try_into()
-            .map_err(|_| b"Bad gate to vault address")?;
-        let result = Address::from(address_bytes);
         Ok(result)
     }
 
-    fn verify_signature(&mut self, scribe: Address, data: Vec<u8>) -> Result<bool, Vec<u8>> {
-        let verfication_result_bytes =
-            self.inner_call(scribe, IScribe::verifySignatureCall { data })?;
-        let result_byte: [u8; 1] = verfication_result_bytes[31..32]
-            .try_into()
-            .map_err(|_| b"Bad signature verification")?;
-        Ok(result_byte[0] == 1u8)
+    fn verify_signature(
+        &mut self,
+        scribe: Address,
+        data: impl Into<Bytes>,
+    ) -> Result<bool, Vec<u8>> {
+        let IScribe::verifySignatureReturn {
+            _0: verfication_result,
+        } = self.inner_call_ret(scribe, IScribe::verifySignatureCall { data: data.into() })?;
+        Ok(verfication_result)
     }
 }

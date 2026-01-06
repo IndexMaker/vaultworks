@@ -32,8 +32,9 @@ impl Vector {
     }
 
     #[cfg(feature = "vec-u8")]
-    pub fn from_vec(data: Vec<u8>) -> Self {
+    pub fn from_vec(data_ref: impl AsRef<[u8]>) -> Self {
         let mut this = Self::new();
+        let data = data_ref.as_ref();
         let len = data.len();
 
         if 0 != len % size_of::<Amount>() {

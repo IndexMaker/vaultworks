@@ -6,13 +6,14 @@ use abacus_formulas::{
     update_market_data::update_market_data, update_quote::update_quote,
     update_supply::update_supply,
 };
-use common_ethers::{contracts::Clerk, tx_sender::TxClient};
+use common_ethers::{ToBytes, contracts::{Abacus, Clerk}, tx_sender::TxClient};
 use labels_macros::label_vec;
 use vector_macros::amount_vec;
 
 pub async fn run_scenario(client: &TxClient, abacus_address: Address) -> eyre::Result<()> {
     log_msg!("Scenario 3.");
     let clerk = Clerk::new(abacus_address, client.client());
+    let abacus = Abacus::new(abacus_address, client.client());
 
     let market_asset_names_id = 101;
     let market_asset_prices_id = 102;
@@ -42,17 +43,17 @@ pub async fn run_scenario(client: &TxClient, abacus_address: Address) -> eyre::R
     log_msg!("Create State");
     client
         .begin_tx()
-        .add(clerk.store(market_asset_names_id, label_vec![].to_vec()))
-        .add(clerk.store(market_asset_prices_id, amount_vec![].to_vec()))
-        .add(clerk.store(market_asset_slopes_id, amount_vec![].to_vec()))
-        .add(clerk.store(market_asset_liquidity_id, amount_vec![].to_vec()))
-        .add(clerk.store(supply_long_id, amount_vec![].to_vec()))
-        .add(clerk.store(supply_short_id, amount_vec![].to_vec()))
-        .add(clerk.store(demand_long_id, amount_vec![].to_vec()))
-        .add(clerk.store(demand_short_id, amount_vec![].to_vec()))
-        .add(clerk.store(delta_long_id, amount_vec![].to_vec()))
-        .add(clerk.store(delta_short_id, amount_vec![].to_vec()))
-        .add(clerk.store(margin_id, amount_vec![].to_vec()))
+        .add(clerk.store(market_asset_names_id, label_vec![].to_bytes()))
+        .add(clerk.store(market_asset_prices_id, amount_vec![].to_bytes()))
+        .add(clerk.store(market_asset_slopes_id, amount_vec![].to_bytes()))
+        .add(clerk.store(market_asset_liquidity_id, amount_vec![].to_bytes()))
+        .add(clerk.store(supply_long_id, amount_vec![].to_bytes()))
+        .add(clerk.store(supply_short_id, amount_vec![].to_bytes()))
+        .add(clerk.store(demand_long_id, amount_vec![].to_bytes()))
+        .add(clerk.store(demand_short_id, amount_vec![].to_bytes()))
+        .add(clerk.store(delta_long_id, amount_vec![].to_bytes()))
+        .add(clerk.store(delta_short_id, amount_vec![].to_bytes()))
+        .add(clerk.store(margin_id, amount_vec![].to_bytes()))
         .send()
         .await?;
 
@@ -61,14 +62,14 @@ pub async fn run_scenario(client: &TxClient, abacus_address: Address) -> eyre::R
         .begin_tx()
         .add(clerk.store(
             new_market_asset_names_id,
-            label_vec![101, 103, 104].to_vec(),
+            label_vec![101, 103, 104].to_bytes(),
         ))
         .send()
         .await?;
 
     client
         .begin_tx()
-        .add(clerk.execute(
+        .add(abacus.execute(
             add_market_assets(
                 new_market_asset_names_id,
                 market_asset_names_id,
@@ -82,7 +83,7 @@ pub async fn run_scenario(client: &TxClient, abacus_address: Address) -> eyre::R
                 delta_long_id,
                 delta_short_id,
                 margin_id,
-            ),
+            ).to_bytes(),
             16,
         ))
         .send()
@@ -93,14 +94,14 @@ pub async fn run_scenario(client: &TxClient, abacus_address: Address) -> eyre::R
         .begin_tx()
         .add(clerk.store(
             new_market_asset_names_id,
-            label_vec![102, 104, 105, 106].to_vec(),
+            label_vec![102, 104, 105, 106].to_bytes(),
         ))
         .send()
         .await?;
 
     client
         .begin_tx()
-        .add(clerk.execute(
+        .add(abacus.execute(
             add_market_assets(
                 new_market_asset_names_id,
                 market_asset_names_id,
@@ -114,7 +115,7 @@ pub async fn run_scenario(client: &TxClient, abacus_address: Address) -> eyre::R
                 delta_long_id,
                 delta_short_id,
                 margin_id,
-            ),
+            ).to_bytes(),
             16,
         ))
         .send()
@@ -129,28 +130,28 @@ pub async fn run_scenario(client: &TxClient, abacus_address: Address) -> eyre::R
     log_msg!("Submit Inputs");
     client
         .begin_tx()
-        .add(clerk.store(asset_names_id, label_vec![101, 103, 104].to_vec()))
-        .add(clerk.store(asset_prices_id, amount_vec![500.0, 1000.0, 100.0].to_vec()))
-        .add(clerk.store(asset_slopes_id, amount_vec![5.0, 10.0, 1.0].to_vec()))
-        .add(clerk.store(asset_liquidity_id, amount_vec![20.0, 10.0, 100.0].to_vec()))
-        .add(clerk.store(asset_margin_id, amount_vec![10.0, 10.0, 50.0].to_vec()))
-        .add(clerk.store(asset_quantities_long_id, amount_vec![1.0, 0, 5.0].to_vec()))
-        .add(clerk.store(asset_quantities_short_id, amount_vec![0, 2.0, 0].to_vec()))
-        .add(clerk.store(weights_id, amount_vec![4.0, 8.0, 20.0].to_vec()))
-        .add(clerk.store(quote_id, amount_vec![0, 0, 0].to_vec()))
+        .add(clerk.store(asset_names_id, label_vec![101, 103, 104].to_bytes()))
+        .add(clerk.store(asset_prices_id, amount_vec![500.0, 1000.0, 100.0].to_bytes()))
+        .add(clerk.store(asset_slopes_id, amount_vec![5.0, 10.0, 1.0].to_bytes()))
+        .add(clerk.store(asset_liquidity_id, amount_vec![20.0, 10.0, 100.0].to_bytes()))
+        .add(clerk.store(asset_margin_id, amount_vec![10.0, 10.0, 50.0].to_bytes()))
+        .add(clerk.store(asset_quantities_long_id, amount_vec![1.0, 0, 5.0].to_bytes()))
+        .add(clerk.store(asset_quantities_short_id, amount_vec![0, 2.0, 0].to_bytes()))
+        .add(clerk.store(weights_id, amount_vec![4.0, 8.0, 20.0].to_bytes()))
+        .add(clerk.store(quote_id, amount_vec![0, 0, 0].to_bytes()))
         .send()
         .await?;
 
     log_msg!("Update Margin");
     client
         .begin_tx()
-        .add(clerk.execute(
+        .add(abacus.execute(
             update_margin(
                 asset_names_id,
                 asset_margin_id,
                 market_asset_names_id,
                 margin_id,
-            ),
+            ).to_bytes(),
             16,
         ))
         .send()
@@ -159,7 +160,7 @@ pub async fn run_scenario(client: &TxClient, abacus_address: Address) -> eyre::R
     log_msg!("Update Market Data");
     client
         .begin_tx()
-        .add(clerk.execute(
+        .add(abacus.execute(
             update_market_data(
                 asset_names_id,
                 asset_prices_id,
@@ -169,7 +170,7 @@ pub async fn run_scenario(client: &TxClient, abacus_address: Address) -> eyre::R
                 market_asset_prices_id,
                 market_asset_slopes_id,
                 market_asset_liquidity_id,
-            ),
+            ).to_bytes(),
             16,
         ))
         .send()
@@ -178,7 +179,7 @@ pub async fn run_scenario(client: &TxClient, abacus_address: Address) -> eyre::R
     log_msg!("Update Supply");
     client
         .begin_tx()
-        .add(clerk.execute(
+        .add(abacus.execute(
             update_supply(
                 asset_names_id,
                 asset_quantities_short_id,
@@ -190,7 +191,7 @@ pub async fn run_scenario(client: &TxClient, abacus_address: Address) -> eyre::R
                 demand_short_id,
                 delta_long_id,
                 delta_short_id,
-            ),
+            ).to_bytes(),
             16,
         ))
         .send()
@@ -199,7 +200,7 @@ pub async fn run_scenario(client: &TxClient, abacus_address: Address) -> eyre::R
     log_msg!("Update Quote");
     client
         .begin_tx()
-        .add(clerk.execute(
+        .add(abacus.execute(
             update_quote(
                 asset_names_id,
                 weights_id,
@@ -208,7 +209,7 @@ pub async fn run_scenario(client: &TxClient, abacus_address: Address) -> eyre::R
                 market_asset_prices_id,
                 market_asset_slopes_id,
                 market_asset_liquidity_id,
-            ),
+            ).to_bytes(),
             16,
         ))
         .send()

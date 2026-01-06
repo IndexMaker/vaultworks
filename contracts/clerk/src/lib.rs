@@ -9,11 +9,10 @@ use alloc::vec::Vec;
 
 use alloy_primitives::{Address, U128};
 use common::log_msg;
-use common_contracts::{
-    contracts::{calls::InnerCall, clerk::ClerkStorage, keep_calls::KeepCalls},
-    interfaces::abacus::IAbacus,
-};
-use stylus_sdk::prelude::*;
+use common_contracts::
+    contracts::{clerk::ClerkStorage, keep_calls::KeepCalls}
+;
+use stylus_sdk::{ArbResult, abi::Bytes, prelude::*};
 
 #[storage]
 #[entrypoint]
@@ -29,7 +28,7 @@ impl Clerk {
         Ok(())
     }
 
-    pub fn store(&mut self, id: U128, data: Vec<u8>) -> Result<(), Vec<u8>> {
+    pub fn store(&mut self, id: U128, data: Bytes) -> Result<(), Vec<u8>> {
         let mut storage = ClerkStorage::storage();
         storage.only_owner(self.attendee())?;
 
@@ -39,7 +38,7 @@ impl Clerk {
         Ok(())
     }
 
-    pub fn load(&self, id: U128) -> Result<Vec<u8>, Vec<u8>> {
+    pub fn load(&self, id: U128) -> Result<Bytes, Vec<u8>> {
         let storage = ClerkStorage::storage();
         storage.only_owner(self.attendee())?;
 
@@ -47,19 +46,19 @@ impl Clerk {
             return Err(b"Not found".to_vec());
         };
 
-        Ok(vector)
+        Ok(Bytes::from(vector))
     }
 
-    pub fn execute(&mut self, code: Vec<u8>, num_registry: u128) -> Result<Vec<u8>, Vec<u8>> {
+    #[payable]
+    #[fallback]
+    fn fallback(&mut self, calldata: &[u8]) -> ArbResult {
         let storage = ClerkStorage::storage();
-        storage.only_owner(self.attendee())?;
+        let abacus = storage.get_abacus_address();
+        if abacus.is_zero() {
+            Err(b"No requests implementation")?;
+        }
 
-        log_msg!("Executing code");
-        let result = self.inner_call(
-            storage.get_abacus_address(),
-            IAbacus::executeCall { code, num_registry },
-        )?;
-
-        Ok(result)
+        log_msg!("Delegating function to {}", abacus);
+        unsafe { Ok(self.vm().delegate_call(&self, abacus, calldata)?) }
     }
 }

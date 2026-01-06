@@ -9,7 +9,7 @@ use alloc::vec::Vec;
 
 use alloy_primitives::Address;
 use common_contracts::contracts::keep::Keep;
-use stylus_sdk::prelude::*;
+use stylus_sdk::{abi::Bytes, prelude::*};
 
 #[storage]
 #[entrypoint]
@@ -26,7 +26,7 @@ impl Scribe {
         Ok(())
     }
 
-    pub fn verify_signature(&mut self, data: Vec<u8>) -> Result<bool, Vec<u8>> {
+    pub fn verify_signature(&mut self, data: Bytes) -> Result<bool, Vec<u8>> {
         let keep = Keep::storage();
         if keep.scribe.get().is_zero() {
             Err(b"Scribe not appointed")?;
