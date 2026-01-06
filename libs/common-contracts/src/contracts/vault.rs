@@ -1,7 +1,7 @@
 use alloc::{vec, vec::Vec};
 
-use alloy_primitives::{Address, U128, U256, uint};
-use common::amount::Amount;
+use alloy_primitives::{uint, Address, U256, U32};
+use common::{amount::Amount, vector::Vector};
 use stylus_sdk::{
     keccak_const,
     prelude::*,
@@ -9,6 +9,11 @@ use stylus_sdk::{
         StorageAddress, StorageBool, StorageMap, StorageString, StorageU128, StorageU256,
         StorageU32,
     },
+};
+
+use crate::{
+    contracts::{calls::InnerCall, storage::StorageSlot},
+    interfaces::factor::IFactor,
 };
 
 pub const VAULT_STORAGE_SLOT: U256 = {
@@ -200,5 +205,88 @@ pub struct VaultStorage {
     pub allowances: StorageMap<Address, Allowance>,
     pub deposit_request: StorageMap<Address, Requests>,
     pub redeem_request: StorageMap<Address, Requests>,
+    pub requests_implementation: StorageAddress,
     pub gate_to_castle: StorageAddress,
+}
+
+impl VaultStorage {
+    pub fn storage() -> VaultStorage {
+        StorageSlot::get_slot::<VaultStorage>(VAULT_STORAGE_SLOT)
+    }
+
+    pub fn only_owner(&self, sender: Address) -> Result<(), Vec<u8>> {
+        let owner = self.owner.get();
+        if !owner.is_zero() && owner != sender {
+            Err(b"Only owner")?;
+        }
+        Ok(())
+    }
+
+    pub fn set_version(&mut self, version: U32) -> Result<(), Vec<u8>> {
+        if self.version.get() > version {
+            Err(b"Version cannot be downgraded")?;
+        }
+        self.version.set(version);
+        Ok(())
+    }
+
+    pub fn set_owner(&mut self, new_owner: Address) -> Result<(), Vec<u8>> {
+        self.owner.set(new_owner);
+        Ok(())
+    }
+
+    pub fn set_requests(&mut self, requests: Address) {
+        self.requests_implementation.set(requests);
+    }
+    
+    pub fn set_castle(&mut self, gate_to_castle: Address) {
+        self.gate_to_castle.set(gate_to_castle);
+    }
+
+    pub fn get_order(
+        &self,
+        caller: &impl InnerCall,
+        account: Address,
+    ) -> Result<(Vector, Vector), Vec<u8>> {
+        let ret = caller.static_call_ret(
+            self.gate_to_castle.get(),
+            IFactor::getTraderOrderCall {
+                index_id: self.index_id.get().to(),
+                trader: account,
+            },
+        )?;
+
+        let bid = Vector::from_vec(ret._0);
+        let ask = Vector::from_vec(ret._1);
+
+        Ok((bid, ask))
+    }
+
+    pub fn get_total_order(&self, caller: &impl InnerCall) -> Result<(Vector, Vector), Vec<u8>> {
+        let ret = caller.static_call_ret(
+            self.gate_to_castle.get(),
+            IFactor::getTotalOrderCall {
+                index_id: self.index_id.get().to(),
+            },
+        )?;
+
+        let bid = Vector::from_vec(ret._0);
+        let ask = Vector::from_vec(ret._1);
+
+        Ok((bid, ask))
+    }
+
+    pub fn get_quote(&self, caller: &impl InnerCall) -> Result<Vector, Vec<u8>> {
+        let ret = caller.static_call(
+            self.gate_to_castle.get(),
+            IFactor::getIndexQuoteCall {
+                index_id: self.index_id.get().to(),
+                vendor_id: self.vendor_id.get().to(),
+            },
+        )?;
+
+        let quote = Vector::from_vec(ret);
+
+        Ok(quote)
+    }
 }
