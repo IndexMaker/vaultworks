@@ -101,6 +101,11 @@ impl Amount {
         Some(Self(try_convert_to_u128(result)?))
     }
 
+    pub fn checked_idiv(self, rhs: Self) -> Option<Self> {
+        let result = (self.to_u256() / rhs.to_u256()) * Self::u256_scale();
+        Some(Self(try_convert_to_u128(result)?))
+    }
+
     pub fn checked_sq(self) -> Option<Self> {
         let this = self.to_u256();
         let result = (this * this) / Self::u256_scale();

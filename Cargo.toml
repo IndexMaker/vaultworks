@@ -13,6 +13,7 @@ members = [
     "contracts/scribe",
     "contracts/treasury",
     "contracts/vault",
+    "contracts/vault_native",
     "contracts/vault_requests",
     "contracts/worksman",
 

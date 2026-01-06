@@ -1,14 +1,14 @@
 [package]
-name = "vault_requests"
+name = "vault_native"
 version = "0.1.0"
 edition = "2021"
-description = "IndexMaker Vault Requests (An implementation of ERC-4626 and ERC-7540)"
+description = "IndexMaker Vault Native (An implementation independent of ERC standards)"
 
 [dependencies]
 alloy-primitives = { workspace = true }
 alloy-sol-types = { workspace = true }
-common = { workspace = true, features = ["stylus"] }
-common-contracts = { workspace = true, features = ["stylus"] }
+common = { workspace = true, features = ["stylus", "amount-sqrt"] }
+common-contracts = { workspace = true, features = ["stylus", "amount-sqrt"] }
 hex = { workspace = true }
 stylus-sdk = { workspace = true, features = ["reentrant"]}
 
@@ -28,7 +28,7 @@ test-debug = ["stylus-sdk/debug", "common/debug", "common/stylus-test"]
 mini-alloc = ["stylus-sdk/mini-alloc"]
 
 [[bin]]
-name = "vault_requests"
+name = "vault_native"
 path = "src/main.rs"
 
 [lib]

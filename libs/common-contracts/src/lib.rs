@@ -16,6 +16,8 @@ pub mod contracts {
     pub mod keep_calls;
     pub mod storage;
     pub mod vault;
+    pub mod vault_native;
+    pub mod vault_requests;
 }
 
 pub mod interfaces {
