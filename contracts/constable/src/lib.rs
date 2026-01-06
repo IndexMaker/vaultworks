@@ -141,10 +141,10 @@ impl Constable {
                 IFactor::getIndexQuoteCall::SELECTOR.into(),
                 IFactor::getTraderOrderCall::SELECTOR.into(),
                 IFactor::getTraderCountCall::SELECTOR.into(),
-                IFactor::getTraderOrderAtCall::SELECTOR.into(),
+                IFactor::getTraderAtCall::SELECTOR.into(),
                 IFactor::getVendorOrderCall::SELECTOR.into(),
                 IFactor::getVendorCountCall::SELECTOR.into(),
-                IFactor::getVendorOrderAtCall::SELECTOR.into(),
+                IFactor::getVendorAtCall::SELECTOR.into(),
                 IFactor::getTotalOrderCall::SELECTOR.into(),
             ],
         })?;

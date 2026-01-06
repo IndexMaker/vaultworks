@@ -13,7 +13,6 @@ use common::{amount::Amount, log_msg};
 use common_contracts::{
     contracts::{
         calls::InnerCall,
-        formulas::Order,
         gate::{Gate, IMPLEMENTATION_SLOT},
         keep_calls::KeepCalls,
         vault::VaultStorage,
@@ -47,7 +46,12 @@ impl Vault {
         vault.set_owner(initial_owner)
     }
 
-    fn initialize(&mut self, owner: Address, requests: Address, gate_to_castle: Address) -> Result<(), Vec<u8>> {
+    fn initialize(
+        &mut self,
+        owner: Address,
+        requests: Address,
+        gate_to_castle: Address,
+    ) -> Result<(), Vec<u8>> {
         let mut vault = VaultStorage::storage();
         vault.only_owner(self.attendee())?;
         vault.set_version(VERSION_NUMBER)?;
@@ -117,8 +121,8 @@ impl Vault {
     pub fn total_supply(&self) -> Result<U256, Vec<u8>> {
         let vault = VaultStorage::storage();
 
-        let (bid, ask) = vault.get_total_order(self)?;
-        let itp_amount = Order::tell_total(bid, ask)?;
+        let order = vault.get_total_order(self)?;
+        let itp_amount = order.tell_total()?;
 
         Ok(itp_amount.to_u256())
     }
@@ -126,8 +130,8 @@ impl Vault {
     pub fn balance_of(&self, account: Address) -> Result<U256, Vec<u8>> {
         let vault = VaultStorage::storage();
 
-        let (bid, ask) = vault.get_order(self, account)?;
-        let itp_amount = Order::tell_available(bid, ask)?;
+        let order = vault.get_order(self, account)?;
+        let itp_amount = order.tell_available()?;
 
         Ok(itp_amount.to_u256())
     }

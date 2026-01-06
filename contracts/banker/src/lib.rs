@@ -16,7 +16,7 @@ use common_contracts::contracts::{
     keep::{ClerkChamber, Keep},
     keep_calls::KeepCalls,
 };
-use stylus_sdk::prelude::*;
+use stylus_sdk::{abi::Bytes, prelude::*};
 
 #[storage]
 #[entrypoint]
@@ -39,7 +39,7 @@ impl Banker {
     pub fn submit_assets(
         &mut self,
         vendor_id: U128,
-        market_asset_names: Vec<u8>,
+        market_asset_names: Bytes,
     ) -> Result<(), Vec<u8>> {
         let mut storage = Keep::storage();
         let gate_to_clerk_chamber = storage.clerk_chamber.get_gate_address();
@@ -53,7 +53,7 @@ impl Banker {
             self.submit_vector_bytes(
                 gate_to_clerk_chamber,
                 new_market_asset_names_id.to(),
-                market_asset_names,
+                market_asset_names.0,
             )?;
 
             // Compile VIL program, which we will send to DeVIL for execution.
@@ -87,7 +87,7 @@ impl Banker {
             self.submit_vector_bytes(
                 gate_to_clerk_chamber,
                 new_market_asset_names_id.to(),
-                market_asset_names,
+                market_asset_names.0,
             )?;
 
             account.assets.set(storage.clerk_chamber.next_vector());
@@ -140,8 +140,8 @@ impl Banker {
     pub fn submit_margin(
         &mut self,
         vendor_id: U128,
-        asset_names: Vec<u8>,
-        asset_margin: Vec<u8>,
+        asset_names: Bytes,
+        asset_margin: Bytes,
     ) -> Result<(), Vec<u8>> {
         let mut storage = Keep::storage();
 
@@ -153,11 +153,11 @@ impl Banker {
         let new_asset_names_id = ClerkChamber::SCRATCH_1;
         let new_asset_margin_id = ClerkChamber::SCRATCH_2;
 
-        self.submit_vector_bytes(gate_to_clerk_chamber, new_asset_names_id.to(), asset_names)?;
+        self.submit_vector_bytes(gate_to_clerk_chamber, new_asset_names_id.to(), asset_names.0)?;
         self.submit_vector_bytes(
             gate_to_clerk_chamber,
             new_asset_margin_id.to(),
-            asset_margin,
+            asset_margin.0,
         )?;
 
         // Compile VIL program, which we will send to DeVIL for execution.
@@ -194,9 +194,9 @@ impl Banker {
     pub fn submit_supply(
         &mut self,
         vendor_id: U128,
-        asset_names: Vec<u8>,
-        asset_quantities_short: Vec<u8>,
-        asset_quantities_long: Vec<u8>,
+        asset_names: Bytes,
+        asset_quantities_short: Bytes,
+        asset_quantities_long: Bytes,
     ) -> Result<(), Vec<u8>> {
         let mut storage = Keep::storage();
 
@@ -209,16 +209,16 @@ impl Banker {
         let new_asset_quantities_short_id = ClerkChamber::SCRATCH_2;
         let new_asset_quantities_long_id = ClerkChamber::SCRATCH_3;
 
-        self.submit_vector_bytes(gate_to_clerk_chamber, new_asset_names_id.to(), asset_names)?;
+        self.submit_vector_bytes(gate_to_clerk_chamber, new_asset_names_id.to(), asset_names.0)?;
         self.submit_vector_bytes(
             gate_to_clerk_chamber,
             new_asset_quantities_short_id.to(),
-            asset_quantities_short,
+            asset_quantities_short.0,
         )?;
         self.submit_vector_bytes(
             gate_to_clerk_chamber,
             new_asset_quantities_long_id.to(),
-            asset_quantities_long,
+            asset_quantities_long.0,
         )?;
 
         // Compile VIL program, which we will send to DeVIL for execution.

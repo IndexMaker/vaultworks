@@ -1,7 +1,7 @@
 use alloc::{vec, vec::Vec};
 
 use alloy_primitives::{uint, Address, U256, U32};
-use common::{amount::Amount, vector::Vector};
+use common::amount::Amount;
 use stylus_sdk::{
     keccak_const,
     prelude::*,
@@ -12,7 +12,11 @@ use stylus_sdk::{
 };
 
 use crate::{
-    contracts::{calls::InnerCall, storage::StorageSlot},
+    contracts::{
+        calls::InnerCall,
+        formulas::{Order, Quote},
+        storage::StorageSlot,
+    },
     interfaces::factor::IFactor,
 };
 
@@ -238,55 +242,43 @@ impl VaultStorage {
     pub fn set_requests(&mut self, requests: Address) {
         self.requests_implementation.set(requests);
     }
-    
+
     pub fn set_castle(&mut self, gate_to_castle: Address) {
         self.gate_to_castle.set(gate_to_castle);
     }
 
-    pub fn get_order(
-        &self,
-        caller: &impl InnerCall,
-        account: Address,
-    ) -> Result<(Vector, Vector), Vec<u8>> {
-        let ret = caller.static_call_ret(
-            self.gate_to_castle.get(),
-            IFactor::getTraderOrderCall {
-                index_id: self.index_id.get().to(),
-                trader: account,
-            },
-        )?;
+    pub fn get_order(&self, caller: &impl InnerCall, account: Address) -> Result<Order, Vec<u8>> {
+        let call = IFactor::getTraderOrderCall {
+            index_id: self.index_id.get().to(),
+            trader: account,
+        };
+        let IFactor::getTraderOrderReturn { _0: ret } =
+            caller.static_call_ret(self.gate_to_castle.get(), call)?;
 
-        let bid = Vector::from_vec(ret._0);
-        let ask = Vector::from_vec(ret._1);
-
-        Ok((bid, ask))
+        let order = Order::try_from_vec(ret).map_err(|_| b"Failed to decode order data")?;
+        Ok(order)
     }
 
-    pub fn get_total_order(&self, caller: &impl InnerCall) -> Result<(Vector, Vector), Vec<u8>> {
-        let ret = caller.static_call_ret(
-            self.gate_to_castle.get(),
-            IFactor::getTotalOrderCall {
-                index_id: self.index_id.get().to(),
-            },
-        )?;
+    pub fn get_total_order(&self, caller: &impl InnerCall) -> Result<Order, Vec<u8>> {
+        let call = IFactor::getTotalOrderCall {
+            index_id: self.index_id.get().to(),
+        };
+        let IFactor::getTotalOrderReturn { _0: ret } =
+            caller.static_call_ret(self.gate_to_castle.get(), call)?;
 
-        let bid = Vector::from_vec(ret._0);
-        let ask = Vector::from_vec(ret._1);
-
-        Ok((bid, ask))
+        let order = Order::try_from_vec(ret).map_err(|_| b"Failed to decode order data")?;
+        Ok(order)
     }
 
-    pub fn get_quote(&self, caller: &impl InnerCall) -> Result<Vector, Vec<u8>> {
-        let ret = caller.static_call(
-            self.gate_to_castle.get(),
-            IFactor::getIndexQuoteCall {
-                index_id: self.index_id.get().to(),
-                vendor_id: self.vendor_id.get().to(),
-            },
-        )?;
+    pub fn get_quote(&self, caller: &impl InnerCall) -> Result<Quote, Vec<u8>> {
+        let call = IFactor::getIndexQuoteCall {
+            index_id: self.index_id.get().to(),
+            vendor_id: self.vendor_id.get().to(),
+        };
+        let IFactor::getIndexQuoteReturn { _0: ret } =
+            caller.static_call_ret(self.gate_to_castle.get(), call)?;
 
-        let quote = Vector::from_vec(ret);
-
+        let quote = Quote::try_from_vec(ret).map_err(|_| b"Failed to decode quote data")?;
         Ok(quote)
     }
 }

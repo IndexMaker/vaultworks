@@ -4,7 +4,7 @@ sol! {
     interface IWorksman  {
         function acceptAppointment(address worksman) external;
 
-        function buildVault(uint128 index, uint8[] memory info) external returns (address);
+        function buildVault(uint128 index, bytes calldata info) external returns (address);
 
         function addVault(address vault) external;
     }

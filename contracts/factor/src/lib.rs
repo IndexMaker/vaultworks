@@ -20,7 +20,7 @@ use common_contracts::contracts::{
     keep::{ClerkChamber, Keep, Vault},
     keep_calls::KeepCalls,
 };
-use stylus_sdk::prelude::*;
+use stylus_sdk::{abi::Bytes, prelude::*};
 use vector_macros::amount_vec;
 
 #[storage]
@@ -279,10 +279,10 @@ impl Factor {
     pub fn submit_market_data(
         &mut self,
         vendor_id: U128,
-        asset_names: Vec<u8>,
-        asset_liquidity: Vec<u8>,
-        asset_prices: Vec<u8>,
-        asset_slopes: Vec<u8>,
+        asset_names: Bytes,
+        asset_liquidity: Bytes,
+        asset_prices: Bytes,
+        asset_slopes: Bytes,
     ) -> Result<(), Vec<u8>> {
         let mut storage = Keep::storage();
 
@@ -296,14 +296,14 @@ impl Factor {
         let asset_prices_id = ClerkChamber::SCRATCH_3;
         let asset_slopes_id = ClerkChamber::SCRATCH_4;
 
-        self.submit_vector_bytes(gate_to_clerk_chamber, asset_names_id.to(), asset_names)?;
+        self.submit_vector_bytes(gate_to_clerk_chamber, asset_names_id.to(), asset_names.0)?;
         self.submit_vector_bytes(
             gate_to_clerk_chamber,
             asset_liquidity_id.to(),
-            asset_liquidity,
+            asset_liquidity.0,
         )?;
-        self.submit_vector_bytes(gate_to_clerk_chamber, asset_prices_id.to(), asset_prices)?;
-        self.submit_vector_bytes(gate_to_clerk_chamber, asset_slopes_id.to(), asset_slopes)?;
+        self.submit_vector_bytes(gate_to_clerk_chamber, asset_prices_id.to(), asset_prices.0)?;
+        self.submit_vector_bytes(gate_to_clerk_chamber, asset_slopes_id.to(), asset_slopes.0)?;
 
         // Compile VIL program, which we will send to DeVIL for execution.
         let update = update_market_data(
@@ -383,7 +383,7 @@ impl Factor {
         collateral_added: u128,
         collateral_removed: u128,
         max_order_size: u128,
-        asset_contribution_fractions: Vec<u8>,
+        asset_contribution_fractions: Bytes,
     ) -> Result<(Vec<u8>, Vec<u8>, Vec<u8>), Vec<u8>> {
         let mut storage = Keep::storage();
 
@@ -411,7 +411,7 @@ impl Factor {
         self.submit_vector_bytes(
             gate_to_clerk_chamber,
             asset_contribution_fractions_id.to(),
-            asset_contribution_fractions,
+            asset_contribution_fractions.0,
         )?;
 
         let executed_asset_quantities_id = ClerkChamber::SCRATCH_2;
@@ -476,7 +476,7 @@ impl Factor {
         collateral_added: u128,
         collateral_removed: u128,
         max_order_size: u128,
-        asset_contribution_fractions: Vec<u8>,
+        asset_contribution_fractions: Bytes,
     ) -> Result<(Vec<u8>, Vec<u8>, Vec<u8>), Vec<u8>> {
         let mut storage = Keep::storage();
 
@@ -504,7 +504,7 @@ impl Factor {
         self.submit_vector_bytes(
             gate_to_clerk_chamber,
             asset_contribution_fractions_id.to(),
-            asset_contribution_fractions,
+            asset_contribution_fractions.0,
         )?;
 
         let executed_asset_quantities_id = ClerkChamber::SCRATCH_2;
@@ -620,9 +620,9 @@ impl Factor {
         let sender_ask_bytes =
             self.fetch_vector_bytes(gate_to_clerk_chamber, sender_ask_id.to())?;
 
-        let sender_balance = Order::tell_available_from_vec(sender_bid_bytes, sender_ask_bytes)?;
+        let order = Order::try_from_vec_pair(sender_bid_bytes, sender_ask_bytes)?;
 
-        if sender_balance.to_u128_raw() < amount {
+        if order.tell_available()?.to_u128_raw() < amount {
             Err(b"Insufficient amount of Index token")?;
         }
 
@@ -691,11 +691,7 @@ impl Factor {
         Ok(data)
     }
 
-    pub fn get_trader_order(
-        &self,
-        index_id: U128,
-        trader: Address,
-    ) -> Result<(Vec<u8>, Vec<u8>), Vec<u8>> {
+    pub fn get_trader_order(&self, index_id: U128, trader: Address) -> Result<Vec<u8>, Vec<u8>> {
         let storage = Keep::storage();
         let vault = storage.vaults.get(index_id);
         let gate_to_clerk_chamber = storage.clerk_chamber.get_gate_address();
@@ -715,7 +711,7 @@ impl Factor {
             amount_vec!(0, 0, 0).to_vec()
         };
 
-        Ok((bid, ask))
+        Ok(Order::encode_vec_pair(bid, ask))
     }
 
     pub fn get_trader_count(&self, index_id: U128) -> Result<U128, Vec<u8>> {
@@ -726,42 +722,18 @@ impl Factor {
         Ok(result)
     }
 
-    pub fn get_trader_order_at(
-        &self,
-        index_id: U128,
-        offset: u128,
-    ) -> Result<(Address, Vec<u8>, Vec<u8>), Vec<u8>> {
+    pub fn get_trader_at(&self, index_id: U128, offset: u128) -> Result<Address, Vec<u8>> {
         let storage = Keep::storage();
         let vault = storage.vaults.get(index_id);
-        let gate_to_clerk_chamber = storage.clerk_chamber.get_gate_address();
 
         if let Some(address) = vault.traders.get(offset) {
-            let bid_id = vault.traders_bids.get(address);
-
-            let bid = if !bid_id.is_zero() {
-                self.fetch_vector_bytes(gate_to_clerk_chamber, bid_id.to())?
-            } else {
-                amount_vec!(0, 0, 0).to_vec()
-            };
-
-            let ask_id = vault.traders_asks.get(address);
-            let ask = if !ask_id.is_zero() {
-                self.fetch_vector_bytes(gate_to_clerk_chamber, ask_id.to())?
-            } else {
-                amount_vec!(0, 0, 0).to_vec()
-            };
-
-            Ok((address, bid, ask))
+            Ok(address)
         } else {
-            Err(b"No such order".into())
+            Err(b"Trader has no orders".into())
         }
     }
 
-    pub fn get_vendor_order(
-        &self,
-        index_id: U128,
-        vendor_id: U128,
-    ) -> Result<(Vec<u8>, Vec<u8>), Vec<u8>> {
+    pub fn get_vendor_order(&self, index_id: U128, vendor_id: U128) -> Result<Vec<u8>, Vec<u8>> {
         let storage = Keep::storage();
         let vault = storage.vaults.get(index_id);
         let gate_to_clerk_chamber = storage.clerk_chamber.get_gate_address();
@@ -781,7 +753,7 @@ impl Factor {
             amount_vec!(0, 0, 0).to_vec()
         };
 
-        Ok((bid, ask))
+        Ok(Order::encode_vec_pair(bid, ask))
     }
 
     pub fn get_vendor_count(&self, index_id: U128) -> Result<U128, Vec<u8>> {
@@ -792,38 +764,18 @@ impl Factor {
         Ok(result)
     }
 
-    pub fn get_vendor_order_at(
-        &self,
-        index_id: U128,
-        offset: u128,
-    ) -> Result<(U128, Vec<u8>, Vec<u8>), Vec<u8>> {
+    pub fn get_vendor_at(&self, index_id: U128, offset: u128) -> Result<U128, Vec<u8>> {
         let storage = Keep::storage();
         let vault = storage.vaults.get(index_id);
-        let gate_to_clerk_chamber = storage.clerk_chamber.get_gate_address();
 
         if let Some(vendor_id) = vault.vendors.get(offset) {
-            let bid_id = vault.vendors_bids.get(vendor_id);
-
-            let bid = if !bid_id.is_zero() {
-                self.fetch_vector_bytes(gate_to_clerk_chamber, bid_id.to())?
-            } else {
-                amount_vec!(0, 0, 0).to_vec()
-            };
-
-            let ask_id = vault.vendors_asks.get(vendor_id);
-            let ask = if !ask_id.is_zero() {
-                self.fetch_vector_bytes(gate_to_clerk_chamber, ask_id.to())?
-            } else {
-                amount_vec!(0, 0, 0).to_vec()
-            };
-
-            Ok((vendor_id, bid, ask))
+            Ok(vendor_id)
         } else {
-            Err(b"No such order".into())
+            Err(b"Vendor has no orders".into())
         }
     }
 
-    pub fn get_total_order(&self, index_id: U128) -> Result<(Vec<u8>, Vec<u8>), Vec<u8>> {
+    pub fn get_total_order(&self, index_id: U128) -> Result<Vec<u8>, Vec<u8>> {
         let storage = Keep::storage();
         let vault = storage.vaults.get(index_id);
         let gate_to_clerk_chamber = storage.clerk_chamber.get_gate_address();
@@ -843,6 +795,6 @@ impl Factor {
             amount_vec!(0, 0, 0).to_vec()
         };
 
-        Ok((bid, ask))
+        Ok(Order::encode_vec_pair(bid, ask))
     }
 }

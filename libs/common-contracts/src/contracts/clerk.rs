@@ -51,7 +51,7 @@ impl ClerkStorage {
         self.abacus.get()
     }
 
-    pub fn store_bytes(&mut self, id: U128, data: Vec<u8>) {
+    pub fn store_bytes(&mut self, id: U128, data: impl AsRef<[u8]>) {
         let mut vector = self.vectors.setter(id);
         vector.set_bytes(data);
         self.presence.setter(id).set(true);

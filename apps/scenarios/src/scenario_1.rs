@@ -1,13 +1,14 @@
+use abacus_macros::abacus;
 use amount_macros::amount;
 use common::{log_msg, vector::Vector};
-use abacus_macros::abacus;
 use ethers::types::Address;
 
-use common_ethers::{contracts::Clerk, tx_sender::TxClient};
+use common_ethers::{ToBytes, contracts::{Abacus, Clerk}, tx_sender::TxClient};
 
 pub async fn run_scenario(client: &TxClient, abacus_address: Address) -> eyre::Result<()> {
     log_msg!("Scenario 1.");
     let clerk = Clerk::new(abacus_address, client.client());
+    let abacus = Abacus::new(abacus_address, client.client());
 
     let asset_prices_id = 101;
     let asset_slopes_id = 102;
@@ -21,15 +22,15 @@ pub async fn run_scenario(client: &TxClient, abacus_address: Address) -> eyre::R
 
     client
         .begin_tx()
-        .add(clerk.store(asset_prices_id, asset_prices.to_vec()))
-        .add(clerk.store(asset_slopes_id, asset_slopes.to_vec()))
-        .add(clerk.store(asset_weights_id, asset_weights.to_vec()))
+        .add(clerk.store(asset_prices_id, asset_prices.to_bytes()))
+        .add(clerk.store(asset_slopes_id, asset_slopes.to_bytes()))
+        .add(clerk.store(asset_weights_id, asset_weights.to_bytes()))
         .send()
         .await?;
 
     client
         .begin_tx()
-        .add(clerk.execute(
+        .add(abacus.execute(
             abacus![
                 LDV asset_weights_id
                 LDV asset_prices_id
@@ -42,7 +43,7 @@ pub async fn run_scenario(client: &TxClient, abacus_address: Address) -> eyre::R
                 VSUM
                 PKV 2
                 STV index_quote_id
-            ],
+            ].to_bytes(),
             16,
         ))
         .send()

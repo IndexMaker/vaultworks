@@ -13,7 +13,6 @@ use common::amount::Amount;
 use common_contracts::{
     contracts::{
         calls::InnerCall,
-        formulas::{Order, Quote},
         keep_calls::KeepCalls,
         vault::VaultStorage,
     },
@@ -67,11 +66,11 @@ impl VaultRequests {
     pub fn assets(&self, account: Address) -> Result<U256, Vec<u8>> {
         let vault = VaultStorage::storage();
 
-        let (bid, ask) = vault.get_order(self, account)?;
+        let order = vault.get_order(self, account)?;
         let quote = vault.get_quote(self)?;
 
-        let itp_amount = Order::tell_total(bid, ask)?;
-        let assets_base_value = Quote::tell_base_value(quote, itp_amount)?;
+        let itp_amount = order.tell_total()?;
+        let assets_base_value = quote.tell_base_value(itp_amount)?;
 
         Ok(assets_base_value.to_u256())
     }
@@ -79,11 +78,11 @@ impl VaultRequests {
     pub fn total_assets(&self) -> Result<U256, Vec<u8>> {
         let vault = VaultStorage::storage();
 
-        let (bid, ask) = vault.get_total_order(self)?;
+        let order = vault.get_total_order(self)?;
         let quote = vault.get_quote(self)?;
 
-        let itp_amount = Order::tell_total(bid, ask)?;
-        let assets_base_value = Quote::tell_base_value(quote, itp_amount)?;
+        let itp_amount = order.tell_total()?;
+        let assets_base_value = quote.tell_base_value(itp_amount)?;
 
         Ok(assets_base_value.to_u256())
     }
@@ -93,7 +92,7 @@ impl VaultRequests {
 
         let quote = vault.get_quote(self)?;
         let itp_amount = Amount::try_from_u256(shares).ok_or_else(|| b"MathOverflow")?;
-        let base_value = Quote::tell_base_value(quote, itp_amount)?;
+        let base_value = quote.tell_base_value(itp_amount)?;
 
         Ok(base_value.to_u256())
     }
@@ -103,7 +102,7 @@ impl VaultRequests {
 
         let quote = vault.get_quote(self)?;
         let base_value = Amount::try_from_u256(assets).ok_or_else(|| b"MathOverflow")?;
-        let itp_amount = Quote::tell_itp_amount(quote, base_value)?;
+        let itp_amount = quote.tell_itp_amount(base_value)?;
 
         Ok(itp_amount.to_u256())
     }
@@ -175,7 +174,7 @@ impl VaultRequests {
 
         // Transfer USDC collateral from user to dedicated custody
         let asset = vault.collateral_asset.get();
-        self.external_call_ret(
+        self.external_call(
             asset,
             IERC20::transferFromCall {
                 from: owner,
@@ -422,7 +421,7 @@ impl VaultRequests {
 
         // Transfer USDC collateral from dedicated custody to the user
         let asset = vault.collateral_asset.get();
-        self.external_call_ret(
+        self.external_call(
             asset,
             IERC20::transferFromCall {
                 from: vault.custody.get(),
