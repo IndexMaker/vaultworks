@@ -73,7 +73,7 @@ case "$1" in
         echo "--- Deploying vault Gate ---"
         GATE=$(deploy_gate "$LOGIC" "$2" "$vault_requests")
         
-        echo -e "\n=== vault DEPLOYMENT COMPLETE ==="
+        echo -e "\n=== VAULT DEPLOYMENT COMPLETE ==="
         echo "Vault Requests address: $vault_requests"
         echo "Vault Logic: $LOGIC"
         echo "Vault Gate : $GATE"

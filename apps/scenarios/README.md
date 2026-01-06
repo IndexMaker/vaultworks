@@ -57,26 +57,36 @@ Set these three roles:
 
 5. Add *Vault* to *Worksman* free-list
 
-Currently there is no *Vault* contract, we can use *Treasury* instead.
+We need to deploy some *Vault* contract to populate *Worksman* free-list:
 
 ```
-./scripts/treasury.sh full
+./scripts/vault.sh full $CASTLE 
 ```
 
 Script at the end will show similar output:
 ```
-=== FULL DEPLOYMENT COMPLETE ===
-Logic: 0x0fb6856c36c25e01190d6a8f2ebbe28aca05a341
-Gate : 0x9b2db8135222d7b05aea29b54ae0317e8640d6b0
+=== VAULT DEPLOYMENT COMPLETE ===
+Vault Requests address: 0xd01207dd6eb9359f7572f658de0cb4ec98858da5
+Vault Logic: 0xfb8c3906979fa82ed9e9e18c3ee21995761a13e7
+Vault Gate : 0xeff7b46049fc677f58264e0ebb19df1a39195a21
+Vault Owner: 0xab8e440727a38bbb180f7032ca4a8009e7b52b80
+------------------------------------
 ```
 
-Copy address of `Gate` and in next command, which will look like:
+Copy address of the `Vault Gate` and export as `$VAULT` vailable, e.g.
+
 ```
-./scripts/send.sh $CASTLE "addVault(address)" 0x9b2db8135222d7b05aea29b54ae0317e8640d6b0
+export VAULT=0xeff7b46049fc677f58264e0ebb19df1a39195a21
+```
+
+and in next command add *Vault* to free-list, which will look like:
+```
+./scripts/send.sh $CASTLE "addVault(address)" $VAULT
 ```
 
 This adds that *Gate* to *Workman's* free-list, and then when *Guildmaster*
 requests to build a *Vault* *Worksman* will pick next from that free-list.
+
 
 6. Run Scenario 5.
 
