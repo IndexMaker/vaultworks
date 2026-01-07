@@ -1,18 +1,27 @@
 use alloc::{vec, vec::Vec};
 
-use alloy_primitives::{Address, U128, U256, uint};
+use alloy_primitives::{uint, U128, U256};
+use common::vector::Vector;
 use stylus_sdk::{
-    keccak_const, prelude::*, storage::{StorageAddress, StorageBool, StorageBytes, StorageMap}
+    keccak_const,
+    prelude::*,
+    storage::{StorageBool, StorageBytes, StorageMap, StorageU128},
 };
 
 use crate::contracts::storage::StorageSlot;
+
+pub const SCRATCH_1: U128 = uint!(1_U128);
+pub const SCRATCH_2: U128 = uint!(2_U128);
+pub const SCRATCH_3: U128 = uint!(3_U128);
+pub const SCRATCH_4: U128 = uint!(4_U128);
+
+pub const FIRST_DYNAMIC_ID: U128 = uint!(100_U128);
 
 #[storage]
 pub struct ClerkStorage {
     vectors: StorageMap<U128, StorageBytes>,
     presence: StorageMap<U128, StorageBool>,
-    abacus: StorageAddress,
-    owner: StorageAddress,
+    last_vector: StorageU128,
 }
 
 pub const CLERK_STORAGE_SLOT: U256 = {
@@ -27,28 +36,30 @@ impl ClerkStorage {
         StorageSlot::get_slot::<ClerkStorage>(CLERK_STORAGE_SLOT)
     }
 
-    pub fn initialize(&mut self, owner: Address, abacus: Address) -> Result<(), Vec<u8>> {
-        if !self.owner.get().is_zero() {
-            Err(b"Clerk already has an owner")?;
+    pub fn constructor(&mut self) -> Result<(), Vec<u8>> {
+        if self.is_constructed() {
+            Err(b"Clerk storage already constructed")?;
         }
-        self.owner.set(owner);
-        self.abacus.set(abacus);
+        self.last_vector.set(FIRST_DYNAMIC_ID);
         Ok(())
     }
 
-    pub fn is_owner(&self, attendee: Address) -> bool {
-        self.owner.get() == attendee
+    pub fn is_constructed(&self) -> bool {
+        !self.last_vector.get().is_zero()
     }
 
-    pub fn only_owner(&self, attendee: Address) -> Result<(), Vec<u8>> {
-        if !self.is_owner(attendee) {
-            Err(b"Unauthorised access")?;
-        }
-        Ok(())
+    pub fn next_vector(&mut self) -> U128 {
+        let value = self.last_vector.get() + U128::ONE;
+        self.last_vector.set(value);
+        value
     }
 
-    pub fn get_abacus_address(&self) -> Address {
-        self.abacus.get()
+    pub fn len_bytes(&self, id: U128) -> usize {
+        self.vectors.get(id).len()
+    }
+
+    pub fn len_vector(&self, id: U128) -> usize {
+        self.len_bytes(id) / size_of::<u128>()
     }
 
     pub fn store_bytes(&mut self, id: U128, data: impl AsRef<[u8]>) {
@@ -64,4 +75,14 @@ impl ClerkStorage {
         let vector = self.vectors.getter(id);
         Some(vector.get_bytes())
     }
+
+    pub fn store_vector(&mut self, vector_id: U128, vector: Vector) {
+        self.store_bytes(vector_id, vector.to_vec());
+    }
+
+    pub fn fetch_vector(&self, vector_id: U128) -> Option<Vector> {
+        let data = self.fetch_bytes(vector_id)?;
+        Some(Vector::from_vec(data))
+    }
+
 }

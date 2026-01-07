@@ -1,13 +1,15 @@
 use alloc::{vec, vec::Vec};
 
-use alloy_primitives::{uint, Address, U128, U256};
+use alloy_primitives::{uint, Address, U128, U256, U32};
 use stylus_sdk::{
     keccak_const,
     prelude::*,
-    storage::{StorageAddress, StorageMap, StorageU128, StorageVec},
+    storage::{StorageAddress, StorageMap, StorageU128, StorageU32, StorageVec},
 };
 
 use crate::contracts::storage::StorageSlot;
+
+pub const KEEP_VERSION_NUMBER: U32 = uint!(1_U32);
 
 pub const KEEP_STORAGE_SLOT: U256 = {
     const HASH: [u8; 32] = keccak_const::Keccak256::new()
@@ -48,7 +50,7 @@ pub struct Vault {
     pub total_bid: StorageU128, // Vector = [USDC Remaining, USDC Spent, ITP Minted]
     pub total_ask: StorageU128, // Vector = [ITP Remaining, ITP Burned, USDC Withdrawn]
 
-    // }}
+                                // }}
 }
 
 #[storage]
@@ -68,7 +70,7 @@ pub struct Account {
     pub demand_short: StorageU128, // Vector = [-Demand; num_assets]
     pub delta_long: StorageU128,   // Vector = [+Delta; num_assets]
     pub delta_short: StorageU128,  // Vector = [-Delta; num_assets]
-    
+
     // Market Data
     pub liquidity: StorageU128, // Vector = [Liquidity; num_assets]
     pub prices: StorageU128,    // Vector = [Price; num_assets]
@@ -105,45 +107,22 @@ impl Account {
 }
 
 #[storage]
-pub struct ClerkChamber {
-    gate_to_clerk_chamber: StorageAddress,
-    last_vector: StorageU128,
-}
-
-impl ClerkChamber {
-    pub const SCRATCH_1: U128 = uint!(1_U128);
-    pub const SCRATCH_2: U128 = uint!(2_U128);
-    pub const SCRATCH_3: U128 = uint!(3_U128);
-    pub const SCRATCH_4: U128 = uint!(4_U128);
-
-    pub const FIRST_DYNAMIC_ID: U128 = uint!(100_U128);
-
-    pub fn initialize(&mut self, gate_to_clerk_chamber: Address) {
-        self.gate_to_clerk_chamber.set(gate_to_clerk_chamber);
-        self.last_vector.set(uint!(Self::FIRST_DYNAMIC_ID));
-    }
-
-    pub fn next_vector(&mut self) -> U128 {
-        let value = self.last_vector.get() + U128::ONE;
-        self.last_vector.set(value);
-        value
-    }
-
-    pub fn get_gate_address(&self) -> Address {
-        self.gate_to_clerk_chamber.get()
-    }
-}
-
-#[storage]
 pub struct Keep {
-    pub vaults: StorageMap<U128, Vault>,
+    // Integrity Protection
+    version: StorageU32,
+
+    // Vaults & Accounts
     pub accounts: StorageMap<U128, Account>,
-    pub clerk_chamber: ClerkChamber,
-    pub constable: StorageAddress,
-    pub worksman: StorageAddress,
-    pub scribe: StorageAddress,
+    pub vaults: StorageMap<U128, Vault>,
+
+    // Stored Procedures
     pub solve_quadratic_bid_id: StorageU128,
     pub solve_quadratic_ask_id: StorageU128,
+
+    // NPCs
+    pub clerk: StorageAddress,
+    pub scribe: StorageAddress,
+    pub worksman: StorageAddress,
 }
 
 impl Keep {
@@ -151,7 +130,18 @@ impl Keep {
         StorageSlot::get_slot::<Keep>(KEEP_STORAGE_SLOT)
     }
 
-    pub fn initialize(&mut self, constable: Address) {
-        self.constable.set(constable);
+    pub fn set_version(&mut self) -> Result<(), Vec<u8>> {
+        if self.version.get() > KEEP_VERSION_NUMBER {
+            Err(b"Keep downgrade prohibited")?;
+        }
+        self.version.set(KEEP_VERSION_NUMBER);
+        Ok(())
+    }
+
+    pub fn check_version(&self) -> Result<(), Vec<u8>> {
+        if self.version.get() != KEEP_VERSION_NUMBER {
+            Err(b"Keep version incorrect")?;
+        }
+        Ok(())
     }
 }

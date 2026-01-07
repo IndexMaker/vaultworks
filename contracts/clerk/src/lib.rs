@@ -7,12 +7,52 @@ extern crate alloc;
 
 use alloc::vec::Vec;
 
-use alloy_primitives::{Address, U128};
-use common::log_msg;
-use common_contracts::
-    contracts::{clerk::ClerkStorage, keep_calls::KeepCalls}
-;
-use stylus_sdk::{ArbResult, abi::Bytes, prelude::*};
+use alloy_primitives::U128;
+use common::{abacus::program_error::ErrorCode, labels::Labels, vector::Vector};
+use common_contracts::contracts::clerk::ClerkStorage;
+use stylus_sdk::{abi::Bytes, prelude::*};
+
+use abacus_runtime::runtime::{VectorIO, VectorVM};
+
+struct ClerkStorageRef<'a>(&'a mut ClerkStorage);
+
+impl<'a> VectorIO for ClerkStorageRef<'a> {
+    fn load_labels(&self, id: u128) -> Result<Labels, ErrorCode> {
+        let key = U128::from(id);
+        let Some(vector) = self.0.fetch_bytes(key) else {
+            return Err(ErrorCode::NotFound);
+        };
+        Ok(Labels::from_vec(vector))
+    }
+
+    fn load_vector(&self, id: u128) -> Result<Vector, ErrorCode> {
+        let key = U128::from(id);
+        let Some(vector) = self.0.fetch_bytes(key) else {
+            return Err(ErrorCode::NotFound);
+        };
+        Ok(Vector::from_vec(vector))
+    }
+
+    fn load_code(&self, id: u128) -> Result<Vec<u8>, ErrorCode> {
+        let key = U128::from(id);
+        let Some(vector) = self.0.fetch_bytes(key) else {
+            return Err(ErrorCode::NotFound);
+        };
+        Ok(vector)
+    }
+
+    fn store_labels(&mut self, id: u128, input: Labels) -> Result<(), ErrorCode> {
+        let key = U128::from(id);
+        self.0.store_bytes(key, input.to_vec());
+        Ok(())
+    }
+
+    fn store_vector(&mut self, id: u128, input: Vector) -> Result<(), ErrorCode> {
+        let key = U128::from(id);
+        self.0.store_bytes(key, input.to_vec());
+        Ok(())
+    }
+}
 
 #[storage]
 #[entrypoint]
@@ -20,45 +60,15 @@ pub struct Clerk;
 
 #[public]
 impl Clerk {
-    // TODO: Add UUPS (ERC-1967) so that Clerk can be behind the Gate
-
-    pub fn initialize(&mut self, owner: Address, abacus: Address) -> Result<(), Vec<u8>> {
+    pub fn update_records(&mut self, code: Bytes, num_registry: u128) -> Result<(), Vec<u8>> {
         let mut storage = ClerkStorage::storage();
-        storage.initialize(owner, abacus)?;
-        Ok(())
-    }
 
-    pub fn store(&mut self, id: U128, data: Bytes) -> Result<(), Vec<u8>> {
-        let mut storage = ClerkStorage::storage();
-        storage.only_owner(self.attendee())?;
-
-        log_msg!("Storing vector");
-        storage.store_bytes(id, data);
+        let mut ref_storage = ClerkStorageRef(&mut storage);
+        let mut program = VectorVM::new(&mut ref_storage);
+        program
+            .execute(code.to_vec(), num_registry as usize)
+            .map_err(|err| format!("Program error: {:?}", err))?;
 
         Ok(())
-    }
-
-    pub fn load(&self, id: U128) -> Result<Bytes, Vec<u8>> {
-        let storage = ClerkStorage::storage();
-        storage.only_owner(self.attendee())?;
-
-        let Some(vector) = storage.fetch_bytes(id) else {
-            return Err(b"Not found".to_vec());
-        };
-
-        Ok(Bytes::from(vector))
-    }
-
-    #[payable]
-    #[fallback]
-    fn fallback(&mut self, calldata: &[u8]) -> ArbResult {
-        let storage = ClerkStorage::storage();
-        let abacus = storage.get_abacus_address();
-        if abacus.is_zero() {
-            Err(b"No requests implementation")?;
-        }
-
-        log_msg!("Delegating function to {}", abacus);
-        unsafe { Ok(self.vm().delegate_call(&self, abacus, calldata)?) }
     }
 }

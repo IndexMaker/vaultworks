@@ -13,7 +13,8 @@ use abacus_formulas::{
 };
 use alloy_primitives::U128;
 use common_contracts::contracts::{
-    keep::{ClerkChamber, Keep},
+    clerk::{ClerkStorage, SCRATCH_1, SCRATCH_2, SCRATCH_3},
+    keep::Keep,
     keep_calls::KeepCalls,
 };
 use stylus_sdk::{abi::Bytes, prelude::*};
@@ -42,19 +43,16 @@ impl Banker {
         market_asset_names: Bytes,
     ) -> Result<(), Vec<u8>> {
         let mut storage = Keep::storage();
-        let gate_to_clerk_chamber = storage.clerk_chamber.get_gate_address();
+        storage.check_version()?;
 
         let mut account = storage.accounts.setter(vendor_id);
         if account.has_owner() {
             account.only_owner(self.attendee())?;
 
-            let new_market_asset_names_id = ClerkChamber::SCRATCH_1;
+            let new_market_asset_names_id = SCRATCH_1;
 
-            self.submit_vector_bytes(
-                gate_to_clerk_chamber,
-                new_market_asset_names_id.to(),
-                market_asset_names.0,
-            )?;
+            let mut clerk_storage = ClerkStorage::storage();
+            clerk_storage.store_bytes(new_market_asset_names_id, market_asset_names);
 
             // Compile VIL program, which we will send to DeVIL for execution.
             //
@@ -77,34 +75,28 @@ impl Banker {
                 account.delta_short.get().to(),
                 account.margin.get().to(),
             );
+            let clerk = storage.clerk.get();
             let num_registry = 16;
-            self.execute_vector_program(gate_to_clerk_chamber, update, num_registry)?;
+            self.execute_vector_program(clerk, update, num_registry)?;
         } else {
             account.set_owner(self.attendee())?;
 
-            let new_market_asset_names_id = ClerkChamber::SCRATCH_1;
+            let new_market_asset_names_id = SCRATCH_1;
 
-            self.submit_vector_bytes(
-                gate_to_clerk_chamber,
-                new_market_asset_names_id.to(),
-                market_asset_names.0,
-            )?;
+            let mut clerk_storage = ClerkStorage::storage();
+            clerk_storage.store_bytes(new_market_asset_names_id, market_asset_names);
 
-            account.assets.set(storage.clerk_chamber.next_vector());
-            account.prices.set(storage.clerk_chamber.next_vector());
-            account.slopes.set(storage.clerk_chamber.next_vector());
-            account.liquidity.set(storage.clerk_chamber.next_vector());
-            account.supply_long.set(storage.clerk_chamber.next_vector());
-            account
-                .supply_short
-                .set(storage.clerk_chamber.next_vector());
-            account.demand_long.set(storage.clerk_chamber.next_vector());
-            account
-                .demand_short
-                .set(storage.clerk_chamber.next_vector());
-            account.delta_long.set(storage.clerk_chamber.next_vector());
-            account.delta_short.set(storage.clerk_chamber.next_vector());
-            account.margin.set(storage.clerk_chamber.next_vector());
+            account.assets.set(clerk_storage.next_vector());
+            account.prices.set(clerk_storage.next_vector());
+            account.slopes.set(clerk_storage.next_vector());
+            account.liquidity.set(clerk_storage.next_vector());
+            account.supply_long.set(clerk_storage.next_vector());
+            account.supply_short.set(clerk_storage.next_vector());
+            account.demand_long.set(clerk_storage.next_vector());
+            account.demand_short.set(clerk_storage.next_vector());
+            account.delta_long.set(clerk_storage.next_vector());
+            account.delta_short.set(clerk_storage.next_vector());
+            account.margin.set(clerk_storage.next_vector());
 
             // Compile VIL program, which we will send to DeVIL for execution.
             let update = create_market(
@@ -121,8 +113,9 @@ impl Banker {
                 account.delta_short.get().to(),
                 account.margin.get().to(),
             );
+            let clerk = storage.clerk.get();
             let num_registry = 16;
-            self.execute_vector_program(gate_to_clerk_chamber, update, num_registry)?;
+            self.execute_vector_program(clerk, update, num_registry)?;
         }
 
         Ok(())
@@ -144,21 +137,17 @@ impl Banker {
         asset_margin: Bytes,
     ) -> Result<(), Vec<u8>> {
         let mut storage = Keep::storage();
+        storage.check_version()?;
 
         let account = storage.accounts.setter(vendor_id);
         account.only_owner(self.attendee())?;
 
-        let gate_to_clerk_chamber = storage.clerk_chamber.get_gate_address();
+        let new_asset_names_id = SCRATCH_1;
+        let new_asset_margin_id = SCRATCH_2;
 
-        let new_asset_names_id = ClerkChamber::SCRATCH_1;
-        let new_asset_margin_id = ClerkChamber::SCRATCH_2;
-
-        self.submit_vector_bytes(gate_to_clerk_chamber, new_asset_names_id.to(), asset_names.0)?;
-        self.submit_vector_bytes(
-            gate_to_clerk_chamber,
-            new_asset_margin_id.to(),
-            asset_margin.0,
-        )?;
+        let mut clerk_storage = ClerkStorage::storage();
+        clerk_storage.store_bytes(new_asset_names_id, asset_names);
+        clerk_storage.store_bytes(new_asset_margin_id, asset_margin);
 
         // Compile VIL program, which we will send to DeVIL for execution.
         //
@@ -171,8 +160,9 @@ impl Banker {
             account.assets.get().to(),
             account.margin.get().to(),
         );
+        let clerk = storage.clerk.get();
         let num_registry = 16;
-        self.execute_vector_program(gate_to_clerk_chamber, update, num_registry)?;
+        self.execute_vector_program(clerk, update, num_registry)?;
         Ok(())
     }
 
@@ -199,27 +189,19 @@ impl Banker {
         asset_quantities_long: Bytes,
     ) -> Result<(), Vec<u8>> {
         let mut storage = Keep::storage();
+        storage.check_version()?;
 
         let account = storage.accounts.setter(vendor_id);
         account.only_owner(self.attendee())?;
 
-        let gate_to_clerk_chamber = storage.clerk_chamber.get_gate_address();
+        let new_asset_names_id = SCRATCH_1;
+        let new_asset_quantities_short_id = SCRATCH_2;
+        let new_asset_quantities_long_id = SCRATCH_3;
 
-        let new_asset_names_id = ClerkChamber::SCRATCH_1;
-        let new_asset_quantities_short_id = ClerkChamber::SCRATCH_2;
-        let new_asset_quantities_long_id = ClerkChamber::SCRATCH_3;
-
-        self.submit_vector_bytes(gate_to_clerk_chamber, new_asset_names_id.to(), asset_names.0)?;
-        self.submit_vector_bytes(
-            gate_to_clerk_chamber,
-            new_asset_quantities_short_id.to(),
-            asset_quantities_short.0,
-        )?;
-        self.submit_vector_bytes(
-            gate_to_clerk_chamber,
-            new_asset_quantities_long_id.to(),
-            asset_quantities_long.0,
-        )?;
+        let mut clerk_storage = ClerkStorage::storage();
+        clerk_storage.store_bytes(new_asset_names_id, asset_names);
+        clerk_storage.store_bytes(new_asset_quantities_short_id, asset_quantities_short);
+        clerk_storage.store_bytes(new_asset_quantities_long_id, asset_quantities_long);
 
         // Compile VIL program, which we will send to DeVIL for execution.
         //
@@ -239,8 +221,9 @@ impl Banker {
             account.delta_long.get().to(),
             account.delta_short.get().to(),
         );
+        let clerk = storage.clerk.get();
         let num_registry = 16;
-        self.execute_vector_program(gate_to_clerk_chamber, update, num_registry)?;
+        self.execute_vector_program(clerk, update, num_registry)?;
         Ok(())
     }
 
@@ -248,74 +231,91 @@ impl Banker {
     // Query methods
     //
 
-    pub fn get_vendor_assets(&mut self, vendor_id: U128) -> Result<(Vec<u8>, Vec<u8>), Vec<u8>> {
+    pub fn get_vendor_assets(&mut self, vendor_id: U128) -> Result<Bytes, Vec<u8>> {
         let mut storage = Keep::storage();
+        storage.check_version()?;
 
         let account = storage.accounts.setter(vendor_id);
         account.only_owner(self.attendee())?;
 
-        let gate_to_clerk_chamber = storage.clerk_chamber.get_gate_address();
-        let assets = self.fetch_vector_bytes(gate_to_clerk_chamber, account.assets.get().to())?;
-        let margin = self.fetch_vector_bytes(gate_to_clerk_chamber, account.margin.get().to())?;
+        let clerk_storage = ClerkStorage::storage();
 
-        Ok((assets, margin))
+        let assets = clerk_storage
+            .fetch_bytes(account.assets.get())
+            .ok_or_else(|| b"No assets for vendor")?;
+
+        Ok(assets.into())
     }
 
-    pub fn get_vendor_margin(&mut self, vendor_id: U128) -> Result<Vec<u8>, Vec<u8>> {
+    pub fn get_vendor_margin(&mut self, vendor_id: U128) -> Result<Bytes, Vec<u8>> {
         let mut storage = Keep::storage();
+        storage.check_version()?;
 
         let account = storage.accounts.setter(vendor_id);
         account.only_owner(self.attendee())?;
 
-        let gate_to_clerk_chamber = storage.clerk_chamber.get_gate_address();
-        let margin = self.fetch_vector_bytes(gate_to_clerk_chamber, account.margin.get().to())?;
+        let clerk_storage = ClerkStorage::storage();
+        let margin = clerk_storage
+            .fetch_bytes(account.margin.get())
+            .ok_or_else(|| b"No margin for vendor")?;
 
-        Ok(margin)
+        Ok(margin.into())
     }
 
-    pub fn get_vendor_supply(&mut self, vendor_id: U128) -> Result<(Vec<u8>, Vec<u8>), Vec<u8>> {
+    pub fn get_vendor_supply(&mut self, vendor_id: U128) -> Result<(Bytes, Bytes), Vec<u8>> {
         let mut storage = Keep::storage();
+        storage.check_version()?;
 
         let account = storage.accounts.setter(vendor_id);
         account.only_owner(self.attendee())?;
 
-        let gate_to_clerk_chamber = storage.clerk_chamber.get_gate_address();
-        let supply_short =
-            self.fetch_vector_bytes(gate_to_clerk_chamber, account.supply_short.get().to())?;
-        let supply_long =
-            self.fetch_vector_bytes(gate_to_clerk_chamber, account.supply_long.get().to())?;
+        let clerk_storage = ClerkStorage::storage();
+        let supply_long = clerk_storage
+            .fetch_bytes(account.supply_long.get())
+            .ok_or_else(|| b"No supply long for vendor")?;
 
-        Ok((supply_long, supply_short))
+        let supply_short = clerk_storage
+            .fetch_bytes(account.supply_short.get())
+            .ok_or_else(|| b"No supply short for vendor")?;
+
+        Ok((supply_long.into(), supply_short.into()))
     }
 
-    pub fn get_vendor_demand(&mut self, vendor_id: U128) -> Result<(Vec<u8>, Vec<u8>), Vec<u8>> {
+    pub fn get_vendor_demand(&mut self, vendor_id: U128) -> Result<(Bytes, Bytes), Vec<u8>> {
         let mut storage = Keep::storage();
+        storage.check_version()?;
 
         let account = storage.accounts.setter(vendor_id);
         account.only_owner(self.attendee())?;
 
-        let gate_to_clerk_chamber = storage.clerk_chamber.get_gate_address();
-        let demand_short =
-            self.fetch_vector_bytes(gate_to_clerk_chamber, account.demand_short.get().to())?;
-        let demand_long =
-            self.fetch_vector_bytes(gate_to_clerk_chamber, account.demand_long.get().to())?;
+        let clerk_storage = ClerkStorage::storage();
+        let demand_long = clerk_storage
+            .fetch_bytes(account.demand_long.get())
+            .ok_or_else(|| b"No demand long for vendor")?;
 
-        Ok((demand_long, demand_short))
+        let demand_short = clerk_storage
+            .fetch_bytes(account.demand_short.get())
+            .ok_or_else(|| b"No demand short for vendor")?;
+
+        Ok((demand_long.into(), demand_short.into()))
     }
 
-    pub fn get_vendor_delta(&mut self, vendor_id: U128) -> Result<(Vec<u8>, Vec<u8>), Vec<u8>> {
+    pub fn get_vendor_delta(&mut self, vendor_id: U128) -> Result<(Bytes, Bytes), Vec<u8>> {
         let mut storage = Keep::storage();
 
         let account = storage.accounts.setter(vendor_id);
         account.only_owner(self.attendee())?;
 
-        let gate_to_clerk_chamber = storage.clerk_chamber.get_gate_address();
-        let delta_short =
-            self.fetch_vector_bytes(gate_to_clerk_chamber, account.delta_short.get().to())?;
-        let delta_long =
-            self.fetch_vector_bytes(gate_to_clerk_chamber, account.delta_long.get().to())?;
+        let clerk_storage = ClerkStorage::storage();
+        let delta_long = clerk_storage
+            .fetch_bytes(account.delta_long.get())
+            .ok_or_else(|| b"No delta long for vendor")?;
 
-        Ok((delta_long, delta_short))
+        let delta_short = clerk_storage
+            .fetch_bytes(account.delta_short.get())
+            .ok_or_else(|| b"No delta short for vendor")?;
+
+        Ok((delta_long.into(), delta_short.into()))
     }
 }
 
