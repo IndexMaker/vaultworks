@@ -14,7 +14,7 @@ use common_contracts::{
     contracts::{
         calls::InnerCall,
         keep_calls::KeepCalls,
-        vault::VaultStorage,
+        vault::VaultStorage, vault_requests::VaultRequestsStorage,
     },
     interfaces::factor::IFactor,
 };
@@ -48,26 +48,30 @@ impl VaultRequests {
         custody: Address,
         asset: Address,
     ) -> Result<(), Vec<u8>> {
-        let mut vault = VaultStorage::storage();
+        let vault = VaultStorage::storage();
         vault.only_owner(self.attendee())?;
-        vault.vendor_id.set(vendor_id);
-        vault.custody.set(custody);
-        vault.collateral_asset.set(asset);
+        
+        let mut requests = VaultRequestsStorage::storage();
+        requests.vendor_id.set(vendor_id);
+        requests.custody.set(custody);
+        requests.collateral_asset.set(asset);
+
         Ok(())
     }
 
     // ERC4626
 
     fn asset(&self) -> Address {
-        let vault = VaultStorage::storage();
-        vault.collateral_asset.get()
+        let requests = VaultRequestsStorage::storage();
+        requests.collateral_asset.get()
     }
 
     pub fn assets(&self, account: Address) -> Result<U256, Vec<u8>> {
         let vault = VaultStorage::storage();
+        let requests = VaultRequestsStorage::storage();
 
         let order = vault.get_order(self, account)?;
-        let quote = vault.get_quote(self)?;
+        let quote = requests.get_quote(&vault, self)?;
 
         let itp_amount = order.tell_total()?;
         let assets_base_value = quote.tell_base_value(itp_amount)?;
@@ -77,9 +81,10 @@ impl VaultRequests {
 
     pub fn total_assets(&self) -> Result<U256, Vec<u8>> {
         let vault = VaultStorage::storage();
+        let requests = VaultRequestsStorage::storage();
 
         let order = vault.get_total_order(self)?;
-        let quote = vault.get_quote(self)?;
+        let quote = requests.get_quote(&vault, self)?;
 
         let itp_amount = order.tell_total()?;
         let assets_base_value = quote.tell_base_value(itp_amount)?;
@@ -89,8 +94,9 @@ impl VaultRequests {
 
     pub fn convert_to_assets(&self, shares: U256) -> Result<U256, Vec<u8>> {
         let vault = VaultStorage::storage();
+        let requests = VaultRequestsStorage::storage();
 
-        let quote = vault.get_quote(self)?;
+        let quote = requests.get_quote(&vault, self)?;
         let itp_amount = Amount::try_from_u256(shares).ok_or_else(|| b"MathOverflow")?;
         let base_value = quote.tell_base_value(itp_amount)?;
 
@@ -99,8 +105,9 @@ impl VaultRequests {
 
     pub fn convert_to_shares(&self, assets: U256) -> Result<U256, Vec<u8>> {
         let vault = VaultStorage::storage();
+        let requests = VaultRequestsStorage::storage();
 
-        let quote = vault.get_quote(self)?;
+        let quote = requests.get_quote(&vault, self)?;
         let base_value = Amount::try_from_u256(assets).ok_or_else(|| b"MathOverflow")?;
         let itp_amount = quote.tell_itp_amount(base_value)?;
 
@@ -134,15 +141,15 @@ impl VaultRequests {
     // ERC-7540
 
     pub fn is_operator(&self, owner: Address, operator: Address) -> bool {
-        let vault = VaultStorage::storage();
-        let operators = vault.operators.getter(owner);
+        let requests = VaultRequestsStorage::storage();
+        let operators = requests.operators.getter(owner);
         operators.is_operator(operator)
     }
 
     pub fn set_operator(&mut self, operator: Address, approved: bool) -> bool {
         let sender = self.attendee();
-        let mut vault = VaultStorage::storage();
-        let mut operators = vault.operators.setter(sender);
+        let mut requests = VaultRequestsStorage::storage();
+        let mut operators = requests.operators.setter(sender);
         operators.set_operator(operator, approved);
 
         let event = OperatorSet {
@@ -164,7 +171,7 @@ impl VaultRequests {
         if assets.is_zero() {
             Err(b"Shares cannot be zero")?;
         }
-        let mut vault = VaultStorage::storage();
+        let mut requests = VaultRequestsStorage::storage();
         let sender = self.attendee();
 
         // Any user or their approved operator can send deposit request
@@ -173,18 +180,18 @@ impl VaultRequests {
         }
 
         // Transfer USDC collateral from user to dedicated custody
-        let asset = vault.collateral_asset.get();
+        let asset = requests.collateral_asset.get();
         self.external_call(
             asset,
             IERC20::transferFromCall {
                 from: owner,
-                to: vault.custody.get(),
+                to: requests.custody.get(),
                 value: assets,
             },
         )?;
 
         // Requests from multiple users are aggregated per controller
-        let mut request = vault.deposit_request.setter(controller);
+        let mut request = requests.deposit_request.setter(controller);
         let request_id =
             request.request(Amount::try_from_u256(assets).ok_or_else(|| b"MathOverflow")?)?;
 
@@ -207,8 +214,8 @@ impl VaultRequests {
         request_id: U256,
         controller: Address,
     ) -> Result<U256, Vec<u8>> {
-        let vault = VaultStorage::storage();
-        let request = vault.deposit_request.getter(controller);
+        let requests = VaultRequestsStorage::storage();
+        let request = requests.deposit_request.getter(controller);
         if request.is_active() {
             Err(b"NotSuchRequest")?;
         }
@@ -221,8 +228,8 @@ impl VaultRequests {
         request_id: U256,
         controller: Address,
     ) -> Result<U256, Vec<u8>> {
-        let vault = VaultStorage::storage();
-        let request = vault.deposit_request.getter(controller);
+        let requests = VaultRequestsStorage::storage();
+        let request = requests.deposit_request.getter(controller);
         if request.is_active() {
             Err(b"NotSuchRequest")?;
         }
@@ -236,8 +243,8 @@ impl VaultRequests {
         assets: U256,
         shares: U256,
     ) -> Result<(), Vec<u8>> {
-        let mut vault = VaultStorage::storage();
-        let mut request = vault.deposit_request.setter(self.attendee());
+        let mut requests = VaultRequestsStorage::storage();
+        let mut request = requests.deposit_request.setter(self.attendee());
         if request.is_active() {
             Err(b"NotSuchRequest")?;
         }
@@ -255,7 +262,8 @@ impl VaultRequests {
         receiver: Address,
         controller: Address,
     ) -> Result<U256, Vec<u8>> {
-        let mut vault = VaultStorage::storage();
+        let vault = VaultStorage::storage();
+        let mut requests = VaultRequestsStorage::storage();
         let sender = self.attendee();
 
         // User can claim their shares or controller can claim for the user or
@@ -268,7 +276,7 @@ impl VaultRequests {
             Err(b"Sender must be an owner or approved operator")?;
         }
 
-        let mut request = vault.deposit_request.setter(controller);
+        let mut request = requests.deposit_request.setter(controller);
         if request.is_active() {
             Err(b"NotSuchRequest")?;
         }
@@ -308,7 +316,8 @@ impl VaultRequests {
             Err(b"Shares cannot be zero")?;
         }
 
-        let mut vault = VaultStorage::storage();
+        let vault = VaultStorage::storage();
+        let mut requests = VaultRequestsStorage::storage();
         let sender = self.attendee();
 
         // Any user or their approved operator can send redeem request
@@ -328,7 +337,7 @@ impl VaultRequests {
         )?;
 
         // Requests from multiple users are aggregated per controller
-        let mut request = vault.redeem_request.setter(controller);
+        let mut request = requests.redeem_request.setter(controller);
         let request_id =
             request.request(Amount::try_from_u256(shares).ok_or_else(|| b"MathOverflow")?)?;
 
@@ -351,8 +360,8 @@ impl VaultRequests {
         request_id: U256,
         controller: Address,
     ) -> Result<U256, Vec<u8>> {
-        let vault = VaultStorage::storage();
-        let request = vault.redeem_request.getter(controller);
+        let requests = VaultRequestsStorage::storage();
+        let request = requests.redeem_request.getter(controller);
         if request.is_active() {
             Err(b"NotSuchRequest")?;
         }
@@ -365,8 +374,8 @@ impl VaultRequests {
         request_id: U256,
         controller: Address,
     ) -> Result<U256, Vec<u8>> {
-        let vault = VaultStorage::storage();
-        let request = vault.redeem_request.getter(controller);
+        let requests = VaultRequestsStorage::storage();
+        let request = requests.redeem_request.getter(controller);
         if request.is_active() {
             Err(b"NotSuchRequest")?;
         }
@@ -380,8 +389,8 @@ impl VaultRequests {
         shares: U256,
         assets: U256,
     ) -> Result<(), Vec<u8>> {
-        let mut vault = VaultStorage::storage();
-        let mut request = vault.redeem_request.setter(self.attendee());
+        let mut requests = VaultRequestsStorage::storage();
+        let mut request = requests.redeem_request.setter(self.attendee());
         if request.is_active() {
             Err(b"NotSuchRequest")?;
         }
@@ -399,7 +408,7 @@ impl VaultRequests {
         receiver: Address,
         controller: Address,
     ) -> Result<U256, Vec<u8>> {
-        let mut vault = VaultStorage::storage();
+        let mut requests = VaultRequestsStorage::storage();
         let sender = self.attendee();
 
         // User can claim their USDC or controller can claim for the user or
@@ -412,7 +421,7 @@ impl VaultRequests {
             Err(b"Sender must be an owner or approved operator")?;
         }
 
-        let mut request = vault.redeem_request.setter(controller);
+        let mut request = requests.redeem_request.setter(controller);
         if request.is_active() {
             Err(b"NotSuchRequest")?;
         }
@@ -420,11 +429,11 @@ impl VaultRequests {
             request.claim(Amount::try_from_u256(shares).ok_or_else(|| b"MathOverflow")?)?;
 
         // Transfer USDC collateral from dedicated custody to the user
-        let asset = vault.collateral_asset.get();
+        let asset = requests.collateral_asset.get();
         self.external_call(
             asset,
             IERC20::transferFromCall {
-                from: vault.custody.get(),
+                from: requests.custody.get(),
                 to: receiver,
                 value: assets.to_u256(),
             },

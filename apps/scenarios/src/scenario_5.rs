@@ -132,7 +132,7 @@ pub async fn run_scenario(client: &TxClient, castle_address: Address) -> eyre::R
 
         client
             .begin_tx()
-            .add(factor.update_index_quote(vendor_id, index_id))
+            .add(guildmaster.update_index_quote(vendor_id, index_id))
             .send()
             .await?;
     }
@@ -165,7 +165,8 @@ pub async fn run_scenario(client: &TxClient, castle_address: Address) -> eyre::R
     {
         log_msg!("Submit Sell Order");
 
-        let collateral_added = amount!(0.1);
+        //let collateral_added = amount!(0.1);
+        let collateral_added = amount!(0.04);
         let collateral_removed = amount!(0);
         let max_order_size = amount!(1000.0);
         let acf = amount_vec!(1.0, 1.0, 1.0, 0.5, 0.5);

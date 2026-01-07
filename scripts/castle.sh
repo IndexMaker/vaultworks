@@ -17,8 +17,6 @@ show_help() {
     echo "  --help                        Show this help message"
     echo "  --no-gates                    Deploy logic directly without Proxy (Gate) contracts"
     echo "  --no-castle <ADDRESS>         Skip Castle/Gate deployment and use existing address"
-    echo "  --no-clerk                  Skip Clerk deployment and attachment"
-    echo "  --only-clerk <CASTLE_ADDR>  Skip everything except Clerk deployment and link to CASTLE_ADDR"
     echo ""
     echo "Officer Appointment Toggles (Skip specific officers):"
     echo "  --no-constable                *STOPS FLOW* after Gate/Castle setup"
@@ -27,18 +25,16 @@ show_help() {
     echo "  --no-guildmaster              Skip Guildmaster appointment"
     echo "  --no-scribe                   Skip Scribe appointment"
     echo "  --no-worksman                 Skip Worksman appointment"
+    echo "  --no-clerk                    Skip Clerk appointment"
     echo ""
     echo "Examples:"
     echo "  ./castle.sh --no-gates                  # Direct logic deployment"
     echo "  ./castle.sh --no-castle 0x123...        # Add officers/clerk to existing castle"
-    echo "  ./castle.sh --only-clerk 0x123...     # Only deploy and attach a new Clerk"
     exit 0
 }
 
 # 2. Parse Options
 USE_GATES=true
-SKIP_CLERK=false
-ONLY_CLERK=false
 NO_CASTLE=false
 CASTLE_TARGET_ADDR=""
 
@@ -46,6 +42,7 @@ DO_CONSTABLE=true
 DO_BANKER=true
 DO_FACTOR=true
 DO_GUILDMASTER=true
+DO_CLERK=true
 DO_SCRIBE=true
 DO_WORKSMAN=true
 
@@ -53,7 +50,7 @@ while [[ "$#" -gt 0 ]]; do
     case $1 in
         --help)          show_help ;;
         --no-gates)      USE_GATES=false ;;
-        --no-clerk)    SKIP_CLERK=true ;;
+        --no-clerk)      DO_CLERK=false;;
         --no-constable)  DO_CONSTABLE=false ;;
         --no-banker)     DO_BANKER=false ;;
         --no-factor)     DO_FACTOR=false ;;
@@ -64,11 +61,6 @@ while [[ "$#" -gt 0 ]]; do
             NO_CASTLE=true
             CASTLE_TARGET_ADDR="$2"
             shift
-            ;;
-        --only-clerk) 
-            ONLY_CLERK=true
-            CASTLE_TARGET_ADDR="$2"
-            shift 
             ;;
         *) echo "Unknown option: $1. Use --help for usage."; exit 1 ;;
     esac
@@ -112,7 +104,9 @@ appoint_officer() {
     local name=$1
     local target=$2
     local method=$3
+    echo "---------------------------"
     echo "--- Appointing $name ---"
+    echo "---------------------------"
     local ADDR=$(deploy "$name" | tee /dev/stderr | parse_deployment_address)
     [ -z "$ADDR" ] && die "Failed to deploy officer: $name"
     contract_send "$target" "$method" "$ADDR"
@@ -120,35 +114,14 @@ appoint_officer() {
     eval "${UP_NAME}_ADDRESS=\"$ADDR\""
 }
 
-if [ "$ONLY_CLERK" = false ]; then
-    [ "$DO_CONSTABLE" = true ]   && appoint_officer "constable"   "$TARGET_ADDRESS" "appointConstable(address)"
-    [ "$DO_BANKER" = true ]      && appoint_officer "banker"      "$TARGET_ADDRESS" "appointBanker(address)"
-    [ "$DO_FACTOR" = true ]      && appoint_officer "factor"      "$TARGET_ADDRESS" "appointFactor(address)"
-    [ "$DO_GUILDMASTER" = true ] && appoint_officer "guildmaster" "$TARGET_ADDRESS" "appointGuildmaster(address)"
-    [ "$DO_SCRIBE" = true ]      && appoint_officer "scribe"      "$TARGET_ADDRESS" "appointScribe(address)"
-    [ "$DO_WORKSMAN" = true ]    && appoint_officer "worksman"    "$TARGET_ADDRESS" "appointWorksman(address)"
-fi
+[ "$DO_CONSTABLE" = true ]   && appoint_officer "constable"   "$TARGET_ADDRESS" "appointConstable(address)"
+[ "$DO_BANKER" = true ]      && appoint_officer "banker"      "$TARGET_ADDRESS" "appointBanker(address)"
+[ "$DO_FACTOR" = true ]      && appoint_officer "factor"      "$TARGET_ADDRESS" "appointFactor(address)"
+[ "$DO_GUILDMASTER" = true ] && appoint_officer "guildmaster" "$TARGET_ADDRESS" "appointGuildmaster(address)"
+[ "$DO_CLERK" = true ]       && appoint_officer "clerk"       "$TARGET_ADDRESS" "appointClerk(address)"
+[ "$DO_SCRIBE" = true ]      && appoint_officer "scribe"      "$TARGET_ADDRESS" "appointScribe(address)"
+[ "$DO_WORKSMAN" = true ]    && appoint_officer "worksman"    "$TARGET_ADDRESS" "appointWorksman(address)"
 
-# --- Clerk Sequence ---
-
-if [ "$SKIP_CLERK" = false ]; then
-    ABACUS_ADDRESS=$(deploy abacus | tee /dev/stderr | parse_deployment_address)
-    CLERK_ADDRESS=$(deploy clerk | tee /dev/stderr | parse_deployment_address)
-    [ -z "$CLERK_ADDRESS" ] && die "Failed to deploy Clerk"
-
-    if [ "$USE_GATES" = true ]; then
-        CALLDATA_CLERK=$(calldata "initialize(address,address)" "$TARGET_ADDRESS" "$ABACUS_ADDRESS")
-        CLERK_TARGET=$(deploy_construct gate "constructor(address,bytes)" "$CLERK_ADDRESS" "$CALLDATA_CLERK" | tee /dev/stderr | parse_deployment_address)
-        [ -z "$CLERK_TARGET" ] && die "Failed to deploy Clerk Gate"
-    else
-        CLERK_TARGET=$CLERK_ADDRESS
-        echo "Direct Deployment: Initializing Clerk Logic..."
-        contract_send "$CLERK_TARGET" "initialize(address,address)" "$TARGET_ADDRESS" "$ABACUS_ADDRESS"
-    fi
-
-    echo "--- Attaching Clerk to Castle ---"
-    contract_send "$TARGET_ADDRESS" "appendClerkChamber(address)" "$CLERK_TARGET"
-fi
 
 echo "---------------------------"
 echo "=== Deployment Complete ==="

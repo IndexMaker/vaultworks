@@ -2,6 +2,9 @@ use alloc::vec::Vec;
 
 use common::{amount::Amount, vector::Vector};
 
+#[cfg(feature = "amount-sqrt")]
+use common::math::{solve_quadratic_ask, solve_quadratic_bid};
+
 pub const ORDER_REMAIN_OFFSET: usize = 0;
 pub const ORDER_SPENT_OFFSET: usize = 1;
 pub const ORDER_REALIZED_OFFSET: usize = 2;
@@ -67,7 +70,7 @@ impl Order {
     }
 
     pub fn itp_minted(&self) -> Amount {
-        self.ask.data[ORDER_REALIZED_OFFSET]
+        self.bid.data[ORDER_REALIZED_OFFSET]
     }
 
     pub fn itp_locked(&self) -> Amount {
@@ -93,7 +96,7 @@ impl Order {
         let sender_balance = self
             .itp_minted()
             .checked_sub(self.itp_burned())
-            .ok_or_else(|| b"MathUnderflow (minted < (redeem + burned)")?;
+            .ok_or_else(|| b"MathUnderflow (minted < burned)")?;
 
         Ok(sender_balance)
     }
@@ -112,7 +115,7 @@ impl Order {
                     .checked_add(self.itp_burned())
                     .ok_or_else(|| b"MathOverflow (redeem + burned)")?,
             )
-            .ok_or_else(|| b"MathUnderflow (minted < (redeem + burned)")?;
+            .ok_or_else(|| b"MathUnderflow (minted < (redeem + burned))")?;
 
         Ok(sender_balance)
     }
@@ -177,6 +180,154 @@ impl Quote {
             .checked_div(self.price())
             .ok_or_else(|| b"MathDivisionError")?;
         Ok(itp_amount)
+    }
+
+    #[cfg(feature = "amount-sqrt")]
+    pub fn estimate_acquisition_cost(
+        &self,
+        itp_amount: Amount,
+        max_order_size: Amount,
+    ) -> Option<Amount> {
+        // Order execution is split into chunks not greater than MaxOrderSize.
+        // This is to prevent market impact and significant price slippage.
+        // In our estimation we assume that market recovers after each chunk.
+        // This means that each chunk will consume up to MaxOrderSize causing
+        // prices to slip up to controlled margin, and then next chunk will execute
+        // at same price. Last chunk will be smaller, and we will follow our
+        // standard price formula for it.
+        //
+        // !!! THIS IS ONLY AN ESTIMATE !!!
+        // By no means we can guarantee that estimated cost will match the actual cost.
+        //
+        let max_itp = solve_quadratic_bid(self.slope(), self.price(), max_order_size)?;
+
+        let (itp_remain, estimated_cost) = if !itp_amount.is_less_than(&max_itp) {
+            let num_chunks = itp_amount.checked_idiv(max_itp)?;
+            let chunked_itp = num_chunks.checked_mul(max_itp)?;
+            let itp_remain = itp_amount.checked_sub(chunked_itp)?;
+            let estimated_cost = num_chunks.checked_mul(max_order_size)?;
+            (itp_remain, estimated_cost)
+        } else {
+            (itp_amount, Amount::ZERO)
+        };
+
+        let estimated_remain_cost = if !itp_remain.is_zero() {
+            let price_slippage = itp_remain.checked_mul(self.slope())?;
+            let effective_price = self.price().checked_add(price_slippage)?;
+            effective_price.checked_mul(itp_remain)?
+        } else {
+            Amount::ZERO
+        };
+
+        let estimated_total_cost = estimated_cost.checked_add(estimated_remain_cost)?;
+
+        Some(estimated_total_cost)
+    }
+
+    #[cfg(feature = "amount-sqrt")]
+    pub fn estimate_acquisition_itp(&self, cost: Amount, max_order_size: Amount) -> Option<Amount> {
+        // Here we estimate how much ITP can we buy fir given amount of collateral.
+        // Again, execution happens in chunks no bigger than MaxOrderSize, so first we
+        // estimate amount of ITP per chunk of constant cost MaxOrderSize, and then we
+        // estimage amount of ITP for remainder of the cost.
+        //
+        // !!! THIS IS ONLY AN ESTIMATE !!!
+        // By no means we can guarantee that estimated ITP acmount will match the actual ITP amount.
+        //
+        let num_chunks = cost.checked_idiv(max_order_size)?;
+
+        let (cost_remain, estimated_itp) = if !num_chunks.is_zero() {
+            let max_itp = solve_quadratic_bid(self.slope(), self.price(), max_order_size)?;
+            let estimated_itp = num_chunks.checked_mul(max_itp)?;
+            let chunked_cost = num_chunks.checked_mul(max_order_size)?;
+            let cost_remain = cost.checked_sub(chunked_cost)?;
+            (cost_remain, estimated_itp)
+        } else {
+            (cost, Amount::ZERO)
+        };
+
+        let estimated_remain_itp = if !cost_remain.is_zero() {
+            let remain_itp = solve_quadratic_bid(self.slope(), self.price(), cost_remain)?;
+            remain_itp
+        } else {
+            Amount::ZERO
+        };
+
+        let estimated_total_itp = estimated_itp.checked_add(estimated_remain_itp)?;
+
+        Some(estimated_total_itp)
+    }
+
+    #[cfg(feature = "amount-sqrt")]
+    pub fn estimate_disposal_itp_cost(
+        &self,
+        gains: Amount,
+        max_order_size: Amount,
+    ) -> Option<Amount> {
+        let num_chunks = gains.checked_idiv(max_order_size)?;
+
+        let (gains_remain, estimated_itp) = if !num_chunks.is_zero() {
+            let max_itp = solve_quadratic_ask(self.slope(), self.price(), max_order_size)?;
+            let estimated_itp = num_chunks.checked_mul(max_itp)?;
+            let chunked_gains = num_chunks.checked_mul(max_order_size)?;
+            let gains_remain = gains.checked_sub(chunked_gains)?;
+            (gains_remain, estimated_itp)
+        } else {
+            (gains, Amount::ZERO)
+        };
+
+        let estimated_remain_itp = if !gains_remain.is_zero() {
+            let remain_itp = solve_quadratic_ask(self.slope(), self.price(), gains_remain)?;
+            remain_itp
+        } else {
+            Amount::ZERO
+        };
+
+        let estimated_total_itp = estimated_itp.checked_add(estimated_remain_itp)?;
+
+        Some(estimated_total_itp)
+    }
+
+    #[cfg(feature = "amount-sqrt")]
+    pub fn estimate_disposal_gains(
+        &self,
+        itp_amount: Amount,
+        max_order_size: Amount,
+    ) -> Option<Amount> {
+        // Order execution is split into chunks not greater than MaxOrderSize.
+        // This is to prevent market impact and significant price slippage.
+        // In our estimation we assume that market recovers after each chunk.
+        // This means that each chunk will consume up to MaxOrderSize causing
+        // prices to slip up to controlled margin, and then next chunk will execute
+        // at same price. Last chunk will be smaller, and we will follow our
+        // standard price formula for it.
+        //
+        // !!! THIS IS ONLY AN ESTIMATE !!!
+        // By no means we can guarantee that estimated cost will match the actual cost.
+        //
+        let max_itp = solve_quadratic_ask(self.slope(), self.price(), max_order_size)?;
+
+        let (itp_remain, estimated_gains) = if !itp_amount.is_less_than(&max_itp) {
+            let num_chunks = itp_amount.checked_idiv(max_itp)?;
+            let chunked_itp = num_chunks.checked_mul(max_itp)?;
+            let itp_remain = itp_amount.checked_sub(chunked_itp)?;
+            let estimated_gains = num_chunks.checked_mul(max_order_size)?;
+            (itp_remain, estimated_gains)
+        } else {
+            (itp_amount, Amount::ZERO)
+        };
+
+        let estimated_remain_gains = if !itp_remain.is_zero() {
+            let price_slippage = itp_remain.checked_mul(self.slope())?;
+            let effective_price = self.price().checked_sub(price_slippage)?;
+            effective_price.checked_mul(itp_remain)?
+        } else {
+            Amount::ZERO
+        };
+
+        let estimated_total_gains = estimated_gains.checked_add(estimated_remain_gains)?;
+
+        Some(estimated_total_gains)
     }
 }
 

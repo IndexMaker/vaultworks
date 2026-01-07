@@ -7,7 +7,6 @@ extern crate alloc;
 
 use alloc::vec::Vec;
 
-use alloy_primitives::Address;
 use common_contracts::contracts::keep::Keep;
 use stylus_sdk::{abi::Bytes, prelude::*};
 
@@ -17,15 +16,6 @@ pub struct Scribe;
 
 #[public]
 impl Scribe {
-    pub fn accept_appointment(&mut self, scribe: Address) -> Result<(), Vec<u8>> {
-        let mut storage = Keep::storage();
-        if !storage.scribe.get().is_zero() {
-            Err(b"Scribe already appointed")?;
-        }
-        storage.scribe.set(scribe);
-        Ok(())
-    }
-
     pub fn verify_signature(&mut self, data: Bytes) -> Result<bool, Vec<u8>> {
         let keep = Keep::storage();
         if keep.scribe.get().is_zero() {

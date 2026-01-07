@@ -5,15 +5,42 @@
 #[macro_use]
 extern crate alloc;
 
+use abacus_formulas::update_quote::update_quote;
 use alloc::vec::Vec;
 
 use alloy_primitives::U128;
-use common_contracts::contracts::{keep::Keep, keep_calls::KeepCalls};
+use common::vector::Vector;
+use common_contracts::contracts::{clerk::ClerkStorage, keep::{Keep, Vault}, keep_calls::KeepCalls};
 use stylus_sdk::{abi::Bytes, prelude::*};
+use vector_macros::amount_vec;
 
 #[storage]
 #[entrypoint]
 pub struct Guildmaster;
+
+fn _init_vendor_quote(
+    vault: &mut Vault,
+    clerk_storage: &mut ClerkStorage,
+    vendor_id: U128,
+) -> U128 {
+    let mut set_quote_id = vault.vendor_quotes.setter(vendor_id);
+
+    let quote_id = set_quote_id.get();
+    if !quote_id.is_zero() {
+        return quote_id;
+    }
+
+    let quote_id = clerk_storage.next_vector();
+    set_quote_id.set(quote_id);
+
+    clerk_storage.store_vector(quote_id.to(), amount_vec![0, 0, 0]);
+
+    if vault.vendors_bids.get(vendor_id).is_zero() && vault.vendors_asks.get(vendor_id).is_zero() {
+        vault.vendors.push(vendor_id);
+    }
+
+    quote_id
+}
 
 #[public]
 impl Guildmaster {
@@ -29,18 +56,19 @@ impl Guildmaster {
         info: Bytes,
     ) -> Result<(), Vec<u8>> {
         let mut storage = Keep::storage();
-        let mut vault = storage.vaults.setter(index);
+        storage.check_version()?;
 
+        let mut vault = storage.vaults.setter(index);
         if !vault.assets.get().is_zero() {
             return Err(b"Vault already exists".into());
         }
 
-        let gate_to_clerk_chamber = storage.clerk_chamber.get_gate_address();
-        let asset_names_id = storage.clerk_chamber.next_vector();
-        let asset_weights_id = storage.clerk_chamber.next_vector();
+        let mut clerk_storage = ClerkStorage::storage();
+        let asset_names_id = clerk_storage.next_vector();
+        let asset_weights_id = clerk_storage.next_vector();
 
-        self.submit_vector_bytes(gate_to_clerk_chamber, asset_names_id.to(), asset_names.0)?;
-        self.submit_vector_bytes(gate_to_clerk_chamber, asset_weights_id.to(), asset_weights.0)?;
+        clerk_storage.store_bytes(asset_names_id, asset_names);
+        clerk_storage.store_bytes(asset_weights_id, asset_weights);
 
         vault.assets.set(asset_names_id);
         vault.weights.set(asset_weights_id);
@@ -59,8 +87,9 @@ impl Guildmaster {
     ///
     pub fn submit_vote(&mut self, index: U128, vote: Bytes) -> Result<(), Vec<u8>> {
         let mut storage = Keep::storage();
-        let vault = storage.vaults.setter(index);
+        storage.check_version()?;
 
+        let vault = storage.vaults.setter(index);
         if vault.assets.get().is_zero() {
             Err(b"Vault not found")?;
         }
@@ -74,6 +103,60 @@ impl Guildmaster {
 
         //TODO: Send vote to Vault contract to activate
 
+        Ok(())
+    }
+
+    /// Update Index Quote
+    ///
+    /// Scan inventory assets, supply, delta, prices and liquidity and
+    /// compute capacity, price and slope for an Index.
+    ///
+    pub fn update_index_quote(&mut self, vendor_id: U128, index_id: U128) -> Result<(), Vec<u8>> {
+        let mut storage = Keep::storage();
+        storage.check_version()?;
+
+        let mut clerk_storage = ClerkStorage::storage();
+
+        let mut vault = storage.vaults.setter(index_id);
+        let vendor_quote_id = _init_vendor_quote(&mut vault, &mut clerk_storage, vendor_id);
+
+        let account = storage.accounts.get(vendor_id);
+
+        // Compile VIL program, which we will send to DeVIL for execution
+        //
+        // The program:
+        //  - updates index's quote, i.e. capacity, price, slope
+        //
+        // Note it could be a stored procedure as program is constant for each Vault.
+        //
+        let update = update_quote(
+            vault.assets.get().to(),
+            vault.weights.get().to(),
+            vendor_quote_id.to(),
+            account.assets.get().to(),
+            account.prices.get().to(),
+            account.slopes.get().to(),
+            account.liquidity.get().to(),
+        );
+
+        let clerk = storage.clerk.get();
+        let num_registry = 16;
+        self.update_records(clerk, update, num_registry)?;
+        Ok(())
+    }
+
+    /// Update Quote for multiple Indexes
+    ///
+    /// This allows to update multiple Index uotes at once.
+    ///
+    pub fn update_multiple_index_quotes(
+        &mut self,
+        vendor_id: U128,
+        index_ids: Vec<U128>,
+    ) -> Result<(), Vec<u8>> {
+        for index_id in index_ids {
+            self.update_index_quote(vendor_id, index_id)?;
+        }
         Ok(())
     }
 }

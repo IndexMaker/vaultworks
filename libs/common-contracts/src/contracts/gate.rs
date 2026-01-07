@@ -60,8 +60,8 @@ impl Gate {
         }
     }
 
-    pub fn not_delegated(&self) -> Result<(), Vec<u8>> {
-        if Self::is_logic() {
+    pub fn only_delegated() -> Result<(), Vec<u8>> {
+        if !Self::is_logic() {
             Ok(())
         } else {
             Err(b"UUPSUnauthorizedCallContext".into())

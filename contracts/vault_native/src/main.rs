@@ -6,5 +6,5 @@ pub extern "C" fn main() {}
 
 #[cfg(feature = "export-abi")]
 fn main() {
-    abacus::print_from_args();
+    vault_native::print_from_args();
 }

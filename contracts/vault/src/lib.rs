@@ -9,7 +9,7 @@ use alloc::{string::String, vec::Vec};
 
 use alloy_primitives::{uint, Address, B256, U128, U256, U32, U8};
 use alloy_sol_types::{sol, SolEvent};
-use common::{amount::Amount, log_msg};
+use common::amount::Amount;
 use common_contracts::{
     contracts::{
         calls::InnerCall,
@@ -52,6 +52,7 @@ impl Vault {
         requests: Address,
         gate_to_castle: Address,
     ) -> Result<(), Vec<u8>> {
+        Gate::only_delegated()?;
         let mut vault = VaultStorage::storage();
         vault.only_owner(self.attendee())?;
         vault.set_version(VERSION_NUMBER)?;
@@ -62,6 +63,7 @@ impl Vault {
     }
 
     pub fn set_version(&mut self) -> Result<(), Vec<u8>> {
+        Gate::only_delegated()?;
         let mut vault = VaultStorage::storage();
         vault.only_owner(self.attendee())?;
         vault.set_version(VERSION_NUMBER)
@@ -70,6 +72,33 @@ impl Vault {
     pub fn get_version(&self) -> U32 {
         VERSION_NUMBER
     }
+
+    // UUPS
+
+    #[selector(name = "UPGRADE_INTERFACE_VERSION")]
+    fn upgrade_interface_version(&self) -> String {
+        Gate::upgrade_interface_version()
+    }
+
+    #[payable]
+    pub fn upgrade_to_and_call(
+        &mut self,
+        new_implementation: Address,
+        data: Bytes,
+    ) -> Result<(), Vec<u8>> {
+        let vault = VaultStorage::storage();
+        vault.only_owner(self.attendee())?;
+        if vault.version.get() != VERSION_NUMBER {
+            Err(b"UUPSUnauthorizedCallContext")?;
+        }
+        Gate::upgrade_to_and_call(self, new_implementation, data)
+    }
+
+    fn proxiable_uuid(&self) -> Result<B256, Vec<u8>> {
+        Ok(IMPLEMENTATION_SLOT)
+    }
+
+    // Ownable
 
     fn owner(&self) -> Address {
         let vault = VaultStorage::storage();
@@ -100,6 +129,16 @@ impl Vault {
         vault.name.set_str(name);
         vault.symbol.set_str(symbol);
         Ok(())
+    }
+
+    pub fn castle(&self) -> Address {
+        let vault = VaultStorage::storage();
+        vault.gate_to_castle.get()
+    }
+
+    pub fn index_id(&self) -> U128 {
+        let vault = VaultStorage::storage();
+        vault.index_id.get()
     }
 
     // ERC20
@@ -224,41 +263,21 @@ impl Vault {
         Ok(true)
     }
 
-    // UUPS
-
-    #[selector(name = "UPGRADE_INTERFACE_VERSION")]
-    fn upgrade_interface_version(&self) -> String {
-        Gate::upgrade_interface_version()
-    }
-
-    #[payable]
-    pub fn upgrade_to_and_call(
-        &mut self,
-        new_implementation: Address,
-        data: Bytes,
-    ) -> Result<(), Vec<u8>> {
-        let vault = VaultStorage::storage();
-        vault.only_owner(self.attendee())?;
-        if vault.version.get() != VERSION_NUMBER {
-            Err(b"UUPSUnauthorizedCallContext")?;
-        }
-        Gate::upgrade_to_and_call(self, new_implementation, data)
-    }
-
-    fn proxiable_uuid(&self) -> Result<B256, Vec<u8>> {
-        Ok(IMPLEMENTATION_SLOT)
-    }
-
     #[payable]
     #[fallback]
     fn fallback(&mut self, calldata: &[u8]) -> ArbResult {
-        let vault = VaultStorage::storage();
-        let requests = vault.requests_implementation.get();
-        if requests.is_zero() {
-            Err(b"No requests implementation")?;
-        }
+        let requests = {
+            let vault = VaultStorage::storage();
+            let requests = vault.requests_implementation.get();
+            if requests.is_zero() {
+                Err(b"No requests implementation")?;
+            }
+            requests
+        };
 
-        log_msg!("Delegating function to {}", requests);
-        unsafe { Ok(self.vm().delegate_call(&self, requests, calldata)?) }
+        unsafe {
+            let result = self.vm().delegate_call(&self, requests, calldata)?;
+            Ok(result)
+        }
     }
 }

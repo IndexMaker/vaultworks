@@ -7,14 +7,13 @@ extern crate alloc;
 
 use alloc::vec::Vec;
 
-use alloy_primitives::{Address, B256};
+use alloy_primitives::{Address, B256, U32};
 use alloy_sol_types::SolCall;
 use common::log_msg;
 use common_contracts::{
-    contracts::{calls::InnerCall, castle::CASTLE_ADMIN_ROLE, keep::Keep},
+    contracts::{calls::InnerCall, castle::CASTLE_ADMIN_ROLE, clerk::ClerkStorage, keep::{KEEP_VERSION_NUMBER, Keep}},
     interfaces::{
-        banker::IBanker, castle::ICastle, constable::IConstable, factor::IFactor,
-        guildmaster::IGuildmaster, scribe::IScribe, worksman::IWorksman,
+        banker::IBanker, castle::ICastle, clerk::IClerk, constable::IConstable, factor::IFactor, guildmaster::IGuildmaster, scribe::IScribe, worksman::IWorksman
     },
 };
 use stylus_sdk::{keccak_const, prelude::*};
@@ -35,6 +34,10 @@ pub const CASTLE_VAULT_ROLE: [u8; 32] = keccak_const::Keccak256::new()
     .update(b"Castle.VAULT_ROLE")
     .finalize();
 
+pub const CASTLE_MAINTAINER_ROLE: [u8; 32] = keccak_const::Keccak256::new()
+    .update(b"Castle.MAINTAINER_ROLE")
+    .finalize();
+
 #[storage]
 #[entrypoint]
 pub struct Constable;
@@ -42,12 +45,14 @@ pub struct Constable;
 #[public]
 impl Constable {
     pub fn accept_appointment(&mut self, constable: Address) -> Result<(), Vec<u8>> {
-        log_msg!("Accepting appointment {}", constable);
-        let mut storage = Keep::storage();
-        if !storage.constable.get().is_zero() {
-            Err(b"Constable already appointed")?;
+        if constable.is_zero() {
+            Err(b"Address cannot be zero")?;
         }
-        storage.initialize(constable);
+        let mut storage = Keep::storage();
+
+        log_msg!("Appointing Constable {}", constable);
+        storage.set_version()?;
+
         self.top_level_call(ICastle::createProtectedFunctionsCall {
             contract_address: constable,
             function_selectors: vec![
@@ -56,27 +61,35 @@ impl Constable {
                 IConstable::appointGuildmasterCall::SELECTOR.into(),
                 IConstable::appointScribeCall::SELECTOR.into(),
                 IConstable::appointWorksmanCall::SELECTOR.into(),
-                IConstable::appendClerkChamberCall::SELECTOR.into(),
+                IConstable::appointClerkCall::SELECTOR.into(),
             ],
             required_role: CASTLE_ADMIN_ROLE.into(),
         })?;
+
         self.top_level_call(ICastle::createPublicFunctionsCall {
             contract_address: constable,
             function_selectors: vec![
                 IConstable::getIssuerRoleCall::SELECTOR.into(),
                 IConstable::getKeeperRoleCall::SELECTOR.into(),
                 IConstable::getVendorRoleCall::SELECTOR.into(),
+                IConstable::getVaultRoleCall::SELECTOR.into(),
+                IConstable::getMaintainerRoleCall::SELECTOR.into(),
+                IConstable::getVersionCall::SELECTOR.into(),
             ],
         })?;
+
         Ok(())
     }
 
     pub fn appoint_banker(&mut self, banker: Address) -> Result<(), Vec<u8>> {
-        log_msg!("Appointing banker {}", banker);
-        let storage = Keep::storage();
-        if storage.constable.get().is_zero() {
-            Err(b"Constable was not appointed")?;
+        if banker.is_zero() {
+            Err(b"Address cannot be zero")?;
         }
+        let storage = Keep::storage();
+        storage.check_version()?;
+
+        log_msg!("Appointing banker {}", banker);
+
         self.top_level_call(ICastle::createProtectedFunctionsCall {
             contract_address: banker,
             function_selectors: vec![
@@ -100,16 +113,20 @@ impl Constable {
     }
 
     pub fn appoint_factor(&mut self, factor: Address) -> Result<(), Vec<u8>> {
-        log_msg!("Appointing factor {}", factor);
-        let storage = Keep::storage();
-        if storage.constable.get().is_zero() {
-            Err(b"Constable was not appointed")?;
+        if factor.is_zero() {
+            Err(b"Address cannot be zero")?;
         }
+        let storage = Keep::storage();
+        storage.check_version()?;
+
+        log_msg!("Appointing factor {}", factor);
+
         self.top_level_call(ICastle::createProtectedFunctionsCall {
             contract_address: factor,
             function_selectors: vec![IFactor::submitMarketDataCall::SELECTOR.into()],
             required_role: CASTLE_VENDOR_ROLE.into(),
         })?;
+
         // self.top_level_call(ICastle::createProtectedFunctionsCall {
         //     contract_address: factor,
         //     function_selectors: vec![
@@ -117,25 +134,27 @@ impl Constable {
         //     ],
         //     required_role: CASTLE_ISSUER_ROLE.into(),
         // })?;
+
         self.top_level_call(ICastle::createProtectedFunctionsCall {
             contract_address: factor,
             function_selectors: vec![
-                IFactor::updateIndexQuoteCall::SELECTOR.into(),
-                IFactor::updateMultipleIndexQuotesCall::SELECTOR.into(),
                 IFactor::submitBuyOrderCall::SELECTOR.into(),
                 IFactor::submitSellOrderCall::SELECTOR.into(),
             ],
             required_role: CASTLE_KEEPER_ROLE.into(),
         })?;
+
         self.top_level_call(ICastle::createProtectedFunctionsCall {
             contract_address: factor,
             function_selectors: vec![IFactor::submitTransferCall::SELECTOR.into()],
             required_role: CASTLE_VAULT_ROLE.into(),
         })?;
+
         self.top_level_call(ICastle::createPublicFunctionsCall {
             contract_address: factor,
             function_selectors: vec![
                 IFactor::getMarketDataCall::SELECTOR.into(),
+                IFactor::getIndexAssetsCountCall::SELECTOR.into(),
                 IFactor::getIndexAssetsCall::SELECTOR.into(),
                 IFactor::getIndexWeightsCall::SELECTOR.into(),
                 IFactor::getIndexQuoteCall::SELECTOR.into(),
@@ -152,11 +171,14 @@ impl Constable {
     }
 
     pub fn appoint_guildmaster(&mut self, guildmaster: Address) -> Result<(), Vec<u8>> {
-        log_msg!("Appointing guildmaster {}", guildmaster);
-        let storage = Keep::storage();
-        if storage.constable.get().is_zero() {
-            Err(b"Constable was not appointed")?;
+        if guildmaster.is_zero() {
+            Err(b"Address cannot be zero")?;
         }
+        let storage = Keep::storage();
+        storage.check_version()?;
+
+        log_msg!("Appointing guildmaster {}", guildmaster);
+
         self.top_level_call(ICastle::createProtectedFunctionsCall {
             contract_address: guildmaster,
             function_selectors: vec![
@@ -165,49 +187,84 @@ impl Constable {
             ],
             required_role: CASTLE_ISSUER_ROLE.into(),
         })?;
+        
+        self.top_level_call(ICastle::createProtectedFunctionsCall {
+            contract_address: guildmaster,
+            function_selectors: vec![
+                IGuildmaster::updateIndexQuoteCall::SELECTOR.into(),
+                IGuildmaster::updateMultipleIndexQuotesCall::SELECTOR.into(),
+            ],
+            required_role: CASTLE_KEEPER_ROLE.into(),
+        })?;
+
         Ok(())
     }
 
     pub fn appoint_scribe(&mut self, scribe: Address) -> Result<(), Vec<u8>> {
-        log_msg!("Appointing scribe {}", scribe);
-        let storage = Keep::storage();
-        if storage.constable.get().is_zero() {
-            Err(b"Constable was not appointed")?;
+        if scribe.is_zero() {
+            Err(b"Address cannot be zero")?;
         }
-        self.inner_call(scribe, IScribe::acceptAppointmentCall { scribe })?;
+        let mut storage = Keep::storage();
+        storage.check_version()?;
+
+        log_msg!("Appointing scribe {}", scribe);
+        storage.scribe.set(scribe);
+
         self.top_level_call(ICastle::createProtectedFunctionsCall {
             contract_address: scribe,
             function_selectors: vec![IScribe::verifySignatureCall::SELECTOR.into()],
             required_role: CASTLE_ISSUER_ROLE.into(),
         })?;
+
         Ok(())
     }
 
     pub fn appoint_worksman(&mut self, worksman: Address) -> Result<(), Vec<u8>> {
-        log_msg!("Appointing worksman {}", worksman);
-        let storage = Keep::storage();
-        if storage.constable.get().is_zero() {
-            Err(b"Constable was not appointed")?;
+        if worksman.is_zero() {
+            Err(b"Address cannot be zero")?;
         }
-        self.inner_call(worksman, IWorksman::acceptAppointmentCall { worksman })?;
+        let mut storage = Keep::storage();
+        storage.check_version()?;
+        
+        log_msg!("Appointing worksman {}", worksman);
+        storage.worksman.set(worksman);
+
         self.top_level_call(ICastle::createProtectedFunctionsCall {
             contract_address: worksman,
             function_selectors: vec![IWorksman::buildVaultCall::SELECTOR.into()],
             required_role: CASTLE_ISSUER_ROLE.into(),
         })?;
+
+        self.top_level_call(ICastle::createProtectedFunctionsCall {
+            contract_address: worksman,
+            function_selectors: vec![IWorksman::addVaultCall::SELECTOR.into()],
+            required_role: CASTLE_ADMIN_ROLE.into(),
+        })?;
+
         Ok(())
     }
 
-    pub fn append_clerk_chamber(&mut self, gate_to_clerk_chamber: Address) -> Result<(), Vec<u8>> {
-        log_msg!("Appending clerk {}", gate_to_clerk_chamber);
+    pub fn appoint_clerk(&mut self, clerk: Address) -> Result<(), Vec<u8>> {
+        if clerk.is_zero() {
+            Err(b"Address cannot be zero")?;
+        }
         let mut storage = Keep::storage();
-        if storage.constable.get().is_zero() {
-            Err(b"Constable was not appointed")?;
+        storage.check_version()?;
+
+        log_msg!("Appointing clerk {}", clerk);
+        storage.clerk.set(clerk);
+
+        let mut clerk_storage = ClerkStorage::storage();
+        if !clerk_storage.is_constructed() {
+            clerk_storage.constructor()?;
         }
-        if !storage.clerk_chamber.get_gate_address().is_zero() {
-            Err(b"Clerk already cast")?;
-        }
-        storage.clerk_chamber.initialize(gate_to_clerk_chamber);
+        
+        self.top_level_call(ICastle::createProtectedFunctionsCall {
+            contract_address: clerk,
+            function_selectors: vec![IClerk::fetchVectorCall::SELECTOR.into()],
+            required_role: CASTLE_MAINTAINER_ROLE.into(),
+        })?;
+
         Ok(())
     }
 
@@ -225,5 +282,13 @@ impl Constable {
 
     pub fn get_vault_role(&self) -> B256 {
         CASTLE_VAULT_ROLE.into()
+    }
+    
+    pub fn get_maintainer_role(&self) -> B256 {
+        CASTLE_MAINTAINER_ROLE.into()
+    }
+    
+    pub fn get_version(&self) -> U32 {
+        KEEP_VERSION_NUMBER
     }
 }

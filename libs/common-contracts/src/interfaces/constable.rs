@@ -14,12 +14,18 @@ sol!{
 
         function appointWorksman(address worksman) external;
 
-        function appendClerkChamber(address gate_to_clerk_chamber) external;
+        function appointClerk(address clerk) external;
 
         function getIssuerRole() external view returns (bytes32);
 
         function getVendorRole() external view returns (bytes32);
 
         function getKeeperRole() external view returns (bytes32);
+
+        function getVaultRole() external view returns (bytes32);
+
+        function getMaintainerRole() external view returns (bytes32);
+
+        function getVersion() external view returns (uint32);
     }
 }

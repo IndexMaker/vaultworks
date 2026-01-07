@@ -2,10 +2,8 @@ use alloy_sol_types::sol;
 
 sol! {
     interface IClerk  {
-        function initialize(address owner, address abacus) external;
+        function fetchVector(uint128 id) external view returns (bytes memory);
 
-        function store(uint128 id, bytes calldata data) external;
-
-        function load(uint128 id) external view returns (bytes memory);
+        function updateRecords(bytes calldata code, uint128 num_registry) external;
     }
 }

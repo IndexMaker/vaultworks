@@ -25,8 +25,8 @@ pub fn execute_transfer(
         STR     _SenderRemain   // [ITP_amount, C_spent, ITP_mint, ITP_rem, ITP_burn, C_wd]
 
         LDD     3               // [ITP_amount, C_spent, ITP_mint, ITP_rem, ITP_burn, C_wd, ITP_mint]
-        SSB     6               // [ITP_amount, C_spent, ITP_mint, ITP_rem, ITP_burn, C_wd, ITP_mint_new = (ITP_mint - ITP_amount)]
-        LDD     1               // [ITP_amount, C_spent, ITP_mint, ITP_rem, ITP_burn, C_wd, ITP_mint_new, ITP_mint_new]
+        SUB     6               // [ITP_amount, C_spent, ITP_mint, ITP_rem, ITP_burn, C_wd, ITP_mint_new = (ITP_mint - ITP_amount)]
+        LDD     0               // [ITP_amount, C_spent, ITP_mint, ITP_rem, ITP_burn, C_wd, ITP_mint_new, ITP_mint_new]
         STR     _SenderMinted   // [ITP_amount, C_spent, ITP_mint, ITP_rem, ITP_burn, C_wd, ITP_mint_new]
 
         // Test: ITP_mint_new >= ITP_rem - ITP_burn

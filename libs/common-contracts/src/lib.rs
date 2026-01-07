@@ -16,10 +16,11 @@ pub mod contracts {
     pub mod keep_calls;
     pub mod storage;
     pub mod vault;
+    pub mod vault_native;
+    pub mod vault_requests;
 }
 
 pub mod interfaces {
-    pub mod abacus;
     pub mod banker;
     pub mod castle;
     pub mod clerk;
@@ -28,5 +29,8 @@ pub mod interfaces {
     pub mod guildmaster;
     pub mod scribe;
     pub mod treasury;
+    pub mod vault;
+    pub mod vault_native;
+    pub mod vault_requests;
     pub mod worksman;
 }

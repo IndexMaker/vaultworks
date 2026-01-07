@@ -8,13 +8,14 @@ extern crate alloc;
 use alloc::vec::Vec;
 
 use alloy_primitives::{uint, Address, U128, U256};
-use alloy_sol_types::SolCall;
-use common_contracts::{
-    contracts::{calls::InnerCall, castle::CASTLE_ADMIN_ROLE, keep::Keep, storage::StorageSlot},
-    interfaces::{castle::ICastle, worksman::IWorksman},
-};
+use common_contracts::
+    contracts::{keep::Keep, storage::StorageSlot}
+;
 use stylus_sdk::{
-    abi::Bytes, keccak_const, prelude::*, storage::{StorageAddress, StorageBool, StorageMap, StorageVec}
+    abi::Bytes,
+    keccak_const,
+    prelude::*,
+    storage::{StorageAddress, StorageBool, StorageMap, StorageVec},
 };
 
 pub const WORKSMAN_STORAGE_SLOT: U256 = {
@@ -54,17 +55,14 @@ impl Worksman {
 
 #[public]
 impl Worksman {
-    pub fn accept_appointment(&mut self, worksman: Address) -> Result<(), Vec<u8>> {
-        let mut storage = Keep::storage();
-        if !storage.worksman.get().is_zero() {
-            Err(b"Worksman already appointed")?;
+    pub fn add_vault(&mut self, vault: Address) -> Result<(), Vec<u8>> {
+        let mut storage = Self::_storage();
+        let mut vault_setter = storage.all_vaults.setter(vault);
+        if vault_setter.get() {
+            Err(b"Vault already added")?;
         }
-        storage.worksman.set(worksman);
-        self.top_level_call(ICastle::createProtectedFunctionsCall {
-            contract_address: worksman,
-            function_selectors: vec![IWorksman::addVaultCall::SELECTOR.into()],
-            required_role: CASTLE_ADMIN_ROLE.into(),
-        })?;
+        vault_setter.set(true);
+        storage.free_vaults.push(vault);
         Ok(())
     }
 
@@ -80,16 +78,5 @@ impl Worksman {
         let _ = index;
         let _ = info;
         Ok(vault)
-    }
-
-    pub fn add_vault(&mut self, vault: Address) -> Result<(), Vec<u8>> {
-        let mut storage = Self::_storage();
-        let mut vault_setter = storage.all_vaults.setter(vault);
-        if vault_setter.get() {
-            Err(b"Vault already added")?;
-        }
-        vault_setter.set(true);
-        storage.free_vaults.push(vault);
-        Ok(())
     }
 }

@@ -25,6 +25,7 @@ abacus-formulas = { workspace = true }
 [features]
 default = []
 debug = []
+amount-sqrt = ["common/amount-sqrt"]
 
 # if we're compiling smart-contracts
 stylus = [
