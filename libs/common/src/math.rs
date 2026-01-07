@@ -32,12 +32,14 @@ pub fn solve_quadratic_bid(a: Amount, b: Amount, negative_c: Amount) -> Option<A
 /// NOTE: We are solving quadratic equation with negative term `- C`, which is
 /// why in the root solution there is `+` in the part under radical `B^2 + 4 A C`.
 /// 
+/// This computes solution or point of maximum value.
+/// 
 #[cfg(feature = "amount-sqrt")]
 pub fn solve_quadratic_ask(a: Amount, b: Amount, negative_c: Amount) -> Option<Amount> {
     let b_squared = b.checked_sq()?;
     let ac = a.checked_mul(negative_c)?;
     let four_ac = ac.checked_mul(Amount::FOUR)?;
-    let rad = b_squared.checked_sub(four_ac)?;
+    let rad = b_squared.saturating_sub(four_ac)?;
     let sqrt = rad.checked_sqrt()?;
     let num = b.checked_sub(sqrt)?;
     let den = Amount::TWO.checked_mul(a)?;

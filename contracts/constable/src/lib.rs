@@ -13,8 +13,7 @@ use common::log_msg;
 use common_contracts::{
     contracts::{calls::InnerCall, castle::CASTLE_ADMIN_ROLE, clerk::ClerkStorage, keep::{KEEP_VERSION_NUMBER, Keep}},
     interfaces::{
-        banker::IBanker, castle::ICastle, constable::IConstable, factor::IFactor,
-        guildmaster::IGuildmaster, scribe::IScribe, worksman::IWorksman,
+        banker::IBanker, castle::ICastle, clerk::IClerk, constable::IConstable, factor::IFactor, guildmaster::IGuildmaster, scribe::IScribe, worksman::IWorksman
     },
 };
 use stylus_sdk::{keccak_const, prelude::*};
@@ -33,6 +32,10 @@ pub const CASTLE_KEEPER_ROLE: [u8; 32] = keccak_const::Keccak256::new()
 
 pub const CASTLE_VAULT_ROLE: [u8; 32] = keccak_const::Keccak256::new()
     .update(b"Castle.VAULT_ROLE")
+    .finalize();
+
+pub const CASTLE_MAINTAINER_ROLE: [u8; 32] = keccak_const::Keccak256::new()
+    .update(b"Castle.MAINTAINER_ROLE")
     .finalize();
 
 #[storage]
@@ -70,6 +73,7 @@ impl Constable {
                 IConstable::getKeeperRoleCall::SELECTOR.into(),
                 IConstable::getVendorRoleCall::SELECTOR.into(),
                 IConstable::getVaultRoleCall::SELECTOR.into(),
+                IConstable::getMaintainerRoleCall::SELECTOR.into(),
                 IConstable::getVersionCall::SELECTOR.into(),
             ],
         })?;
@@ -150,6 +154,7 @@ impl Constable {
             contract_address: factor,
             function_selectors: vec![
                 IFactor::getMarketDataCall::SELECTOR.into(),
+                IFactor::getIndexAssetsCountCall::SELECTOR.into(),
                 IFactor::getIndexAssetsCall::SELECTOR.into(),
                 IFactor::getIndexWeightsCall::SELECTOR.into(),
                 IFactor::getIndexQuoteCall::SELECTOR.into(),
@@ -253,6 +258,13 @@ impl Constable {
         if !clerk_storage.is_constructed() {
             clerk_storage.constructor()?;
         }
+        
+        self.top_level_call(ICastle::createProtectedFunctionsCall {
+            contract_address: clerk,
+            function_selectors: vec![IClerk::fetchVectorCall::SELECTOR.into()],
+            required_role: CASTLE_MAINTAINER_ROLE.into(),
+        })?;
+
         Ok(())
     }
 
@@ -270,6 +282,10 @@ impl Constable {
 
     pub fn get_vault_role(&self) -> B256 {
         CASTLE_VAULT_ROLE.into()
+    }
+    
+    pub fn get_maintainer_role(&self) -> B256 {
+        CASTLE_MAINTAINER_ROLE.into()
     }
     
     pub fn get_version(&self) -> U32 {

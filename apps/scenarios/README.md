@@ -26,7 +26,7 @@ export RPC_URL="http://localhost:8547"
 3. Deploy whole *Castle*
 
 ```
-./scripts/castle.sh
+./scripts/castle.sh --no-gates
 ```
 
 Once deployment completes at the end similar information will show:
@@ -58,10 +58,10 @@ Set these three roles:
 
 5. Add *Vault* to *Worksman* free-list
 
-We need to deploy some *Vault* contract to populate *Worksman* free-list:
+We need to deploy some *Vault* contract to populate *Worksman* free-list, and we'll use *Vault-Native* option:
 
 ```
-./scripts/vault.sh full $CASTLE 
+./scripts/vault.sh full $CASTLE --native
 ```
 
 Script at the end will show similar output:
@@ -83,12 +83,34 @@ export VAULT=0xeff7b46049fc677f58264e0ebb19df1a39195a21
 for now we can grant *Vault Raole* to the *Vault* like:
 ```
 ./scripts/roles.sh grant $CASTLE "Castle.VAULT_ROLE" $VAULT
+./scripts/roles.sh grant $CASTLE "Castle.KEEPER_ROLE" $VAULT
+```
+
+we can deploy Treasury to serve as collateral:
+```
+./scripts/treasury.sh full
+```
+
+```
+=== FULL DEPLOYMENT COMPLETE ===
+Logic: 0x819c6ea7e7aea2eb95d1926d520a76cd03c53aca
+Gate : 0x8571fc20dd9323af25e0d5c3f4795d8954f95498
+```
+
+and export to environment:
+```
+export COLLATERAL=0x8571fc20dd9323af25e0d5c3f4795d8954f95498
+```
+
+for custody we can use some address, or *Castle* for now:
+```
+export CUSTODY=$CASTLE
 ```
 
 until worksman does it, we can also configure *Vault* like:
 ```
 ./scripts/send.sh $VAULT "configureVault(uint128,string,string)" 1001 "Top100" "T100"
-./scripts/send.sh $VAULT "configureRequests(uint128,address,address,uint128)" "1" $DEPLOYER_ADDRESS $DEPLOYER_ADDRESS 10000000000000000000000
+./scripts/send.sh $VAULT "configureRequests(uint128,address,address,uint128)" "1" $CUSTODY $COLLATERAL 10000000000000000000000
 ```
 
 and in next command add *Vault* to free-list, which will look like:
@@ -119,3 +141,73 @@ This will run Scenario 5. which:
 - Submit Market Data from Vendor
 - Update Index pricing (quote)
 - Submit Buy order
+
+7. Post Scenario 5.
+
+Contgratulation, Scenario 5. ran successfully, now we can play.
+
+Inspect ITP meta:
+```
+./scripts/call.sh $VAULT "symbol()(string)"
+./scripts/call.sh $VAULT "name()(string)"
+./scripts/call.sh $VAULT "decimals()(uint256)"
+./scripts/call.sh $VAULT "collateralAsset()"
+```
+
+Check total supply of ITP, and total assets value in ITP:
+```
+./scripts/call.sh $VAULT "totalSupply()"
+./scripts/call.sh $VAULT "totalAssetsValue()"
+```
+
+
+Check your ITP balance, and assets value:
+```
+./scripts/call.sh $VAULT "balanceOf(address)" $DEPLOYER_ADDRESS
+./scripts/call.sh $VAULT "assetsValue(address)" $DEPLOYER_ADDRESS
+```
+
+Transfer some assets to another address, e.g. *Castle*:
+```
+./scripts/send.sh $VAULT "transfer(address,uint256)" $CASTLE 1000
+```
+
+If you want to know average value of some amount of ITP,
+and if you want to know amount of ITP worth of collateral:
+```
+./scripts/call.sh $VAULT "convertAssetsValue(uint128)" 1000000000000
+./scripts/call.sh $VAULT "convertItpAmount(uint128)" 1000000000000
+```
+
+Additionally if you want to estimate how much you'd need to pay for ITP,
+or you want to know how much ITP you'd get for given collateral:
+```
+./scripts/call.sh $VAULT "estimateAcquisitionCost(uint128)" 1000000000000 
+./scripts/call.sh $VAULT "estimateAcquisitionItp(uint128)" 1000000000000
+```
+
+And also if you are selling, and you want to know how much you will get for ITP,
+and how much ITP you need to sell to get specific amount:
+```
+./scripts/call.sh $VAULT "estimateDisposalGains(uint128)" 1000000000000
+./scripts/call.sh $VAULT "estimateDisposalItpCost(uint128)" 1000000000000
+```
+
+8. Place BUY order
+
+Let's try placing order!
+
+Mint some collateral token first:
+```
+./scripts/send.sh $COLLATERAL "mint(address,uint256)" $DEPLOYER_ADDRESS 100000000000000000000000000000000000000000000000000000000000000000000
+```
+
+Approve *Vault* to draw from our wallet:
+```
+./scripts/send.sh $COLLATERAL "approve(address,uint256)" $VAULT 100000000000
+```
+
+Place an order with Instant Fill:
+```
+./scripts/send.sh $VAULT "placeBuyOrder(uint128,bool,address)" 10000000000 true $DEPLOYER_ADDRESS
+```

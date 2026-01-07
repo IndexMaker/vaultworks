@@ -111,7 +111,7 @@ fn _init_trader_ask(
 
 fn _get_vendor_quote_id(vault: &mut Vault, vendor_id: U128) -> Result<U128, Vec<u8>> {
     let quote_id = vault.vendor_quotes.get(vendor_id);
-    if !quote_id.is_zero() {
+    if quote_id.is_zero() {
         Err(b"Quote not set")?;
     }
 
@@ -549,6 +549,18 @@ impl Factor {
         Ok((liquidity.into(), prices.into(), slopes.into()))
     }
 
+    pub fn get_index_assets_count(&self, index_id: U128) -> Result<U128, Vec<u8>> {
+        let storage = Keep::storage();
+        storage.check_version()?;
+
+        let clerk_storage = ClerkStorage::storage();
+        let vault = storage.vaults.get(index_id);
+
+        let data = clerk_storage.len_vector(vault.assets.get());
+
+        Ok(U128::from(data))
+    }
+
     pub fn get_index_assets(&self, index_id: U128) -> Result<Bytes, Vec<u8>> {
         let storage = Keep::storage();
         storage.check_version()?;
@@ -717,7 +729,7 @@ impl Factor {
         let ask_id = vault.total_ask.get();
         let ask = if !ask_id.is_zero() {
             clerk_storage
-                .fetch_bytes(bid_id)
+                .fetch_bytes(ask_id)
                 .ok_or_else(|| b"Total ask not set")?
         } else {
             amount_vec!(0, 0, 0).to_vec()

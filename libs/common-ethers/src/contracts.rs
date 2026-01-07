@@ -3,6 +3,7 @@ use ethers::contract::abigen;
 abigen!(
     Clerk,
     r"[
+        function fetchVector(uint128 id) external view returns (bytes memory)
         function updateRecords(bytes calldata code, uint128 num_registry) external
     ]"
 );
@@ -40,6 +41,8 @@ abigen!(
         function submitTransfer(uint128 index_id, address sender, address receiver, uint128 amount) external
 
         function getMarketData(uint128 vendor_id) external view returns (bytes memory, bytes memory, bytes memory)
+
+        function getIndexAssetsCount(uint128 index_id) external view returns (uint128)
 
         function getIndexAssets(uint128 index_id) external view returns (bytes memory)
 

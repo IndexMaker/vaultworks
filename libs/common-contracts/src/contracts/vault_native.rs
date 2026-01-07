@@ -87,15 +87,15 @@ impl VaultNativeStorage {
         caller: &impl InnerCall,
     ) -> Result<Vector, Vec<u8>> {
         // Not the most efficient way of getting unit vector of same length...
-        let IFactor::getIndexAssetsReturn { _0: assets } = caller.static_call_ret(
+        let IFactor::getIndexAssetsCountReturn { _0: count } = caller.static_call_ret(
             vault.gate_to_castle.get(),
-            IFactor::getIndexAssetsCall {
+            IFactor::getIndexAssetsCountCall {
                 index_id: vault.index_id.get().to(),
             },
         )?;
 
         let mut unit_vector = Vector { data: vec![] };
-        unit_vector.data.resize(assets.len(), Amount::ONE);
+        unit_vector.data.resize(count as usize, Amount::ONE);
         Ok(unit_vector)
     }
 }

@@ -23,8 +23,8 @@ struct Cli {
     #[arg(long)]
     castle_address: Option<String>,
 
-    #[arg(long)]
-    clerk_address: Option<String>,
+    // #[arg(long)]
+    // clerk_address: Option<String>,
 
     #[arg(short, long, value_delimiter = ',')]
     scenario: Vec<String>,
@@ -42,11 +42,11 @@ async fn main() -> eyre::Result<()> {
         None
     };
 
-    let clerk_address: Option<Address> = if let Some(a) = cli.clerk_address {
-        Some(a.parse()?)
-    } else {
-        None
-    };
+    // let clerk_address: Option<Address> = if let Some(a) = cli.clerk_address {
+    //     Some(a.parse()?)
+    // } else {
+    //     None
+    // };
 
     let scenario = cli.scenario;
 

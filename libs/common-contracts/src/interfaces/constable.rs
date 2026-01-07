@@ -24,6 +24,8 @@ sol!{
 
         function getVaultRole() external view returns (bytes32);
 
+        function getMaintainerRole() external view returns (bytes32);
+
         function getVersion() external view returns (uint32);
     }
 }

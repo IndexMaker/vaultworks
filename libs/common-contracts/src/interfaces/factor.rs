@@ -12,6 +12,8 @@ sol! {
 
         function getMarketData(uint128 vendor_id) external view returns (bytes memory, bytes memory, bytes memory);
 
+        function getIndexAssetsCount(uint128 index_id) external view returns (uint128);
+
         function getIndexAssets(uint128 index_id) external view returns (bytes memory);
 
         function getIndexWeights(uint128 index_id) external view returns (bytes memory);

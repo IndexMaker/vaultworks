@@ -354,7 +354,10 @@ impl Castle {
         let Some((contract_address, required_role)) =
             storage.get_function_delegate_from_calldata(calldata)?
         else {
-            return Err(b"Function not found".to_vec());
+            return Err(format!(
+                "Function not found: 0x{}",
+                hex::encode(&calldata[0..4])
+            ))?;
         };
 
         if let Some(required_role) = required_role {
@@ -372,7 +375,5 @@ impl Castle {
 #[cfg(test)]
 mod test {
     #[test]
-    fn test_castle() {
-        // TODO
-    }
+    fn test_castle() {}
 }

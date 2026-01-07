@@ -7,7 +7,7 @@ extern crate alloc;
 
 use alloc::vec::Vec;
 
-use alloy_primitives::{Address, U128, U256};
+use alloy_primitives::{Address, U128};
 use alloy_sol_types::{sol, SolEvent};
 use common::{amount::Amount, log_msg};
 use common_contracts::{
@@ -73,28 +73,14 @@ impl VaultNative {
         requests.collateral_asset.get()
     }
 
-    pub fn castle_two(&self) -> Address {
-        let vault = VaultStorage::storage();
-        vault.gate_to_castle.get()
-    }
-
-    pub fn index_id_two(&self) -> U128 {
-        let vault = VaultStorage::storage();
-        vault.index_id.get()
-    }
-
-    pub fn vendor_id_two(&self) -> U128 {
+    pub fn vendor_id(&self) -> U128 {
         let requests = VaultNativeStorage::storage();
         requests.vendor_id.get()
     }
     
-    pub fn balance_of_two(&self, account: Address) -> Result<U256, Vec<u8>> {
-        let vault = VaultStorage::storage();
-
-        let order = vault.get_order(self, account)?;
-        let itp_amount = order.tell_available()?;
-
-        Ok(itp_amount.to_u256())
+    pub fn custody_address(&self) -> Address {
+        let requests = VaultNativeStorage::storage();
+        requests.custody.get()
     }
 
     /// Returns value of underlying assets using micro-price
@@ -161,9 +147,15 @@ impl VaultNative {
 
         let quote = requests.get_quote(&vault, self)?;
         let itp_amount = Amount::from_u128(shares);
+        let max_order_size = Amount::from_u128(requests.max_order_size.get());
         let base_value = quote
-            .estimate_acquisition_cost(itp_amount, Amount::from_u128(requests.max_order_size.get()))
-            .ok_or_else(|| b"Failed to estimate cost")?;
+            .estimate_acquisition_cost(itp_amount, max_order_size)
+            .ok_or_else(|| {
+                format!(
+                    "Failed to estimate cost: {} ITP ({})",
+                    itp_amount.0, max_order_size.0
+                )
+            })?;
 
         Ok(base_value.to_u128())
     }
@@ -176,9 +168,10 @@ impl VaultNative {
 
         let quote = requests.get_quote(&vault, self)?;
         let cost = Amount::from_u128(assets);
+        let max_order_size = Amount::from_u128(requests.max_order_size.get());
         let itp_amount = quote
-            .estimate_acquisition_itp(cost, Amount::from_u128(requests.max_order_size.get()))
-            .ok_or_else(|| b"Failed to estimate cost")?;
+            .estimate_acquisition_itp(cost, max_order_size)
+            .ok_or_else(|| format!("Failed to estimate ITP: {} ({})", cost.0, max_order_size.0))?;
 
         Ok(itp_amount.to_u128())
     }
@@ -191,9 +184,15 @@ impl VaultNative {
 
         let quote = requests.get_quote(&vault, self)?;
         let itp_amount = Amount::from_u128(shares);
+        let max_order_size = Amount::from_u128(requests.max_order_size.get());
         let base_value = quote
-            .estimate_disposal_gains(itp_amount, Amount::from_u128(requests.max_order_size.get()))
-            .ok_or_else(|| b"Failed to estimate cost")?;
+            .estimate_disposal_gains(itp_amount, max_order_size)
+            .ok_or_else(|| {
+                format!(
+                    "Failed to estimate cost: {} ITP ({})",
+                    itp_amount.0, max_order_size.0
+                )
+            })?;
 
         Ok(base_value.to_u128())
     }
@@ -205,12 +204,44 @@ impl VaultNative {
         let requests = VaultNativeStorage::storage();
 
         let quote = requests.get_quote(&vault, self)?;
-        let cost = Amount::from_u128(assets);
+        let gains = Amount::from_u128(assets);
+        let max_order_size = Amount::from_u128(requests.max_order_size.get());
         let itp_amount = quote
-            .estimate_disposal_itp_cost(cost, Amount::from_u128(requests.max_order_size.get()))
-            .ok_or_else(|| b"Failed to estimate cost")?;
+            .estimate_disposal_itp_cost(gains, max_order_size)
+            .ok_or_else(|| {
+                format!(
+                    "Failed to estimate ITP cost: {} ({})",
+                    gains.0, max_order_size.0
+                )
+            })?;
 
         Ok(itp_amount.to_u128())
+    }
+
+    /// Returns MaxOrderSize before order is split into multiple chunks.
+    ///
+    /// When order size (measured in collateral asset) is less than
+    /// MaxOrderSize, then that order can be filled instantly. This is subject
+    /// to current CapacityLimit, which changes dynamically as new orders come,
+    /// supply, or market data changes.
+    ///
+    pub fn get_max_order_size(&self) -> U128 {
+        let requests = VaultNativeStorage::storage();
+        requests.max_order_size.get()
+    }
+
+    /// Returns (Capacity, Price, Slope) tuple
+    pub fn get_quote(&self) -> Result<(U128, U128, U128), Vec<u8>> {
+        let vault = VaultStorage::storage();
+        let requests = VaultNativeStorage::storage();
+
+        let quote = requests.get_quote(&vault, self)?;
+
+        Ok((
+            quote.capacity().to_u128(),
+            quote.price().to_u128(),
+            quote.slope().to_u128(),
+        ))
     }
 
     /// Places new BUY order request into the network.

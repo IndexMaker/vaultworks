@@ -60,6 +60,16 @@ pub struct Clerk;
 
 #[public]
 impl Clerk {
+    pub fn fetch_vector(&self, id: U128) -> Result<Bytes, Vec<u8>> {
+        let storage = ClerkStorage::storage();
+
+        let Some(vector) = storage.fetch_bytes(id) else {
+            return Err(format!("Vector not found: {}", id))?;
+        };
+
+        Ok(Bytes::from(vector))
+    }
+
     pub fn update_records(&mut self, code: Bytes, num_registry: u128) -> Result<(), Vec<u8>> {
         let mut storage = ClerkStorage::storage();
 
