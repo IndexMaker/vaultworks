@@ -77,7 +77,7 @@ impl Banker {
             );
             let clerk = storage.clerk.get();
             let num_registry = 16;
-            self.execute_vector_program(clerk, update, num_registry)?;
+            self.update_records(clerk, update, num_registry)?;
         } else {
             account.set_owner(self.attendee())?;
 
@@ -115,7 +115,7 @@ impl Banker {
             );
             let clerk = storage.clerk.get();
             let num_registry = 16;
-            self.execute_vector_program(clerk, update, num_registry)?;
+            self.update_records(clerk, update, num_registry)?;
         }
 
         Ok(())
@@ -162,7 +162,7 @@ impl Banker {
         );
         let clerk = storage.clerk.get();
         let num_registry = 16;
-        self.execute_vector_program(clerk, update, num_registry)?;
+        self.update_records(clerk, update, num_registry)?;
         Ok(())
     }
 
@@ -223,7 +223,7 @@ impl Banker {
         );
         let clerk = storage.clerk.get();
         let num_registry = 16;
-        self.execute_vector_program(clerk, update, num_registry)?;
+        self.update_records(clerk, update, num_registry)?;
         Ok(())
     }
 

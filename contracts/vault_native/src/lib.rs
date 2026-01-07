@@ -141,8 +141,6 @@ impl VaultNative {
         Ok(base_value.to_u128())
     }
 
-    /*
-
     /// Returns amount of ITP with given value computed without slippage.
     pub fn convert_itp_amount(&self, assets: U128) -> Result<U128, Vec<u8>> {
         let vault = VaultStorage::storage();
@@ -543,5 +541,4 @@ impl VaultNative {
         let order = vault.get_order(self, trader)?;
         Ok(order.itp_locked().to_u128())
     }
-    */
 }

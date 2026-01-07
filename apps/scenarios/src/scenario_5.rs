@@ -132,7 +132,7 @@ pub async fn run_scenario(client: &TxClient, castle_address: Address) -> eyre::R
 
         client
             .begin_tx()
-            .add(factor.update_index_quote(vendor_id, index_id))
+            .add(guildmaster.update_index_quote(vendor_id, index_id))
             .send()
             .await?;
     }

@@ -4,13 +4,13 @@ use alloy_primitives::{Address, Bytes};
 
 use crate::{
     contracts::calls::InnerCall,
-    interfaces::{abacus::IAbacus, scribe::IScribe, worksman::IWorksman},
+    interfaces::{clerk::IClerk, scribe::IScribe, worksman::IWorksman},
 };
 
 pub trait KeepCalls {
     fn attendee(&self) -> Address;
 
-    fn execute_vector_program(
+    fn update_records(
         &mut self,
         clerk: Address,
         code: impl Into<Bytes>,
@@ -39,17 +39,17 @@ where
         self.vm().msg_sender()
     }
 
-    fn execute_vector_program(
+    fn update_records(
         &mut self,
         clerk: Address,
         code: impl Into<Bytes>,
         num_registry: u128,
     ) -> Result<(), Vec<u8>> {
-        let call = IAbacus::executeCall {
+        let call = IClerk::updateRecordsCall {
             code: code.into(),
             num_registry,
         };
-        self.external_call(clerk, call)?;
+        self.inner_call(clerk, call)?;
         Ok(())
     }
 

@@ -5,10 +5,10 @@ use ethers::types::Address;
 use common_ethers::tx_sender::TxClient;
 use eyre::{eyre, OptionExt};
 
-mod scenario_1;
-mod scenario_2;
-mod scenario_3;
-mod scenario_4;
+// mod scenario_1;
+// mod scenario_2;
+// mod scenario_3;
+// mod scenario_4;
 mod scenario_5;
 
 #[derive(Parser, Debug)]
@@ -54,7 +54,7 @@ async fn main() -> eyre::Result<()> {
 
     for s in scenario {
         match s.as_str() {
-            "scenario1" => {
+            /*"scenario1" => {
                 scenario_1::run_scenario(
                     &client,
                     clerk_address.ok_or_eyre("Clerk address is required")?,
@@ -81,7 +81,7 @@ async fn main() -> eyre::Result<()> {
                     clerk_address.ok_or_eyre("Clerk address is required")?,
                 )
                 .await?;
-            }
+            }*/
             "scenario5" => {
                 scenario_5::run_scenario(
                     &client,

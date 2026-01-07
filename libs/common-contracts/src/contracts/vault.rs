@@ -110,7 +110,7 @@ impl VaultStorage {
         let IFactor::getTraderOrderReturn { _0: ret } =
             caller.static_call_ret(self.gate_to_castle.get(), call)?;
 
-        let order = Order::try_from_vec(ret).map_err(|_| b"Failed to decode order data")?;
+        let order = Order::try_from_vec(ret.into()).map_err(|_| b"Failed to decode order data")?;
         Ok(order)
     }
 
@@ -121,7 +121,7 @@ impl VaultStorage {
         let IFactor::getTotalOrderReturn { _0: ret } =
             caller.static_call_ret(self.gate_to_castle.get(), call)?;
 
-        let order = Order::try_from_vec(ret).map_err(|_| b"Failed to decode order data")?;
+        let order = Order::try_from_vec(ret.into()).map_err(|_| b"Failed to decode order data")?;
         Ok(order)
     }
 }

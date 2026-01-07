@@ -10,7 +10,7 @@ use stylus_sdk::{
 
 use crate::{
     contracts::{calls::InnerCall, formulas::Quote, storage::StorageSlot, vault::VaultStorage},
-    interfaces::factor::IFactor,
+    interfaces::{factor::IFactor, guildmaster::IGuildmaster},
 };
 
 pub const VAULT_NATIVE_STORAGE_SLOT: U256 = {
@@ -62,7 +62,7 @@ impl VaultNativeStorage {
         let IFactor::getIndexQuoteReturn { _0: ret } =
             caller.static_call_ret(vault.gate_to_castle.get(), call)?;
 
-        let quote = Quote::try_from_vec(ret).map_err(|_| b"Failed to decode quote data")?;
+        let quote = Quote::try_from_vec(ret.into()).map_err(|_| b"Failed to decode quote data")?;
         Ok(quote)
     }
 
@@ -73,7 +73,7 @@ impl VaultNativeStorage {
     ) -> Result<(), Vec<u8>> {
         caller.external_call(
             vault.gate_to_castle.get(),
-            IFactor::updateIndexQuoteCall {
+            IGuildmaster::updateIndexQuoteCall {
                 vendor_id: self.vendor_id.get().to(),
                 index_id: vault.index_id.get().to(),
             },

@@ -11,7 +11,6 @@ use abacus_formulas::{
     execute_buy_order::execute_buy_order, execute_sell_order::execute_sell_order,
     execute_transfer::execute_transfer, solve_quadratic_ask::solve_quadratic_ask,
     solve_quadratic_bid::solve_quadratic_bid, update_market_data::update_market_data,
-    update_quote::update_quote,
 };
 use alloy_primitives::{Address, U128};
 use common::vector::Vector;
@@ -244,7 +243,7 @@ impl Factor {
 
         let clerk = storage.clerk.get();
         let num_registry = 16;
-        self.execute_vector_program(clerk, update, num_registry)?;
+        self.update_records(clerk, update, num_registry)?;
         Ok(())
     }
 
@@ -326,7 +325,7 @@ impl Factor {
 
         let clerk = storage.clerk.get();
         let num_registry = 23;
-        self.execute_vector_program(clerk, update, num_registry)?;
+        self.update_records(clerk, update, num_registry)?;
 
         let index_order = clerk_storage
             .fetch_bytes(index_order_id)
@@ -421,7 +420,7 @@ impl Factor {
 
         let clerk = storage.clerk.get();
         let num_registry = 22;
-        self.execute_vector_program(clerk, update, num_registry)?;
+        self.update_records(clerk, update, num_registry)?;
 
         let index_order = clerk_storage
             .fetch_bytes(index_order_id)
@@ -519,7 +518,7 @@ impl Factor {
 
         let clerk = storage.clerk.get();
         let num_registry = 6;
-        self.execute_vector_program(clerk, update, num_registry)?;
+        self.update_records(clerk, update, num_registry)?;
 
         Ok(())
     }

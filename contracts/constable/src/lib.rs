@@ -58,7 +58,7 @@ impl Constable {
                 IConstable::appointGuildmasterCall::SELECTOR.into(),
                 IConstable::appointScribeCall::SELECTOR.into(),
                 IConstable::appointWorksmanCall::SELECTOR.into(),
-                IConstable::appendClerkChamberCall::SELECTOR.into(),
+                IConstable::appointClerkCall::SELECTOR.into(),
             ],
             required_role: CASTLE_ADMIN_ROLE.into(),
         })?;
@@ -69,6 +69,8 @@ impl Constable {
                 IConstable::getIssuerRoleCall::SELECTOR.into(),
                 IConstable::getKeeperRoleCall::SELECTOR.into(),
                 IConstable::getVendorRoleCall::SELECTOR.into(),
+                IConstable::getVaultRoleCall::SELECTOR.into(),
+                IConstable::getVersionCall::SELECTOR.into(),
             ],
         })?;
 
@@ -132,8 +134,6 @@ impl Constable {
         self.top_level_call(ICastle::createProtectedFunctionsCall {
             contract_address: factor,
             function_selectors: vec![
-                IFactor::updateIndexQuoteCall::SELECTOR.into(),
-                IFactor::updateMultipleIndexQuotesCall::SELECTOR.into(),
                 IFactor::submitBuyOrderCall::SELECTOR.into(),
                 IFactor::submitSellOrderCall::SELECTOR.into(),
             ],
@@ -181,6 +181,15 @@ impl Constable {
                 IGuildmaster::submitVoteCall::SELECTOR.into(),
             ],
             required_role: CASTLE_ISSUER_ROLE.into(),
+        })?;
+        
+        self.top_level_call(ICastle::createProtectedFunctionsCall {
+            contract_address: guildmaster,
+            function_selectors: vec![
+                IGuildmaster::updateIndexQuoteCall::SELECTOR.into(),
+                IGuildmaster::updateMultipleIndexQuotesCall::SELECTOR.into(),
+            ],
+            required_role: CASTLE_KEEPER_ROLE.into(),
         })?;
 
         Ok(())

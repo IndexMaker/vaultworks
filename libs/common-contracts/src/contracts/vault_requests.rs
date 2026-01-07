@@ -182,7 +182,7 @@ impl VaultRequestsStorage {
         let IFactor::getIndexQuoteReturn { _0: ret } =
             caller.static_call_ret(vault.gate_to_castle.get(), call)?;
 
-        let quote = Quote::try_from_vec(ret).map_err(|_| b"Failed to decode quote data")?;
+        let quote = Quote::try_from_vec(ret.into()).map_err(|_| b"Failed to decode quote data")?;
         Ok(quote)
     }
 }

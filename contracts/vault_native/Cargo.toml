@@ -7,8 +7,8 @@ description = "IndexMaker Vault Native (An implementation independent of ERC sta
 [dependencies]
 alloy-primitives = { workspace = true }
 alloy-sol-types = { workspace = true }
-common = { workspace = true, features = ["stylus"] }#, "amount-sqrt"] }
-common-contracts = { workspace = true, features = ["stylus"] } #, "amount-sqrt"] }
+common = { workspace = true, features = ["stylus", "amount-sqrt"] }
+common-contracts = { workspace = true, features = ["stylus", "amount-sqrt"] }
 hex = { workspace = true }
 stylus-sdk = { workspace = true, features = ["reentrant"]}
 

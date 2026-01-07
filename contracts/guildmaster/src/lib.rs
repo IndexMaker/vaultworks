@@ -141,7 +141,7 @@ impl Guildmaster {
 
         let clerk = storage.clerk.get();
         let num_registry = 16;
-        self.execute_vector_program(clerk, update, num_registry)?;
+        self.update_records(clerk, update, num_registry)?;
         Ok(())
     }
 
