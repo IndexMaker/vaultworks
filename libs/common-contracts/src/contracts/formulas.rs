@@ -70,7 +70,7 @@ impl Order {
     }
 
     pub fn itp_minted(&self) -> Amount {
-        self.ask.data[ORDER_REALIZED_OFFSET]
+        self.bid.data[ORDER_REALIZED_OFFSET]
     }
 
     pub fn itp_locked(&self) -> Amount {
@@ -96,7 +96,7 @@ impl Order {
         let sender_balance = self
             .itp_minted()
             .checked_sub(self.itp_burned())
-            .ok_or_else(|| b"MathUnderflow (minted < (redeem + burned)")?;
+            .ok_or_else(|| b"MathUnderflow (minted < burned)")?;
 
         Ok(sender_balance)
     }
@@ -115,7 +115,7 @@ impl Order {
                     .checked_add(self.itp_burned())
                     .ok_or_else(|| b"MathOverflow (redeem + burned)")?,
             )
-            .ok_or_else(|| b"MathUnderflow (minted < (redeem + burned)")?;
+            .ok_or_else(|| b"MathUnderflow (minted < (redeem + burned))")?;
 
         Ok(sender_balance)
     }

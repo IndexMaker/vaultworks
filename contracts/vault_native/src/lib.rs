@@ -7,9 +7,9 @@ extern crate alloc;
 
 use alloc::vec::Vec;
 
-use alloy_primitives::{Address, U128};
+use alloy_primitives::{Address, U128, U256};
 use alloy_sol_types::{sol, SolEvent};
-use common::amount::Amount;
+use common::{amount::Amount, log_msg};
 use common_contracts::{
     contracts::{
         calls::InnerCall, keep_calls::KeepCalls, vault::VaultStorage,
@@ -68,9 +68,33 @@ impl VaultNative {
     }
 
     /// Returns asset used as collateral paying for underlying assets.
-    fn collateral_asset(&self) -> Address {
+    pub fn collateral_asset(&self) -> Address {
         let requests = VaultNativeStorage::storage();
         requests.collateral_asset.get()
+    }
+
+    pub fn castle_two(&self) -> Address {
+        let vault = VaultStorage::storage();
+        vault.gate_to_castle.get()
+    }
+
+    pub fn index_id_two(&self) -> U128 {
+        let vault = VaultStorage::storage();
+        vault.index_id.get()
+    }
+
+    pub fn vendor_id_two(&self) -> U128 {
+        let requests = VaultNativeStorage::storage();
+        requests.vendor_id.get()
+    }
+    
+    pub fn balance_of_two(&self, account: Address) -> Result<U256, Vec<u8>> {
+        let vault = VaultStorage::storage();
+
+        let order = vault.get_order(self, account)?;
+        let itp_amount = order.tell_available()?;
+
+        Ok(itp_amount.to_u256())
     }
 
     /// Returns value of underlying assets using micro-price
@@ -108,12 +132,16 @@ impl VaultNative {
         let vault = VaultStorage::storage();
         let requests = VaultNativeStorage::storage();
 
+        log_msg!("Getting quote");
         let quote = requests.get_quote(&vault, self)?;
         let itp_amount = Amount::from_u128(shares);
+        log_msg!("Telling base value");
         let base_value = quote.tell_base_value(itp_amount)?;
 
         Ok(base_value.to_u128())
     }
+
+    /*
 
     /// Returns amount of ITP with given value computed without slippage.
     pub fn convert_itp_amount(&self, assets: U128) -> Result<U128, Vec<u8>> {
@@ -485,7 +513,7 @@ impl VaultNative {
         let collateral_remain = trader_order.collateral_remain.get();
         Ok(collateral_remain)
     }
-    
+
     /// ITP for SELL order submitted not yet picked by Keeper service.
     pub fn get_pending_disposal_itp(&self, trader: Address) -> Result<U128, Vec<u8>> {
         let requests = VaultNativeStorage::storage();
@@ -493,7 +521,7 @@ impl VaultNative {
         let itp_remain = trader_order.itp_remain.get();
         Ok(itp_remain)
     }
-    
+
     /// USDC available for withdrawal.
     pub fn get_withdraw_available(&self, trader: Address) -> Result<U128, Vec<u8>> {
         let requests = VaultNativeStorage::storage();
@@ -515,4 +543,5 @@ impl VaultNative {
         let order = vault.get_order(self, trader)?;
         Ok(order.itp_locked().to_u128())
     }
+    */
 }

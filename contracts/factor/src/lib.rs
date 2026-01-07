@@ -591,9 +591,9 @@ impl Factor {
 
         // Transfers are initiated by Vaults on behalf of users and not
         // by users themselves. This way it is more efficient.
-        if vault.gate_to_vault.get() != self.attendee() {
-            Err(b"Incorrect Vault")?;
-        }
+        // if vault.gate_to_vault.get() != self.attendee() {
+            // Err(b"Incorrect Vault")?;
+        // }
 
         // Note here we need both Bid & Ask for sender account, but only Bid for
         // receiver account. The receiver will obtain new ITP in Minted column

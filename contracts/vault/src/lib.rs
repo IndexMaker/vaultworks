@@ -102,6 +102,16 @@ impl Vault {
         Ok(())
     }
 
+    pub fn castle(&self) -> Address {
+        let vault = VaultStorage::storage();
+        vault.gate_to_castle.get()
+    }
+
+    pub fn index_id(&self) -> U128 {
+        let vault = VaultStorage::storage();
+        vault.index_id.get()
+    }
+
     // ERC20
 
     pub fn name(&self) -> alloc::string::String {
@@ -252,13 +262,18 @@ impl Vault {
     #[payable]
     #[fallback]
     fn fallback(&mut self, calldata: &[u8]) -> ArbResult {
-        let vault = VaultStorage::storage();
-        let requests = vault.requests_implementation.get();
-        if requests.is_zero() {
-            Err(b"No requests implementation")?;
-        }
+        let requests = {
+            let vault = VaultStorage::storage();
+            let requests = vault.requests_implementation.get();
+            if requests.is_zero() {
+                Err(b"No requests implementation")?;
+            }
+            requests
+        };
 
-        log_msg!("Delegating function to {}", requests);
-        unsafe { Ok(self.vm().delegate_call(&self, requests, calldata)?) }
+        unsafe {
+            let result = self.vm().delegate_call(&self, requests, calldata)?;
+            Ok(result)
+        }
     }
 }

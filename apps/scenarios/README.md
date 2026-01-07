@@ -53,6 +53,7 @@ Set these three roles:
 ./scripts/roles.sh grant $CASTLE "Castle.ISSUER_ROLE" $DEPLOYER_ADDRESS
 ./scripts/roles.sh grant $CASTLE "Castle.KEEPER_ROLE" $DEPLOYER_ADDRESS
 ./scripts/roles.sh grant $CASTLE "Castle.VENDOR_ROLE" $DEPLOYER_ADDRESS
+./scripts/roles.sh grant $CASTLE "Castle.VAULT_ROLE" $DEPLOYER_ADDRESS
 ```
 
 5. Add *Vault* to *Worksman* free-list
@@ -77,6 +78,17 @@ Copy address of the `Vault Gate` and export as `$VAULT` vailable, e.g.
 
 ```
 export VAULT=0xeff7b46049fc677f58264e0ebb19df1a39195a21
+```
+
+for now we can grant *Vault Raole* to the *Vault* like:
+```
+./scripts/roles.sh grant $CASTLE "Castle.VAULT_ROLE" $VAULT
+```
+
+until worksman does it, we can also configure *Vault* like:
+```
+./scripts/send.sh $VAULT "configureVault(uint128,string,string)" 1001 "Top100" "T100"
+./scripts/send.sh $VAULT "configureRequests(uint128,address,address,uint128)" "1" $DEPLOYER_ADDRESS $DEPLOYER_ADDRESS 10000000000000000000000
 ```
 
 and in next command add *Vault* to free-list, which will look like:
