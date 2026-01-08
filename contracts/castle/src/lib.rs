@@ -9,7 +9,6 @@ use alloc::vec::Vec;
 
 use alloy_primitives::{aliases::B32, Address, B256, U256};
 
-use alloy_sol_types::SolCall;
 use alloy_sol_types::SolEvent;
 use common::log_msg;
 use common_contracts::{
@@ -54,44 +53,6 @@ impl Castle {
 
     fn _only_admin(&self, acl: &AccessControlList) -> Result<(), Vec<u8>> {
         acl.only_role(self.get_admin_role(), self._attendee())?;
-        Ok(())
-    }
-
-    fn _prohibit_self(&self, contract_address: &Address) -> Result<(), Vec<u8>> {
-        if contract_address.is_zero() {
-            Err(b"Cannot reference null contract")?;
-        }
-        if self.vm().contract_address().eq(contract_address) {
-            Err(b"Cannot reference self")?;
-        }
-        Ok(())
-    }
-
-    fn _is_prohibited_function(&self, fun_sel: &[u8; 4]) -> bool {
-        match fun_sel {
-            &ICastle::appointConstableCall::SELECTOR
-            | &ICastle::createProtectedFunctionsCall::SELECTOR
-            | &ICastle::createPublicFunctionsCall::SELECTOR
-            | &ICastle::removeFunctionsCall::SELECTOR
-            | &ICastle::getFunctionDelegatesCall::SELECTOR
-            | &ICastle::hasRoleCall::SELECTOR
-            | &ICastle::grantRoleCall::SELECTOR
-            | &ICastle::revokeRoleCall::SELECTOR
-            | &ICastle::renounceRoleCall::SELECTOR
-            | &ICastle::deleteRoleCall::SELECTOR
-            | &ICastle::getAdminRoleCall::SELECTOR
-            | &ICastle::getRoleAssigneeCountCall::SELECTOR
-            | &ICastle::getRoleAssigneesCall::SELECTOR => true,
-            _ => false,
-        }
-    }
-
-    fn _check_functions(&self, fun_selectors: &Vec<B32>) -> Result<(), Vec<u8>> {
-        for fun_sel in fun_selectors {
-            if self._is_prohibited_function(fun_sel) {
-                Err(b"Function cannot be delegated")?
-            }
-        }
         Ok(())
     }
 }
@@ -143,91 +104,6 @@ impl Castle {
 
         self._only_admin(acl)?;
         self.inner_call(constable, IConstable::acceptAppointmentCall { constable })?;
-        Ok(())
-    }
-
-    /// Associate function selectors with delegate setting **public** access.
-    ///
-    /// Parameters
-    /// ----------
-    /// - contract_address: An address of the contract implementing the functions.
-    /// - fun_selectors: A list of function selectors (first 4 bytes of EVM ABI call encoding).
-    ///
-    /// Everyone will be able to access listed functions.
-    ///
-    pub fn create_public_functions(
-        &mut self,
-        contract_address: Address,
-        function_selectors: Vec<B32>,
-    ) -> Result<(), Vec<u8>> {
-        self._prohibit_self(&contract_address)?;
-        self._check_functions(&function_selectors)?;
-
-        let mut storage = CastleStorage::storage();
-        let acl = storage.get_acl_mut();
-
-        self._only_admin(acl)?;
-        storage.set_functions(Some(contract_address), None, &function_selectors);
-
-        self._publish_event(ICastle::PublicFunctionsCreated {
-            contract_address,
-            function_selectors,
-        });
-        Ok(())
-    }
-
-    /// Associate function selectors with delegate setting **protected** access.
-    ///
-    /// Parameters
-    /// ----------
-    /// - contract_address: An address of the contract implementing the functions.
-    /// - fun_selectors: A list of function selectors (first 4 bytes of EVM ABI call encoding).
-    /// - required_role: A role required to invoke any of the listed functions.
-    ///
-    /// Only users added to the role will be able to access listed functions.
-    ///
-    pub fn create_protected_functions(
-        &mut self,
-        contract_address: Address,
-        function_selectors: Vec<B32>,
-        required_role: B256,
-    ) -> Result<(), Vec<u8>> {
-        self._prohibit_self(&contract_address)?;
-        self._check_functions(&function_selectors)?;
-
-        let mut storage = CastleStorage::storage();
-        let acl = storage.get_acl_mut();
-
-        self._only_admin(acl)?;
-        storage.set_functions(
-            Some(contract_address),
-            Some(required_role),
-            &function_selectors,
-        );
-
-        self._publish_event(ICastle::ProtectedFunctionsCreated {
-            contract_address,
-            function_selectors,
-        });
-        Ok(())
-    }
-
-    /// Disassociate function selectors from delegates.
-    ///
-    /// Parameters
-    /// ----------
-    /// - fun_selectors: A list of function selectors (first 4 bytes of EVM ABI call encoding).
-    ///
-    pub fn remove_functions(&mut self, function_selectors: Vec<B32>) -> Result<(), Vec<u8>> {
-        self._check_functions(&function_selectors)?;
-
-        let mut storage = CastleStorage::storage();
-        let acl = storage.get_acl_mut();
-
-        self._only_admin(acl)?;
-        storage.set_functions(None, None, &function_selectors);
-
-        self._publish_event(ICastle::FunctionsRemoved { function_selectors });
         Ok(())
     }
 

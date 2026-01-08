@@ -28,6 +28,7 @@ pub mod interfaces {
     pub mod factor;
     pub mod guildmaster;
     pub mod scribe;
+    pub mod steward;
     pub mod treasury;
     pub mod vault;
     pub mod vault_native;

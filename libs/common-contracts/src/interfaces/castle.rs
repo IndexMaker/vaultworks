@@ -6,12 +6,6 @@ sol! {
 
         function appointConstable(address constable) external;
 
-        function createPublicFunctions(address contract_address, bytes4[] memory function_selectors) external;
-
-        function createProtectedFunctions(address contract_address, bytes4[] memory function_selectors, bytes32 required_role) external;
-
-        function removeFunctions(bytes4[] memory function_selectors) external;
-
         function getFunctionDelegates(bytes4[] memory fun_selectors) external view returns (address[] memory);
 
         function hasRole(bytes32 role, address attendee) external returns (bool);

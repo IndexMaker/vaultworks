@@ -10,7 +10,8 @@ use alloc::vec::Vec;
 use abacus_formulas::{
     execute_buy_order::execute_buy_order, execute_sell_order::execute_sell_order,
     execute_transfer::execute_transfer, solve_quadratic_ask::solve_quadratic_ask,
-    solve_quadratic_bid::solve_quadratic_bid, update_market_data::update_market_data,
+    solve_quadratic_bid::solve_quadratic_bid, submit_buy_order::submit_buy_order,
+    submit_sell_order::submit_sell_order, update_market_data::update_market_data,
 };
 use alloy_primitives::{Address, U128};
 use common::vector::Vector;
@@ -247,11 +248,119 @@ impl Factor {
         Ok(())
     }
 
+    pub fn process_trader_buy_order(
+        &mut self,
+        vendor_id: U128,
+        index_id: U128,
+        trader_address: Address,
+        max_order_size: u128,
+        asset_contribution_fractions: Bytes,
+    ) -> Result<(Bytes, Bytes, Bytes), Vec<u8>> {
+        self.execute_buy_order(
+            vendor_id,
+            index_id,
+            trader_address,
+            0,
+            0,
+            max_order_size,
+            asset_contribution_fractions,
+        )
+    }
+
+    pub fn process_trader_sell_order(
+        &mut self,
+        vendor_id: U128,
+        index_id: U128,
+        trader_address: Address,
+        max_order_size: u128,
+        asset_contribution_fractions: Bytes,
+    ) -> Result<(Bytes, Bytes, Bytes), Vec<u8>> {
+        self.execute_sell_order(
+            vendor_id,
+            index_id,
+            trader_address,
+            0,
+            0,
+            max_order_size,
+            asset_contribution_fractions,
+        )
+    }
+
+    pub fn submit_buy_order(
+        &mut self,
+        vendor_id: U128,
+        index_id: U128,
+        trader_address: Address,
+        collateral_added: u128,
+        collateral_removed: u128,
+    ) -> Result<(), Vec<u8>> {
+        let mut storage = Keep::storage();
+        storage.check_version()?;
+
+        let mut clerk_storage = ClerkStorage::storage();
+
+        let mut vault = storage.vaults.setter(index_id);
+
+        // Allocate new Index order or get existing one
+        let index_order_id = _init_trader_bid(&mut vault, &mut clerk_storage, trader_address);
+        let vendor_order_id = _init_vendor_bid(&mut vault, &mut clerk_storage, vendor_id);
+        let total_order_id = _init_total_bid(&mut vault, &mut clerk_storage);
+
+        let update = submit_buy_order(
+            index_order_id.to(),
+            vendor_order_id.to(),
+            total_order_id.to(),
+            collateral_added,
+            collateral_removed,
+        );
+
+        let clerk = storage.clerk.get();
+        let num_registry = 9;
+        self.update_records(clerk, update, num_registry)?;
+
+        Ok(())
+    }
+
+    pub fn submit_sell_order(
+        &mut self,
+        vendor_id: U128,
+        index_id: U128,
+        trader_address: Address,
+        collateral_added: u128,
+        collateral_removed: u128,
+    ) -> Result<(), Vec<u8>> {
+        let mut storage = Keep::storage();
+        storage.check_version()?;
+
+        let mut clerk_storage = ClerkStorage::storage();
+
+        let mut vault = storage.vaults.setter(index_id);
+
+        // Allocate new Index order or get existing one
+        let index_order_id = _init_trader_ask(&mut vault, &mut clerk_storage, trader_address);
+        let vendor_order_id = _init_vendor_ask(&mut vault, &mut clerk_storage, vendor_id);
+        let total_order_id = _init_total_ask(&mut vault, &mut clerk_storage);
+
+        let update = submit_sell_order(
+            index_order_id.to(),
+            vendor_order_id.to(),
+            total_order_id.to(),
+            collateral_added,
+            collateral_removed,
+        );
+
+        let clerk = storage.clerk.get();
+        let num_registry = 9;
+        self.update_records(clerk, update, num_registry)?;
+
+        Ok(())
+    }
+
     /// Submit BUY Index order
     ///
     /// Add collateral amount to user's order, and match for immediate execution.
     ///
-    pub fn submit_buy_order(
+    pub fn execute_buy_order(
         &mut self,
         vendor_id: U128,
         index_id: U128,
@@ -346,7 +455,7 @@ impl Factor {
         ))
     }
 
-    pub fn submit_sell_order(
+    pub fn execute_sell_order(
         &mut self,
         vendor_id: U128,
         index_id: U128,
@@ -355,7 +464,7 @@ impl Factor {
         collateral_removed: u128,
         max_order_size: u128,
         asset_contribution_fractions: Bytes,
-    ) -> Result<(Vec<u8>, Vec<u8>, Vec<u8>), Vec<u8>> {
+    ) -> Result<(Bytes, Bytes, Bytes), Vec<u8>> {
         let mut storage = Keep::storage();
         storage.check_version()?;
 
@@ -455,7 +564,7 @@ impl Factor {
     //     Err(b"Not implemented yet".into())
     // }
 
-    pub fn submit_transfer(
+    pub fn execute_transfer(
         &mut self,
         index_id: U128,
         sender: Address,
@@ -521,220 +630,5 @@ impl Factor {
         self.update_records(clerk, update, num_registry)?;
 
         Ok(())
-    }
-
-    //
-    // Query methods
-    //
-
-    pub fn get_market_data(&self, vendor_id: U128) -> Result<(Bytes, Bytes, Bytes), Vec<u8>> {
-        let storage = Keep::storage();
-        storage.check_version()?;
-
-        let clerk_storage = ClerkStorage::storage();
-        let account = storage.accounts.get(vendor_id);
-
-        let liquidity = clerk_storage
-            .fetch_bytes(account.liquidity.get())
-            .ok_or_else(|| b"Liquidity not set")?;
-
-        let prices = clerk_storage
-            .fetch_bytes(account.prices.get())
-            .ok_or_else(|| b"Prices not set")?;
-
-        let slopes = clerk_storage
-            .fetch_bytes(account.slopes.get())
-            .ok_or_else(|| b"Slopes not set")?;
-
-        Ok((liquidity.into(), prices.into(), slopes.into()))
-    }
-
-    pub fn get_index_assets_count(&self, index_id: U128) -> Result<U128, Vec<u8>> {
-        let storage = Keep::storage();
-        storage.check_version()?;
-
-        let clerk_storage = ClerkStorage::storage();
-        let vault = storage.vaults.get(index_id);
-
-        let data = clerk_storage.len_vector(vault.assets.get());
-
-        Ok(U128::from(data))
-    }
-
-    pub fn get_index_assets(&self, index_id: U128) -> Result<Bytes, Vec<u8>> {
-        let storage = Keep::storage();
-        storage.check_version()?;
-
-        let clerk_storage = ClerkStorage::storage();
-        let vault = storage.vaults.get(index_id);
-
-        let data = clerk_storage
-            .fetch_bytes(vault.assets.get())
-            .ok_or_else(|| b"Assets not set")?;
-
-        Ok(data.into())
-    }
-
-    pub fn get_index_weights(&self, index_id: U128) -> Result<Bytes, Vec<u8>> {
-        let storage = Keep::storage();
-        storage.check_version()?;
-
-        let clerk_storage = ClerkStorage::storage();
-        let vault = storage.vaults.get(index_id);
-
-        let data = clerk_storage
-            .fetch_bytes(vault.weights.get())
-            .ok_or_else(|| b"Weights not set")?;
-
-        Ok(data.into())
-    }
-
-    pub fn get_index_quote(&self, index_id: U128, vendor_id: U128) -> Result<Bytes, Vec<u8>> {
-        let storage = Keep::storage();
-        storage.check_version()?;
-
-        let clerk_storage = ClerkStorage::storage();
-        let vault = storage.vaults.get(index_id);
-
-        let quote_id = vault.vendor_quotes.get(vendor_id);
-
-        let data = clerk_storage
-            .fetch_bytes(quote_id)
-            .ok_or_else(|| b"Quote not set")?;
-
-        Ok(data.into())
-    }
-
-    pub fn get_trader_order(&self, index_id: U128, trader: Address) -> Result<Bytes, Vec<u8>> {
-        let storage = Keep::storage();
-        storage.check_version()?;
-
-        let clerk_storage = ClerkStorage::storage();
-        let vault = storage.vaults.get(index_id);
-
-        let bid_id = vault.traders_bids.get(trader);
-
-        let bid = if !bid_id.is_zero() {
-            clerk_storage
-                .fetch_bytes(bid_id)
-                .ok_or_else(|| b"Bid not set")?
-        } else {
-            amount_vec!(0, 0, 0).to_vec()
-        };
-
-        let ask_id = vault.traders_asks.get(trader);
-        let ask = if !ask_id.is_zero() {
-            clerk_storage
-                .fetch_bytes(ask_id)
-                .ok_or_else(|| b"Ask not set")?
-        } else {
-            amount_vec!(0, 0, 0).to_vec()
-        };
-
-        Ok(Order::encode_vec_pair(bid, ask).into())
-    }
-
-    pub fn get_trader_count(&self, index_id: U128) -> Result<U128, Vec<u8>> {
-        let storage = Keep::storage();
-        storage.check_version()?;
-
-        let vault = storage.vaults.get(index_id);
-
-        let result = U128::from(vault.traders.len());
-        Ok(result)
-    }
-
-    pub fn get_trader_at(&self, index_id: U128, offset: u128) -> Result<Address, Vec<u8>> {
-        let storage = Keep::storage();
-        storage.check_version()?;
-
-        let vault = storage.vaults.get(index_id);
-
-        if let Some(address) = vault.traders.get(offset) {
-            Ok(address)
-        } else {
-            Err(b"Trader has no orders".into())
-        }
-    }
-
-    pub fn get_vendor_order(&self, index_id: U128, vendor_id: U128) -> Result<Bytes, Vec<u8>> {
-        let storage = Keep::storage();
-        storage.check_version()?;
-
-        let clerk_storage = ClerkStorage::storage();
-        let vault = storage.vaults.get(index_id);
-
-        let bid_id = vault.vendors_bids.get(vendor_id);
-
-        let bid = if !bid_id.is_zero() {
-            clerk_storage
-                .fetch_bytes(bid_id)
-                .ok_or_else(|| b"Vendor bid not set")?
-        } else {
-            amount_vec!(0, 0, 0).to_vec()
-        };
-
-        let ask_id = vault.vendors_asks.get(vendor_id);
-        let ask = if !ask_id.is_zero() {
-            clerk_storage
-                .fetch_bytes(ask_id)
-                .ok_or_else(|| b"Vendor ask not set")?
-        } else {
-            amount_vec!(0, 0, 0).to_vec()
-        };
-
-        Ok(Order::encode_vec_pair(bid, ask).into())
-    }
-
-    pub fn get_vendor_count(&self, index_id: U128) -> Result<U128, Vec<u8>> {
-        let storage = Keep::storage();
-        storage.check_version()?;
-
-        let vault = storage.vaults.get(index_id);
-
-        let result = U128::from(vault.vendors.len());
-        Ok(result)
-    }
-
-    pub fn get_vendor_at(&self, index_id: U128, offset: u128) -> Result<U128, Vec<u8>> {
-        let storage = Keep::storage();
-        storage.check_version()?;
-
-        let vault = storage.vaults.get(index_id);
-
-        if let Some(vendor_id) = vault.vendors.get(offset) {
-            Ok(vendor_id)
-        } else {
-            Err(b"Vendor has no orders".into())
-        }
-    }
-
-    pub fn get_total_order(&self, index_id: U128) -> Result<Bytes, Vec<u8>> {
-        let storage = Keep::storage();
-        storage.check_version()?;
-
-        let clerk_storage = ClerkStorage::storage();
-        let vault = storage.vaults.get(index_id);
-
-        let bid_id = vault.total_bid.get();
-
-        let bid = if !bid_id.is_zero() {
-            clerk_storage
-                .fetch_bytes(bid_id)
-                .ok_or_else(|| b"Total bid not set")?
-        } else {
-            amount_vec!(0, 0, 0).to_vec()
-        };
-
-        let ask_id = vault.total_ask.get();
-        let ask = if !ask_id.is_zero() {
-            clerk_storage
-                .fetch_bytes(ask_id)
-                .ok_or_else(|| b"Total ask not set")?
-        } else {
-            amount_vec!(0, 0, 0).to_vec()
-        };
-
-        Ok(Order::encode_vec_pair(bid, ask).into())
     }
 }

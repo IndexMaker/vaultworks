@@ -10,7 +10,7 @@ use stylus_sdk::{
 
 use crate::{
     contracts::{calls::InnerCall, formulas::Quote, storage::StorageSlot, vault::VaultStorage},
-    interfaces::factor::IFactor,
+    interfaces::steward::ISteward,
 };
 
 pub const VAULT_REQUESTS_STORAGE_SLOT: U256 = {
@@ -175,11 +175,11 @@ impl VaultRequestsStorage {
         vault: &VaultStorage,
         caller: &impl InnerCall,
     ) -> Result<Quote, Vec<u8>> {
-        let call = IFactor::getIndexQuoteCall {
+        let call = ISteward::getIndexQuoteCall {
             index_id: vault.index_id.get().to(),
             vendor_id: self.vendor_id.get().to(),
         };
-        let IFactor::getIndexQuoteReturn { _0: ret } =
+        let ISteward::getIndexQuoteReturn { _0: ret } =
             caller.static_call_ret(vault.gate_to_castle.get(), call)?;
 
         let quote = Quote::try_from_vec(ret.into()).map_err(|_| b"Failed to decode quote data")?;

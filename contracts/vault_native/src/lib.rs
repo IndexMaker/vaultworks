@@ -15,7 +15,10 @@ use common_contracts::{
         calls::InnerCall, keep_calls::KeepCalls, vault::VaultStorage,
         vault_native::VaultNativeStorage,
     },
-    interfaces::factor::IFactor,
+    interfaces::{
+        factor::IFactor,
+        vault_native::IVaultNative::{BuyOrder, SellOrder},
+    },
 };
 use stylus_sdk::prelude::*;
 
@@ -23,9 +26,6 @@ sol! {
     interface IERC20 {
         function transferFrom(address from, address to, uint256 value) external returns (bool);
     }
-
-    event BuyOrder(uint128 index_id, uint128 vendor_id, uint128 collateral_amount, address trader);
-    event SellOrder(uint128 index_id, uint128 vendor_id, uint128 itp_amount, address trader);
 }
 
 #[storage]
@@ -77,7 +77,7 @@ impl VaultNative {
         let requests = VaultNativeStorage::storage();
         requests.vendor_id.get()
     }
-    
+
     pub fn custody_address(&self) -> Address {
         let requests = VaultNativeStorage::storage();
         requests.custody.get()
@@ -265,7 +265,7 @@ impl VaultNative {
             Err(b"Zero collateral amount")?;
         }
         let vault = VaultStorage::storage();
-        let mut requests = VaultNativeStorage::storage();
+        let requests = VaultNativeStorage::storage();
         let sender = self.attendee();
 
         if sender != trader {
@@ -292,7 +292,7 @@ impl VaultNative {
 
             self.external_call(
                 vault.gate_to_castle.get(),
-                IFactor::submitBuyOrderCall {
+                IFactor::executeBuyOrderCall {
                     vendor_id: requests.vendor_id.get().to(),
                     index_id: vault.index_id.get().to(),
                     trader_address: trader,
@@ -312,13 +312,17 @@ impl VaultNative {
                 trader,
             }
         } else {
-            // We only account for pending requests and not instant fills.
-            let mut trader_order = requests.trader_orders.setter(trader);
-            let mut collateral_remain = trader_order.collateral_remain.get();
-            collateral_remain = collateral_remain
-                .checked_add(collateral_amount)
-                .ok_or_else(|| b"MathOverflow")?;
-            trader_order.collateral_remain.set(collateral_remain);
+            // Send pending order without executing it
+            self.external_call(
+                vault.gate_to_castle.get(),
+                IFactor::submitBuyOrderCall {
+                    vendor_id: requests.vendor_id.get().to(),
+                    index_id: vault.index_id.get().to(),
+                    trader_address: trader,
+                    collateral_added: collateral_amount.to(),
+                    collateral_removed: 0,
+                },
+            )?;
 
             // We publish event with original collateral amount, as we only
             // deposited collateral, but haven't executed anything yet. Keeper
@@ -363,7 +367,7 @@ impl VaultNative {
         }
 
         let vault = VaultStorage::storage();
-        let mut requests = VaultNativeStorage::storage();
+        let requests = VaultNativeStorage::storage();
         let sender = self.attendee();
 
         if sender != trader {
@@ -379,7 +383,7 @@ impl VaultNative {
             // Submit order and get instant fill if possible
             self.external_call(
                 vault.gate_to_castle.get(),
-                IFactor::submitSellOrderCall {
+                IFactor::executeSellOrderCall {
                     vendor_id: requests.vendor_id.get().to(),
                     index_id: vault.index_id.get().to(),
                     trader_address: trader,
@@ -399,13 +403,17 @@ impl VaultNative {
                 trader,
             }
         } else {
-            // We only account for pending requests and not instant fills.
-            let mut trader_order = requests.trader_orders.setter(trader);
-            let mut itp_remain = trader_order.itp_remain.get();
-            itp_remain = itp_remain
-                .checked_add(itp_amount)
-                .ok_or_else(|| b"MathOverflow")?;
-            trader_order.itp_remain.set(itp_remain);
+            // Send pending order without executing it
+            self.external_call(
+                vault.gate_to_castle.get(),
+                IFactor::submitSellOrderCall {
+                    vendor_id: requests.vendor_id.get().to(),
+                    index_id: vault.index_id.get().to(),
+                    trader_address: trader,
+                    collateral_added: itp_amount.to(),
+                    collateral_removed: 0,
+                },
+            )?;
 
             // We publish event with original ITP amount, as we haven't executed
             // anything yet. Keeper service will call submitByOrder() on our
@@ -424,55 +432,11 @@ impl VaultNative {
         Ok(())
     }
 
-    /// Keeper confirms that it picked user's BUY order by calling this method.
-    pub fn confirm_buy_order(&mut self, amount: U128, trader: Address) -> Result<(), Vec<u8>> {
-        let mut requests = VaultNativeStorage::storage();
-        let sender = self.attendee();
-
-        if !requests.is_operator(sender) {
-            Err(b"Sender must be an operator")?;
-        }
-
-        // Update our records of collateral remain, as now we have confirmation
-        // that Keeper has seen BuyOrder event, and collateral is part of the
-        // active order.
-        let mut trader_order = requests.trader_orders.setter(trader);
-        let mut collateral_remain = trader_order.collateral_remain.get();
-        collateral_remain = collateral_remain
-            .checked_sub(amount)
-            .ok_or_else(|| b"MathUnderflow")?;
-        trader_order.collateral_remain.set(collateral_remain);
-
-        Ok(())
-    }
-
-    /// Keeper confirms that it picked user's SELL order by calling this method.
-    pub fn confirm_sell_order(&mut self, itp_amount: U128, trader: Address) -> Result<(), Vec<u8>> {
-        let mut requests = VaultNativeStorage::storage();
-        let sender = self.attendee();
-
-        if !requests.is_operator(sender) {
-            Err(b"Sender must be an operator")?;
-        }
-
-        // Update our records of ITP remain, as now we have confirmation
-        // that Keeper has seen BuyOrder event, and collateral is part of the
-        // active order.
-        let mut trader_order = requests.trader_orders.setter(trader);
-        let mut itp_remain = trader_order.itp_remain.get();
-        itp_remain = itp_remain
-            .checked_sub(itp_amount)
-            .ok_or_else(|| b"MathUnderflow")?;
-        trader_order.itp_remain.set(itp_remain);
-
-        Ok(())
-    }
-
     /// Keeper confirms that portion of SELL order has been realized and amount
     /// of gains is available for withdrawal.
     pub fn confirm_withdraw_available(
         &mut self,
-        itp_amount: U128,
+        amount: U128,
         trader: Address,
     ) -> Result<(), Vec<u8>> {
         let mut requests = VaultNativeStorage::storage();
@@ -488,7 +452,7 @@ impl VaultNative {
         let mut trader_order = requests.trader_orders.setter(trader);
         let mut withdraw_ready = trader_order.withdraw_ready.get();
         withdraw_ready = withdraw_ready
-            .checked_add(itp_amount)
+            .checked_add(amount)
             .ok_or_else(|| b"MathOverflow")?;
         trader_order.withdraw_ready.set(withdraw_ready);
 
@@ -533,22 +497,6 @@ impl VaultNative {
         )?;
 
         Ok(())
-    }
-
-    /// Collateral for BUY order submitted not yet picked by Keeper service.
-    pub fn get_pending_acquisition_collateral(&self, trader: Address) -> Result<U128, Vec<u8>> {
-        let requests = VaultNativeStorage::storage();
-        let trader_order = requests.trader_orders.getter(trader);
-        let collateral_remain = trader_order.collateral_remain.get();
-        Ok(collateral_remain)
-    }
-
-    /// ITP for SELL order submitted not yet picked by Keeper service.
-    pub fn get_pending_disposal_itp(&self, trader: Address) -> Result<U128, Vec<u8>> {
-        let requests = VaultNativeStorage::storage();
-        let trader_order = requests.trader_orders.getter(trader);
-        let itp_remain = trader_order.itp_remain.get();
-        Ok(itp_remain)
     }
 
     /// USDC available for withdrawal.

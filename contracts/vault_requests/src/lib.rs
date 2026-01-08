@@ -286,7 +286,7 @@ impl VaultRequests {
         // Transfer ITP from Keeper account to Trader account
         self.external_call(
             vault.gate_to_castle.get(),
-            IFactor::submitTransferCall {
+            IFactor::executeTransferCall {
                 index_id: vault.index_id.get().to(),
                 sender: controller,
                 receiver,
@@ -328,7 +328,7 @@ impl VaultRequests {
         // Transfer ITP from Trader account to Keeper account
         self.external_call(
             vault.gate_to_castle.get(),
-            IFactor::submitTransferCall {
+            IFactor::executeTransferCall {
                 index_id: vault.index_id.get().to(),
                 sender: owner,
                 receiver: controller,
