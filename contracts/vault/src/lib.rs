@@ -182,7 +182,7 @@ impl Vault {
         // Vault is submitting transfer on behalf of msg.sender (attendee)
         self.external_call(
             vault.gate_to_castle.get(),
-            IFactor::submitTransferCall {
+            IFactor::executeTransferCall {
                 index_id: vault.index_id.get().to(),
                 sender,
                 receiver: to,
@@ -247,7 +247,7 @@ impl Vault {
 
         self.external_call(
             vault.gate_to_castle.get(),
-            IFactor::submitTransferCall {
+            IFactor::executeTransferCall {
                 index_id: vault.index_id.get().to(),
                 sender: from,
                 receiver: to,

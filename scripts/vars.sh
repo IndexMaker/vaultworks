@@ -167,7 +167,7 @@ contract_send() {
         --rpc-url $RPC_URL $ADDRESS "$FUNCTION_SELECTOR" "${@:3}"
     )
     
-    echo "cast send --private-key \$DEPLOY_PRIVATE_KEY ${CAST_ARGS[@]}"
+    echo "cast send --private-key \$DEPLOY_PRIVATE_KEY ${CAST_ARGS[@]}" >&2
 
     cast send --private-key $DEPLOY_PRIVATE_KEY "${CAST_ARGS[@]}"
 }
@@ -185,7 +185,7 @@ contract_call() {
         --rpc-url $RPC_URL $ADDRESS "$FUNCTION_SELECTOR" "${@:3}"
     )
     
-    echo "cast call --private-key \$DEPLOY_PRIVATE_KEY ${CAST_ARGS[@]}"
+    echo "cast call --private-key \$DEPLOY_PRIVATE_KEY ${CAST_ARGS[@]}" >&2
 
     cast call --private-key $DEPLOY_PRIVATE_KEY "${CAST_ARGS[@]}"
 }

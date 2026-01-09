@@ -4665,6 +4665,27 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a2eb9349b6444b326872e140eb1cf5e7c522154d69e7a0ffb0fb81c06b37543f"
 
 [[package]]
+name = "steward"
+version = "0.1.0"
+dependencies = [
+ "abacus-formulas",
+ "abacus-macros",
+ "alloy-primitives",
+ "alloy-sol-types",
+ "amount-macros",
+ "common",
+ "common-contracts",
+ "dotenv",
+ "ethers",
+ "eyre",
+ "hex",
+ "labels-macros",
+ "stylus-sdk",
+ "tokio",
+ "vector-macros",
+]
+
+[[package]]
 name = "string_cache"
 version = "0.8.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"

@@ -10,6 +10,7 @@ members = [
     "contracts/gate",
     "contracts/guildmaster",
     "contracts/scribe",
+    "contracts/steward",
     "contracts/treasury",
     "contracts/vault",
     "contracts/vault_native",

@@ -8,12 +8,8 @@ use stylus_sdk::{
 };
 
 use crate::{
-    contracts::{
-        calls::InnerCall,
-        formulas::Order,
-        storage::StorageSlot,
-    },
-    interfaces::factor::IFactor,
+    contracts::{calls::InnerCall, formulas::Order, storage::StorageSlot},
+    interfaces::steward::ISteward,
 };
 
 pub const VAULT_STORAGE_SLOT: U256 = {
@@ -103,11 +99,11 @@ impl VaultStorage {
     }
 
     pub fn get_order(&self, caller: &impl InnerCall, account: Address) -> Result<Order, Vec<u8>> {
-        let call = IFactor::getTraderOrderCall {
+        let call = ISteward::getTraderOrderCall {
             index_id: self.index_id.get().to(),
             trader: account,
         };
-        let IFactor::getTraderOrderReturn { _0: ret } =
+        let ISteward::getTraderOrderReturn { _0: ret } =
             caller.static_call_ret(self.gate_to_castle.get(), call)?;
 
         let order = Order::try_from_vec(ret.into()).map_err(|_| b"Failed to decode order data")?;
@@ -115,10 +111,10 @@ impl VaultStorage {
     }
 
     pub fn get_total_order(&self, caller: &impl InnerCall) -> Result<Order, Vec<u8>> {
-        let call = IFactor::getTotalOrderCall {
+        let call = ISteward::getTotalOrderCall {
             index_id: self.index_id.get().to(),
         };
-        let IFactor::getTotalOrderReturn { _0: ret } =
+        let ISteward::getTotalOrderReturn { _0: ret } =
             caller.static_call_ret(self.gate_to_castle.get(), call)?;
 
         let order = Order::try_from_vec(ret.into()).map_err(|_| b"Failed to decode order data")?;

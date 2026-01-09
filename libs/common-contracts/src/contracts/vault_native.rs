@@ -10,7 +10,7 @@ use stylus_sdk::{
 
 use crate::{
     contracts::{calls::InnerCall, formulas::Quote, storage::StorageSlot, vault::VaultStorage},
-    interfaces::{factor::IFactor, guildmaster::IGuildmaster},
+    interfaces::{guildmaster::IGuildmaster, steward::ISteward},
 };
 
 pub const VAULT_NATIVE_STORAGE_SLOT: U256 = {
@@ -22,8 +22,6 @@ pub const VAULT_NATIVE_STORAGE_SLOT: U256 = {
 
 #[storage]
 pub struct TraderOrder {
-    pub collateral_remain: StorageU128,
-    pub itp_remain: StorageU128,
     pub withdraw_ready: StorageU128,
 }
 
@@ -55,11 +53,11 @@ impl VaultNativeStorage {
         vault: &VaultStorage,
         caller: &impl InnerCall,
     ) -> Result<Quote, Vec<u8>> {
-        let call = IFactor::getIndexQuoteCall {
+        let call = ISteward::getIndexQuoteCall {
             index_id: vault.index_id.get().to(),
             vendor_id: self.vendor_id.get().to(),
         };
-        let IFactor::getIndexQuoteReturn { _0: ret } =
+        let ISteward::getIndexQuoteReturn { _0: ret } =
             caller.static_call_ret(vault.gate_to_castle.get(), call)?;
 
         let quote = Quote::try_from_vec(ret.into()).map_err(|_| b"Failed to decode quote data")?;
@@ -87,9 +85,9 @@ impl VaultNativeStorage {
         caller: &impl InnerCall,
     ) -> Result<Vector, Vec<u8>> {
         // Not the most efficient way of getting unit vector of same length...
-        let IFactor::getIndexAssetsCountReturn { _0: count } = caller.static_call_ret(
+        let ISteward::getIndexAssetsCountReturn { _0: count } = caller.static_call_ret(
             vault.gate_to_castle.get(),
-            IFactor::getIndexAssetsCountCall {
+            ISteward::getIndexAssetsCountCall {
                 index_id: vault.index_id.get().to(),
             },
         )?;

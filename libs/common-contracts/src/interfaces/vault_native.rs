@@ -1,6 +1,6 @@
 use alloy_sol_types::sol;
 
-sol!{
+sol! {
     interface IVaultNative  {
         function configureRequests(uint128 vendor_id, address custody, address asset, uint128 max_order_size) external;
 
@@ -47,5 +47,9 @@ sol!{
         function getActiveAcquisitionCollateral(address trader) external view returns (uint128);
 
         function getActiveDisposalItp(address trader) external view returns (uint128);
+
+        event BuyOrder(uint128 index_id, uint128 vendor_id, uint128 collateral_amount, address trader);
+
+        event SellOrder(uint128 index_id, uint128 vendor_id, uint128 itp_amount, address trader);
     }
 }
