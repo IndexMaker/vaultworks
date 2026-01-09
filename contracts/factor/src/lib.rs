@@ -478,9 +478,24 @@ impl Factor {
         let vendor_quote_id = _get_vendor_quote_id(&mut vault, vendor_id)?;
 
         // Allocate new Index order or get existing one
-        let index_order_id = _init_trader_ask(&mut vault, &mut clerk_storage, trader_address);
+        let sender_bid_id = _init_trader_bid(&mut vault, &mut clerk_storage, trader_address);
+        let sender_ask_id = _init_trader_ask(&mut vault, &mut clerk_storage, trader_address);
         let vendor_order_id = _init_vendor_ask(&mut vault, &mut clerk_storage, vendor_id);
         let total_order_id = _init_total_ask(&mut vault, &mut clerk_storage);
+        
+        let sender_bid_bytes = clerk_storage
+            .fetch_bytes(sender_bid_id)
+            .ok_or_else(|| b"Sender Bid not set (sell)")?;
+
+        let sender_ask_bytes = clerk_storage
+            .fetch_bytes(sender_ask_id)
+            .ok_or_else(|| b"Sender Ask not set (sell)")?;
+
+        let order = Order::try_from_vec_pair(sender_bid_bytes, sender_ask_bytes)?;
+
+        if order.tell_available()?.to_u128_raw() < collateral_added {
+            Err(b"Insufficient amount of Index token (sell)")?;
+        }
 
         let account = storage.accounts.get(vendor_id);
 
@@ -504,7 +519,7 @@ impl Factor {
         //  - Index quantity executed and remaining
         //
         let update = execute_sell_order(
-            index_order_id.to(), // single trader orders aggregated per vault (we don't store individual orders)
+            sender_ask_id.to(), // single trader orders aggregated per vault (we don't store individual orders)
             vendor_order_id.to(),
             total_order_id.to(),
             collateral_added,
@@ -532,7 +547,7 @@ impl Factor {
         self.update_records(clerk, update, num_registry)?;
 
         let index_order = clerk_storage
-            .fetch_bytes(index_order_id)
+            .fetch_bytes(sender_ask_id)
             .ok_or_else(|| b"Index order not set")?;
 
         let executed_asset_quantities = clerk_storage

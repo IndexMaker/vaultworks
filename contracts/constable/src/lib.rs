@@ -205,6 +205,7 @@ impl Constable {
                 IConstable::appointScribeCall::SELECTOR.into(),
                 IConstable::appointWorksmanCall::SELECTOR.into(),
                 IConstable::appointClerkCall::SELECTOR.into(),
+                IConstable::appointStewardCall::SELECTOR.into(),
             ],
             CASTLE_ADMIN_ROLE.into(),
         )?;

@@ -37,5 +37,15 @@ sol! {
         function claimableRedeemUpdate(uint256 request_id, uint256 shares, uint256 assets) external view;
 
         function redeem(uint256 shares, address receiver, address controller) external returns (uint256);
+    
+        event DepositRequest(address controller, address owner, uint256 requestId, address sender, uint256 assets);
+
+        event Deposit(address indexed sender, address indexed owner, uint256 assets, uint256 shares);
+
+        event RedeemRequest(address controller, address owner, uint256 requestId, address sender, uint256 shares);
+
+        event Withdraw(address indexed sender, address indexed receiver, address indexed owner, uint256 assets, uint256 shares);
+
+        event OperatorSet(address controller, address operator, bool approved);
     }
 }

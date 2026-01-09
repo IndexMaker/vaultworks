@@ -13,6 +13,8 @@ sol!{
         function appointScribe(address scribe) external;
 
         function appointWorksman(address worksman) external;
+        
+        function appointSteward(address steward) external;
 
         function appointClerk(address clerk) external;
 

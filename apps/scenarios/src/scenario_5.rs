@@ -147,7 +147,7 @@ pub async fn run_scenario(client: &TxClient, castle_address: Address) -> eyre::R
 
         let result = client
             .begin_tx()
-            .add(factor.submit_buy_order(
+            .add(factor.execute_buy_order(
                 vendor_id,
                 index_id,
                 client.address(),
@@ -173,7 +173,7 @@ pub async fn run_scenario(client: &TxClient, castle_address: Address) -> eyre::R
 
         let result = client
             .begin_tx()
-            .add(factor.submit_sell_order(
+            .add(factor.execute_sell_order(
                 vendor_id,
                 index_id,
                 client.address(),

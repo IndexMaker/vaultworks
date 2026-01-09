@@ -239,11 +239,18 @@ impl Castle {
         if let Some(required_role) = required_role {
             if !required_role.contains(self._attendee()) {
                 log_msg!("Unauthorised access");
-                Err(b"Unauthorised access")?;
+                Err(format!(
+                    "Unauthorised access: 0x{}",
+                    hex::encode(&calldata[0..4])
+                ))?;
             }
         }
 
-        log_msg!("Delegating function to {}", contract_address);
+        log_msg!(
+            "Delegating 0x{} function to {}",
+            hex::encode(&calldata[0..4]),
+            contract_address
+        );
         unsafe { Ok(self.vm().delegate_call(&self, contract_address, calldata)?) }
     }
 }
