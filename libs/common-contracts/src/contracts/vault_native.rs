@@ -1,7 +1,6 @@
 use alloc::{vec, vec::Vec};
 
 use alloy_primitives::{uint, Address, U256};
-use common::{amount::Amount, vector::Vector};
 use stylus_sdk::{
     keccak_const,
     prelude::*,
@@ -77,23 +76,5 @@ impl VaultNativeStorage {
             },
         )?;
         Ok(())
-    }
-
-    pub fn get_asset_contribution_fractions(
-        &self,
-        vault: &VaultStorage,
-        caller: &impl InnerCall,
-    ) -> Result<Vector, Vec<u8>> {
-        // Not the most efficient way of getting unit vector of same length...
-        let ISteward::getIndexAssetsCountReturn { _0: count } = caller.static_call_ret(
-            vault.gate_to_castle.get(),
-            ISteward::getIndexAssetsCountCall {
-                index_id: vault.index_id.get().to(),
-            },
-        )?;
-
-        let mut unit_vector = Vector { data: vec![] };
-        unit_vector.data.resize(count as usize, Amount::ONE);
-        Ok(unit_vector)
     }
 }

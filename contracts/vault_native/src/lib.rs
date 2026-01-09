@@ -288,8 +288,6 @@ impl VaultNative {
             // We should use fresh prices
             requests.update_quote(&vault, self)?;
 
-            let acf = requests.get_asset_contribution_fractions(&vault, self)?;
-
             self.external_call(
                 vault.gate_to_castle.get(),
                 IFactor::executeBuyOrderCall {
@@ -299,7 +297,6 @@ impl VaultNative {
                     collateral_added: collateral_amount.to(),
                     collateral_removed: 0,
                     max_order_size: requests.max_order_size.get().to(),
-                    asset_contribution_fractions: acf.to_vec().into(),
                 },
             )?;
             // We publish event with zero collateral added, as we already
@@ -378,8 +375,6 @@ impl VaultNative {
             // We should use fresh prices
             requests.update_quote(&vault, self)?;
 
-            let unit_vector = requests.get_asset_contribution_fractions(&vault, self)?;
-
             // Submit order and get instant fill if possible
             self.external_call(
                 vault.gate_to_castle.get(),
@@ -390,7 +385,6 @@ impl VaultNative {
                     collateral_added: itp_amount.to(),
                     collateral_removed: 0,
                     max_order_size: requests.max_order_size.get().to(),
-                    asset_contribution_fractions: unit_vector.to_vec().into(),
                 },
             )?;
             // We publish event with zero ITP added, as we already updated our

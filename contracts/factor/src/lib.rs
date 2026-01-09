@@ -254,7 +254,6 @@ impl Factor {
         index_id: U128,
         trader_address: Address,
         max_order_size: u128,
-        asset_contribution_fractions: Bytes,
     ) -> Result<(Bytes, Bytes, Bytes), Vec<u8>> {
         self.execute_buy_order(
             vendor_id,
@@ -263,7 +262,6 @@ impl Factor {
             0,
             0,
             max_order_size,
-            asset_contribution_fractions,
         )
     }
 
@@ -273,7 +271,6 @@ impl Factor {
         index_id: U128,
         trader_address: Address,
         max_order_size: u128,
-        asset_contribution_fractions: Bytes,
     ) -> Result<(Bytes, Bytes, Bytes), Vec<u8>> {
         self.execute_sell_order(
             vendor_id,
@@ -282,7 +279,6 @@ impl Factor {
             0,
             0,
             max_order_size,
-            asset_contribution_fractions,
         )
     }
 
@@ -368,7 +364,6 @@ impl Factor {
         collateral_added: u128,
         collateral_removed: u128,
         max_order_size: u128,
-        asset_contribution_fractions: Bytes,
     ) -> Result<(Bytes, Bytes, Bytes), Vec<u8>> {
         let mut storage = Keep::storage();
         storage.check_version()?;
@@ -389,15 +384,8 @@ impl Factor {
 
         let account = storage.accounts.get(vendor_id);
 
-        let asset_contribution_fractions_id = SCRATCH_1;
-
-        clerk_storage.store_bytes(
-            asset_contribution_fractions_id,
-            asset_contribution_fractions,
-        );
-
-        let executed_asset_quantities_id = SCRATCH_2;
-        let executed_index_quantities_id = SCRATCH_3;
+        let executed_asset_quantities_id = SCRATCH_1;
+        let executed_index_quantities_id = SCRATCH_2;
 
         // Compile VIL program, which we will send to DeVIL for execution.
         //
@@ -428,7 +416,6 @@ impl Factor {
             account.delta_long.get().to(),
             account.delta_short.get().to(),
             account.margin.get().to(),
-            asset_contribution_fractions_id.to(),
             solve_quadratic_id.to(),
         );
 
@@ -463,7 +450,6 @@ impl Factor {
         collateral_added: u128,
         collateral_removed: u128,
         max_order_size: u128,
-        asset_contribution_fractions: Bytes,
     ) -> Result<(Bytes, Bytes, Bytes), Vec<u8>> {
         let mut storage = Keep::storage();
         storage.check_version()?;
@@ -499,15 +485,8 @@ impl Factor {
 
         let account = storage.accounts.get(vendor_id);
 
-        let asset_contribution_fractions_id = SCRATCH_1;
-
-        clerk_storage.store_bytes(
-            asset_contribution_fractions_id,
-            asset_contribution_fractions,
-        );
-
-        let executed_asset_quantities_id = SCRATCH_2;
-        let executed_index_quantities_id = SCRATCH_3;
+        let executed_asset_quantities_id = SCRATCH_1;
+        let executed_index_quantities_id = SCRATCH_2;
 
         // Compile VIL program, which we will send to DeVIL for execution.
         //
@@ -538,7 +517,6 @@ impl Factor {
             account.delta_long.get().to(),
             account.delta_short.get().to(),
             account.margin.get().to(),
-            asset_contribution_fractions_id.to(),
             solve_quadratic_id.to(),
         );
 
