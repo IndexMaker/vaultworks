@@ -81,7 +81,7 @@ Copy address of the `Vault Gate` and export as `$VAULT` vailable, e.g.
 export VAULT=0xeff7b46049fc677f58264e0ebb19df1a39195a21
 ```
 
-for now we can grant *Vault Raole* to the *Vault* like:
+for now we can grant *Vault Role* to the *Vault* like:
 ```
 ./scripts/roles.sh grant $CASTLE "Castle.VAULT_ROLE" $VAULT
 ./scripts/roles.sh grant $CASTLE "Castle.KEEPER_ROLE" $VAULT
