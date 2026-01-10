@@ -2,11 +2,11 @@
 
 ## How to setup
 
-1. Start *Nitro Dev Node*
+### Step 1. Start *Nitro Dev Node*
 
 Follow [instructions](https://github.com/OffchainLabs/nitro-devnode) on *Nitro Dev Node* project page.
 
-2. Setup environment
+### Step 2. Setup environment
 
 Need to set private key:
 ```
@@ -23,8 +23,14 @@ Also RPC URL is needed for running scenarios:
 export RPC_URL="http://localhost:8547"
 ```
 
-3. Deploy whole *Castle*
+### Step 3. Deploy whole *Castle*
 
+First ensure you've built latest version of the codebase:
+```
+./scripts/check-all.sh
+```
+
+Now we can deploy a *Castle* like this:
 ```
 ./scripts/castle.sh --no-gates
 ```
@@ -46,7 +52,7 @@ export CASTLE="0x0444764a212240b69d3ad81b9a77f34945d1b228"
 ```
 
 
-4. Set roles:
+### Step 4. Set roles:
 
 Set these three roles:
 ```
@@ -57,7 +63,7 @@ Set these three roles:
 ./scripts/roles.sh grant $CASTLE "Castle.MAINTAINER_ROLE" $DEPLOYER_ADDRESS
 ```
 
-5. Add *Vault* to *Worksman* free-list
+### Step 5. Add *Vault* to *Worksman* free-list
 
 We need to deploy some *Vault* contract to populate *Worksman* free-list, and we'll use *Vault-Native* option:
 
@@ -123,7 +129,7 @@ export CUSTODY=$CASTLE
 until worksman does it, we can also configure *Vault* like:
 ```
 ./scripts/send.sh $VAULT "configureVault(uint128,string,string)" 1001 "Top100" "T100"
-./scripts/send.sh $VAULT "configureRequests(uint128,address,address,uint128)" "1" $CUSTODY $COLLATERAL 10000000000000000000000
+./scripts/send.sh $VAULT "configureRequests(uint128,address,address,uint128)" "1" $CUSTODY $COLLATERAL 100000000000000000000
 ```
 
 and in next command add *Vault* to free-list, which will look like:
@@ -134,13 +140,29 @@ and in next command add *Vault* to free-list, which will look like:
 This adds that *Gate* to *Workman's* free-list, and then when *Guildmaster*
 requests to build a *Vault* *Worksman* will pick next from that free-list.
 
+### Step 6. Setup Keeper Address
 
-6. Run Scenario 5.
+For our exercise purposes we can use any address really, e.g.:
+```
+export VENDOR=0xcb593e5f96363a4919b583f07fe45880a1daf94e
+```
+
+Normally this would be an address derived from *Keeper's* wallet.
+
+We want to set our-selves as operator of that *Keeper*, so that we can make calls:
+```
+./scripts/send.sh $VAULT "setAdminOperator(address,bool)" $VENDOR true
+```
+
+**Note** The `setAdminOperator()` function is only available to *Vault* admin.
+
+
+### Step 7. Run Scenario 5.
 
 Congratulations, you have set-up the environment to run once-and-only-once Scenario 5.
 
 ```
-cargo run -p scenarios -- --rpc-url $RPC_URL --private-key $DEPLOY_PRIVATE_KEY --castle-address $CASTLE -s scenario5
+cargo run -p scenarios -- --rpc-url $RPC_URL --private-key $DEPLOY_PRIVATE_KEY --castle-address $CASTLE --keeper-address $VENDOR -s scenario5
 ```
 
 This will run Scenario 5. which:
@@ -155,7 +177,9 @@ This will run Scenario 5. which:
 - Update Index pricing (quote)
 - Submit Buy order
 
-7. Post Scenario 5.
+## After Setup
+
+### Basic Queries
 
 Contgratulation, Scenario 5. ran successfully, now we can play.
 
@@ -169,15 +193,15 @@ Inspect ITP meta:
 
 Check total supply of ITP, and total assets value in ITP:
 ```
-./scripts/call.sh $VAULT "totalSupply()"
-./scripts/call.sh $VAULT "totalAssetsValue()"
+./scripts/call.sh $VAULT "totalSupply()" | ./scripts/parse_amount.py
+./scripts/call.sh $VAULT "totalAssetsValue()" | ./scripts/parse_amount.py
 ```
 
 
 Check your ITP balance, and assets value:
 ```
-./scripts/call.sh $VAULT "balanceOf(address)" $DEPLOYER_ADDRESS
-./scripts/call.sh $VAULT "assetsValue(address)" $DEPLOYER_ADDRESS
+./scripts/call.sh $VAULT "balanceOf(address)" $DEPLOYER_ADDRESS | ./scripts/parse_amount.py
+./scripts/call.sh $VAULT "assetsValue(address)" $DEPLOYER_ADDRESS | ./scripts/parse_amount.py
 ```
 
 Transfer some assets to another address, e.g. *Castle*:
@@ -188,25 +212,25 @@ Transfer some assets to another address, e.g. *Castle*:
 If you want to know average value of some amount of ITP,
 and if you want to know amount of ITP worth of collateral:
 ```
-./scripts/call.sh $VAULT "convertAssetsValue(uint128)" 1000000000000
-./scripts/call.sh $VAULT "convertItpAmount(uint128)" 1000000000000
+./scripts/call.sh $VAULT "convertAssetsValue(uint128)" 1000000000000 | ./scripts/parse_amount.py
+./scripts/call.sh $VAULT "convertItpAmount(uint128)" 1000000000000 | ./scripts/parse_amount.py
 ```
 
 Additionally if you want to estimate how much you'd need to pay for ITP,
 or you want to know how much ITP you'd get for given collateral:
 ```
-./scripts/call.sh $VAULT "estimateAcquisitionCost(uint128)" 1000000000000 
-./scripts/call.sh $VAULT "estimateAcquisitionItp(uint128)" 1000000000000
+./scripts/call.sh $VAULT "estimateAcquisitionCost(uint128)" 1000000000000  | ./scripts/parse_amount.py
+./scripts/call.sh $VAULT "estimateAcquisitionItp(uint128)" 1000000000000 | ./scripts/parse_amount.py
 ```
 
 And also if you are selling, and you want to know how much you will get for ITP,
 and how much ITP you need to sell to get specific amount:
 ```
-./scripts/call.sh $VAULT "estimateDisposalGains(uint128)" 1000000000000
-./scripts/call.sh $VAULT "estimateDisposalItpCost(uint128)" 1000000000000
+./scripts/call.sh $VAULT "estimateDisposalGains(uint128)" 1000000000000 | ./scripts/parse_amount.py
+./scripts/call.sh $VAULT "estimateDisposalItpCost(uint128)" 1000000000000 | ./scripts/parse_amount.py
 ```
 
-8. Place BUY order
+### Place BUY order
 
 Let's try placing order!
 
@@ -217,46 +241,109 @@ Mint some collateral token first:
 
 Approve *Vault* to draw from our wallet:
 ```
-./scripts/send.sh $COLLATERAL "approve(address,uint256)" $VAULT 10000000000000000000
+./scripts/send.sh $COLLATERAL "approve(address,uint256)" $VAULT 1000000000000000000000
 ```
 
 Place an order with Instant Fill:
 ```
-./scripts/send.sh $VAULT "placeBuyOrder(uint128,bool,address)" 10000000000000000000 true $DEPLOYER_ADDRESS
-./scripts/send.sh $VAULT "placeSellOrder(uint128,bool,address)" 10000000000000000 true $DEPLOYER_ADDRESS
+./scripts/send.sh $VAULT "placeBuyOrder(uint128,bool,address,address)(uint128,uint128,uint128)" 1000000000000000000000 true $VENDOR $DEPLOYER_ADDRESS
+./scripts/send.sh $VAULT "placeSellOrder(uint128,bool,address,address)(uint128,uint128,uint128)" 10000000000000000 true $VENDOR $DEPLOYER_ADDRESS
 ```
 
-Check order status:
+
+The `placeBuyOrder()` returns a tuple: `(Received ITP, Collateral Spent, Collateral Remain)`, and
+the `placeSellOrder()` returns `(Received Amount, ITP Burnt, ITP Remain)`.
+
+Trader can check their pending orders by calling:
+
 ```
-./scripts/call.sh $VAULT "getActiveAcquisitionCollateral(address)" $DEPLOYER_ADDRESS  | ./scripts/parse_amount.py
-./scripts/call.sh $VAULT "getActiveDisposalItp(address)" $DEPLOYER_ADDRESS | ./scripts/parse_amount.py
+./scripts/call.sh $VAULT "getPendingOrder(address,address)(uint128,uint128)" $VENDOR $DEPLOYER_ADDRESS
 ```
 
-And if we want to investigate current state of the order deeper:
+This returns a tuple: `(Pending Bid, Pending Ask)`.
+
+The ***Keeper*** service pays gas to push forward pending orders:
+```
+./scripts/send.sh $VAULT "processPendingBuyOrder(address)(uint128,uint128,uint128)" $VENDOR
+./scripts/send.sh $VAULT "processPendingSellOrder(address)(uint128,uint128,uint128)" $VENDOR
+```
+for pushing forward *Buy* and *Sell* orders correspondingly.
+
+These functions only take *Keeper's* address, and all execution parameters are dictated by *Vault*, 
+so that *Keeper* can only choose when to process next batch, but not the quantities, nor which orders.
+
+
+### Claim ITP
+
+Once *Keeper* pushes orders forwards, there will be some ***claimable*** amount available to get.
+
+Trader can query that ammount by calling:
+```
+./scripts/call.sh $VAULT "getClaimableAcquisition(address)(uint128,uint128)" $VENDOR
+./scripts/call.sh $VAULT "getClaimableDisposal(address)(uint128,uint128)" $VENDOR
+```
+for *Buy* and *Sell* correspondingly.
+
+If there is some *claimable* amount, trader can claim that amount up to the amount deposited and pending *(use `getPendingOrder()` to see how much is pending)*.
+
+Trader can preview claim amount by calling:
+```
+./scripts/call.sh $VAULT "claimAcquisition(uint128,address,address)(uint128)" 14093687789581242 $VENDOR $DEPLOYER_ADDRESS
+```
+
+and then claim amount by calling:
+```
+./scripts/send.sh $VAULT "claimAcquisition(uint128,address,address)(uint128)" 14093687789581242 $VENDOR $DEPLOYER_ADDRESS
+```
+
+If claim was successful, trader can check their balance:
+```
+./scripts/call.sh $VAULT "balanceOf(address)(uint256)" $DEPLOYER_ADDRESS
+```
+
+### Developer tools
+
+If we want to investigate current state of the order deeper we can double-check the order vectors fot trader:
 ```
 ./scripts/call.sh $CASTLE "getTraderOrder(uint128,address)(bytes)" 1001 $DEPLOYER_ADDRESS | ./scripts/parse_vector_bytes.py
 ```
 
+and for *Keeper*:
+```
+./scripts/call.sh $CASTLE "getTraderOrder(uint128,address)(bytes)" 1001 $VENDOR | ./scripts/parse_vector_bytes.py 
+```
+
+**Note** Trader's order vector would have *0.0* in the first *Collateral Remain* column, and forth *ITP Remain* column, while
+*Keeper* would have some amounts there if there was still pending orders to execute.
+
+Additionally we can check *Vendor Delta* with:
+```
+./scripts/call.sh $CASTLE "getVendorDelta(uint128)(bytes[])" 1
+```
+
+or *Vendor* *Supply* and *Demand*:
+```
+./scripts/call.sh $CASTLE "getVendorSupply(uint128)(bytes[])" 1
+./scripts/call.sh $CASTLE "getVendorDemand(uint128)(bytes[])" 1
+```
+
+
+
 ***NOTE*** The `parse_amount.py` and `parse_vector_bytes.py` provided in `./scripts` directory are helper tools that prettify hex data into human friendly decimals and vector of decimals. These scripts require `python3` on your `PATH`.
 
-The format of the ***Trader Order*** vector is: `[Collateral Amount, Collateral Spent, ITP Minted, ITP Locked, ITP Burned, Withdraw Amount]`.
+The format of the ***Trader Order*** vector is: `[Collateral Remain, Collateral Spent, ITP Minted, ITP Locked, ITP Burned, Withdraw Amount]`.
 
 The `Collateral Amount` is the remaining amount of collateral that hasn't yet been processed.
 
-This would be pushed forward by *Keeper* off-chain service calling:
+A developer can inspect recently executed quantities *(must have **Maintainer Role** granted)* by calling:
 ```
-    IFactor::processTraderBuyOrder(
-        uint128 vendor_id, 
-        uint128 index_id, 
-        address trader_address, 
-        uint128 max_order_size)
-    
-    IFactor::processTraderSellOrder(
-        uint128 vendor_id, 
-        uint128 index_id, 
-        address trader_address, 
-        uint128 max_order_size)
+./scripts/call.sh $CASTLE "fetchVector(uint128)(bytes)" 1 | ./scripts/parse_vector_bytes.py
+./scripts/call.sh $CASTLE "fetchVector(uint128)(bytes)" 2 | ./scripts/parse_vector_bytes.py
 ```
+The `vectorId = 1` for *Asset* quantities and `vectorId = 2` for *Report* in `(Delivered, Received)` format. 
 
-where `asset_contribution_fractions` is a vector of arbitrary values in rage `(0..1]` generated by *Keeper* service.
-Note that unit vector is used when placing new order with instant fill.
+**Note** While these vectors are persisted on-chain, their valid lifetime is limitted.
+They can be inspected to troubleshoot issues, however one needs to be aware that
+these vectors are reused by various functions as a scratch memory for sharing temporary data with *Vector IL* programs.
+Note also that only appointed members of the *Castle* have *write* access to any vectors, and while
+we give developers access to fetch them, we do not provide any method to change them directly.

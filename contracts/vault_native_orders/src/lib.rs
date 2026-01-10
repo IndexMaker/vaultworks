@@ -80,7 +80,7 @@ impl VaultNativeOrders {
         )?;
 
         // Submit order and get instant fill if possible
-        let (delivered, received, request_event) = if instant_fill {
+        let (delivered, received) = if instant_fill {
             // We should use fresh prices
             requests.update_quote(&vault, self)?;
 
@@ -96,20 +96,7 @@ impl VaultNativeOrders {
                 },
             )?;
             let report = Report::try_from_vec(ret._0[1].to_vec())?;
-            (
-                report.delivered().to_u128(),
-                report.received().to_u128(),
-                // We publish event with zero collateral added, as we already
-                // updated our order in Clerk Chamber, and if fill was only partial,
-                // then Keeper needs to continue filling.
-                BuyOrder {
-                    keeper,
-                    index_id: vault.index_id.get().to(),
-                    vendor_id: requests.vendor_id.get().to(),
-                    collateral_amount: 0,
-                    trader,
-                },
-            )
+            (report.delivered().to_u128(), report.received().to_u128())
         } else {
             // Send pending order without executing it
             self.external_call(
@@ -123,20 +110,7 @@ impl VaultNativeOrders {
                 },
             )?;
 
-            (
-                U128::ZERO,
-                U128::ZERO,
-                // We publish event with original collateral amount, as we only
-                // deposited collateral, but haven't executed anything yet. Keeper
-                // service will call submitByOrder() on our behalf.
-                BuyOrder {
-                    keeper,
-                    index_id: vault.index_id.get().to(),
-                    vendor_id: requests.vendor_id.get().to(),
-                    collateral_amount: collateral_amount.to(),
-                    trader,
-                },
-            )
+            (U128::ZERO, U128::ZERO)
         };
 
         // Store operator's liability towards the trader
@@ -145,12 +119,12 @@ impl VaultNativeOrders {
 
         let collateral_remain = collateral_amount
             .checked_sub(delivered)
-            .ok_or_else(|| b"MathUnderflow")?;
+            .ok_or_else(|| b"MathUnderflow (collateral_amount - delivered)")?;
 
         let pending_amount = pending_bid
             .get()
             .checked_add(collateral_remain)
-            .ok_or_else(|| b"MathUnderflow")?;
+            .ok_or_else(|| b"MathOveflow (pending_bid + collateral_remain)")?;
 
         pending_bid.set(pending_amount);
 
@@ -169,10 +143,21 @@ impl VaultNativeOrders {
             self.vm().emit_log(&exec_report.encode_data(), 1);
         }
 
-        // Send an event, and it will be picked up by Keeper service
-        self.vm().emit_log(&request_event.encode_data(), 1);
+        if !collateral_remain.is_zero() {
+            // Send an event, and it will be picked up by Keeper service
 
-        Ok((delivered, received, collateral_remain))
+            let request_event = BuyOrder {
+                keeper,
+                index_id: vault.index_id.get().to(),
+                vendor_id: requests.vendor_id.get().to(),
+                collateral_amount: collateral_remain.to(),
+                trader,
+            };
+
+            self.vm().emit_log(&request_event.encode_data(), 1);
+        }
+
+        Ok((received, delivered, collateral_remain))
     }
 
     /// Places new SELL order request into the network.
@@ -211,7 +196,7 @@ impl VaultNativeOrders {
             Err(b"Unauthorised order placement")?;
         }
 
-        let (delivered, received, request_event) = if instant_fill {
+        let (delivered, received) = if instant_fill {
             // We should use fresh prices
             requests.update_quote(&vault, self)?;
 
@@ -228,20 +213,7 @@ impl VaultNativeOrders {
                 },
             )?;
             let report = Report::try_from_vec(ret._0[1].to_vec())?;
-            (
-                report.delivered().to_u128(),
-                report.received().to_u128(),
-                // We publish event with zero ITP added, as we already updated our
-                // order in Clerk Chamber, and if fill was only partial, then Keeper
-                // needs to continue filling.
-                SellOrder {
-                    keeper,
-                    index_id: vault.index_id.get().to(),
-                    vendor_id: requests.vendor_id.get().to(),
-                    itp_amount: 0,
-                    trader,
-                },
-            )
+            (report.delivered().to_u128(), report.received().to_u128())
         } else {
             // Send pending order without executing it
             self.external_call(
@@ -255,20 +227,7 @@ impl VaultNativeOrders {
                 },
             )?;
 
-            (
-                U128::ZERO,
-                U128::ZERO,
-                // We publish event with original ITP amount, as we haven't executed
-                // anything yet. Keeper service will call submitByOrder() on our
-                // behalf.
-                SellOrder {
-                    keeper,
-                    index_id: vault.index_id.get().to(),
-                    vendor_id: requests.vendor_id.get().to(),
-                    itp_amount: itp_amount.to(),
-                    trader,
-                },
-            )
+            (U128::ZERO, U128::ZERO)
         };
 
         // Store operator's liability towards the trader
@@ -277,12 +236,12 @@ impl VaultNativeOrders {
 
         let itp_remain = itp_amount
             .checked_sub(delivered)
-            .ok_or_else(|| b"MathUnderflow")?;
+            .ok_or_else(|| b"MathUnderflow (itp_amount - delivered)")?;
 
         let pending_amount = pending_ask
             .get()
             .checked_add(itp_remain)
-            .ok_or_else(|| b"MathUnderflow")?;
+            .ok_or_else(|| b"MathOverflow (pending_ask + itp_remain)")?;
 
         pending_ask.set(pending_amount);
 
@@ -301,10 +260,21 @@ impl VaultNativeOrders {
             self.vm().emit_log(&exec_report.encode_data(), 1);
         }
 
-        // Send an event, and it will be picked up by Keeper service.
-        self.vm().emit_log(&request_event.encode_data(), 1);
+        if !itp_remain.is_zero() {
+            // Send an event, and it will be picked up by Keeper service.
 
-        Ok((delivered, received, itp_remain))
+            let request_event = SellOrder {
+                keeper,
+                index_id: vault.index_id.get().to(),
+                vendor_id: requests.vendor_id.get().to(),
+                itp_amount: itp_remain.to(),
+                trader,
+            };
+
+            self.vm().emit_log(&request_event.encode_data(), 1);
+        }
+
+        Ok((received, delivered, itp_remain))
     }
 
     /// Keeper can push forward pending orders
@@ -356,7 +326,7 @@ impl VaultNativeOrders {
             .ok_or_else(|| b"MathOverflow")?;
 
         operator_order.bid_received.set(received_amount);
-        
+
         if !received.is_zero() {
             // Publish execution report if there was execution
 
@@ -372,7 +342,7 @@ impl VaultNativeOrders {
             self.vm().emit_log(&exec_report.encode_data(), 1);
         }
 
-        Ok((delivered, received, pending_amount))
+        Ok((received, delivered, pending_amount))
     }
 
     /// Keeper can push forward pending orders
@@ -424,7 +394,7 @@ impl VaultNativeOrders {
             .ok_or_else(|| b"MathOverflow")?;
 
         operator_order.ask_received.set(received_amount);
-        
+
         if !received.is_zero() {
             // Publish execution report if there was execution
 
@@ -440,6 +410,6 @@ impl VaultNativeOrders {
             self.vm().emit_log(&exec_report.encode_data(), 1);
         }
 
-        Ok((delivered, received, pending_amount))
+        Ok((received, delivered, pending_amount))
     }
 }

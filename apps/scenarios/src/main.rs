@@ -19,6 +19,9 @@ struct Cli {
     #[arg(long)]
     castle_address: Option<String>,
 
+    #[arg(long)]
+    keeper_address: Option<String>,
+
     #[arg(short, long, value_delimiter = ',')]
     scenario: Vec<String>,
 }
@@ -35,6 +38,12 @@ async fn main() -> eyre::Result<()> {
         None
     };
 
+    let keeper_address: Option<Address> = if let Some(a) = cli.keeper_address {
+        Some(a.parse()?)
+    } else {
+        None
+    };
+
     let scenario = cli.scenario;
 
     let client = TxClient::try_new_from_url(&rpc_url, get_private_key).await?;
@@ -45,6 +54,7 @@ async fn main() -> eyre::Result<()> {
                 scenario_5::run_scenario(
                     &client,
                     castle_address.ok_or_eyre("Castle address is required")?,
+                    keeper_address.ok_or_eyre("Keeper address is required")?,
                 )
                 .await?;
             }
