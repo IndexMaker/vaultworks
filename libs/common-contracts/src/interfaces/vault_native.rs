@@ -4,11 +4,11 @@ sol! {
     interface IVaultNative  {
         function configureRequests(uint128 vendor_id, address custody, address asset, uint128 max_order_size) external;
 
-        function setOperator(address operator, bool status) external;
-
-        function isOperator(address operator) external view returns (bool);
-
         function collateralAsset() external view returns (address);
+
+        function vendorId() external view returns (uint128);
+
+        function custodyAddress() external view returns (address);
 
         function assetsValue(address account) external view returns (uint128);
 
@@ -26,30 +26,26 @@ sol! {
 
         function estimateDisposalItpCost(uint128 assets) external view returns (uint128);
 
-        function placeBuyOrder(uint128 collateral_amount, bool instant_fill, address trader) external;
+        function getMaxOrderSize() external view returns (uint128);
 
-        function placeSellOrder(uint128 itp_amount, bool instant_fill, address trader) external;
+        function getQuote() external view returns (uint128, uint128, uint128);
 
-        function confirmBuyOrder(uint128 amount, address trader) external;
+        function placeBuyOrder(uint128 collateral_amount, bool instant_fill, address operator) external returns (uint128, uint128, uint128);
 
-        function confirmSellOrder(uint128 itp_amount, address trader) external;
+        function placeSellOrder(uint128 itp_amount, bool instant_fill, address operator) external returns (uint128, uint128, uint128);
 
-        function confirmWithdrawAvailable(uint128 itp_amount, address trader) external;
+        function processPendingBuyOrder() external returns (uint128, uint128, uint128);
 
-        function withdrawGains(uint128 amount, address trader) external;
+        function processPendingSellOrder() external returns (uint128, uint128, uint128);
 
-        function getPendingAcquisitionCollateral(address trader) external view returns (uint128);
+        function getClaimableAcquisitionCost(address operator) external view returns (uint128);
 
-        function getPendingDisposalItp(address trader) external view returns (uint128);
+        function getClaimableDisposalItpCost(address operator) external view returns (uint128);
 
-        function getWithdrawAvailable(address trader) external view returns (uint128);
+        function claimAcquisitionCost(address trader, uint128 amount) external returns (uint128);
 
-        function getActiveAcquisitionCollateral(address trader) external view returns (uint128);
+        function claimDisposalItpCost(address trader, uint128 itp_amount) external;
 
-        function getActiveDisposalItp(address trader) external view returns (uint128);
-
-        event BuyOrder(uint128 index_id, uint128 vendor_id, uint128 collateral_amount, address trader);
-
-        event SellOrder(uint128 index_id, uint128 vendor_id, uint128 itp_amount, address trader);
+        event OperatorSet(address controller, address operator, bool approved);
     }
 }

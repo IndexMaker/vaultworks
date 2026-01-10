@@ -277,8 +277,8 @@ impl Constable {
         self._create_protected_functions(
             factor,
             vec![
-                IFactor::processTraderBuyOrderCall::SELECTOR.into(),
-                IFactor::processTraderSellOrderCall::SELECTOR.into(),
+                IFactor::processPendingBuyOrderCall::SELECTOR.into(),
+                IFactor::processPendingSellOrderCall::SELECTOR.into(),
             ],
             CASTLE_KEEPER_ROLE.into(),
         )?;

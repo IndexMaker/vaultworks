@@ -32,6 +32,8 @@ pub mod interfaces {
     pub mod treasury;
     pub mod vault;
     pub mod vault_native;
+    pub mod vault_native_orders;
+    pub mod vault_native_claims;
     pub mod vault_requests;
     pub mod worksman;
 }

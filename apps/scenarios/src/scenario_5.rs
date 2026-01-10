@@ -141,7 +141,6 @@ pub async fn run_scenario(client: &TxClient, castle_address: Address) -> eyre::R
         log_msg!("Submit Buy Order");
 
         let collateral_added = amount!(10.0);
-        let collateral_removed = amount!(0);
         let max_order_size = amount!(1000.0);
 
         let result = client
@@ -150,8 +149,8 @@ pub async fn run_scenario(client: &TxClient, castle_address: Address) -> eyre::R
                 vendor_id,
                 index_id,
                 client.address(),
+                client.address(),
                 collateral_added.to_u128_raw(),
-                collateral_removed.to_u128_raw(),
                 max_order_size.to_u128_raw(),
             ))
             .send()
@@ -163,9 +162,7 @@ pub async fn run_scenario(client: &TxClient, castle_address: Address) -> eyre::R
     {
         log_msg!("Submit Sell Order");
 
-        //let collateral_added = amount!(0.1);
         let collateral_added = amount!(0.04);
-        let collateral_removed = amount!(0);
         let max_order_size = amount!(1000.0);
 
         let result = client
@@ -174,8 +171,8 @@ pub async fn run_scenario(client: &TxClient, castle_address: Address) -> eyre::R
                 vendor_id,
                 index_id,
                 client.address(),
+                client.address(),
                 collateral_added.to_u128_raw(),
-                collateral_removed.to_u128_raw(),
                 max_order_size.to_u128_raw(),
             ))
             .send()

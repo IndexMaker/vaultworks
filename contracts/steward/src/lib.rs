@@ -23,7 +23,7 @@ impl Steward {
     // Query methods (Factor)
     //
 
-    pub fn get_market_data(&self, vendor_id: U128) -> Result<(Bytes, Bytes, Bytes), Vec<u8>> {
+    pub fn get_market_data(&self, vendor_id: U128) -> Result<Vec<Bytes>, Vec<u8>> {
         let storage = Keep::storage();
         storage.check_version()?;
 
@@ -42,7 +42,7 @@ impl Steward {
             .fetch_bytes(account.slopes.get())
             .ok_or_else(|| b"Slopes not set")?;
 
-        Ok((liquidity.into(), prices.into(), slopes.into()))
+        Ok(vec![liquidity.into(), prices.into(), slopes.into()])
     }
 
     pub fn get_index_assets_count(&self, index_id: U128) -> Result<U128, Vec<u8>> {
@@ -267,7 +267,7 @@ impl Steward {
         Ok(margin.into())
     }
 
-    pub fn get_vendor_supply(&mut self, vendor_id: U128) -> Result<(Bytes, Bytes), Vec<u8>> {
+    pub fn get_vendor_supply(&mut self, vendor_id: U128) -> Result<Vec<Bytes>, Vec<u8>> {
         let mut storage = Keep::storage();
         storage.check_version()?;
 
@@ -282,10 +282,10 @@ impl Steward {
             .fetch_bytes(account.supply_short.get())
             .ok_or_else(|| b"No supply short for vendor")?;
 
-        Ok((supply_long.into(), supply_short.into()))
+        Ok(vec![supply_long.into(), supply_short.into()])
     }
 
-    pub fn get_vendor_demand(&mut self, vendor_id: U128) -> Result<(Bytes, Bytes), Vec<u8>> {
+    pub fn get_vendor_demand(&mut self, vendor_id: U128) -> Result<Vec<Bytes>, Vec<u8>> {
         let mut storage = Keep::storage();
         storage.check_version()?;
 
@@ -300,10 +300,10 @@ impl Steward {
             .fetch_bytes(account.demand_short.get())
             .ok_or_else(|| b"No demand short for vendor")?;
 
-        Ok((demand_long.into(), demand_short.into()))
+        Ok(vec![demand_long.into(), demand_short.into()])
     }
 
-    pub fn get_vendor_delta(&mut self, vendor_id: U128) -> Result<(Bytes, Bytes), Vec<u8>> {
+    pub fn get_vendor_delta(&mut self, vendor_id: U128) -> Result<Vec<Bytes>, Vec<u8>> {
         let mut storage = Keep::storage();
 
         let account = storage.accounts.setter(vendor_id);
@@ -317,7 +317,7 @@ impl Steward {
             .fetch_bytes(account.delta_short.get())
             .ok_or_else(|| b"No delta short for vendor")?;
 
-        Ok((delta_long.into(), delta_short.into()))
+        Ok(vec![delta_long.into(), delta_short.into()])
     }
 
     //

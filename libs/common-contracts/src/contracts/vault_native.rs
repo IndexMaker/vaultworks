@@ -21,8 +21,34 @@ pub const VAULT_NATIVE_STORAGE_SLOT: U256 = {
 
 #[storage]
 pub struct TraderOrder {
-    pub withdraw_ready: StorageU128,
+    pub pending_bid: StorageMap<Address, StorageU128>,
+    pub pending_ask: StorageMap<Address, StorageU128>,
 }
+
+#[storage]
+pub struct OperatorOrder {
+    pub bid_delivered: StorageU128,
+    pub bid_received: StorageU128,
+    pub ask_delivered: StorageU128,
+    pub ask_received: StorageU128,
+}
+
+#[storage]
+pub struct Operator {
+    operators: StorageMap<Address, StorageBool>,
+}
+
+impl Operator {
+    pub fn is_operator(&self, operator: Address) -> bool {
+        self.operators.get(operator)
+    }
+
+    pub fn set_operator(&mut self, operator: Address, approved: bool) {
+        let mut setter = self.operators.setter(operator);
+        setter.set(approved);
+    }
+}
+
 
 #[storage]
 pub struct VaultNativeStorage {
@@ -31,20 +57,20 @@ pub struct VaultNativeStorage {
     pub collateral_asset: StorageAddress,
     pub max_order_size: StorageU128,
     pub trader_orders: StorageMap<Address, TraderOrder>,
-    pub operators: StorageMap<Address, StorageBool>,
+    pub opearator_order: StorageMap<Address, OperatorOrder>,
+    pub operators: StorageMap<Address, Operator>,
+    pub orders_implementation: StorageAddress,
+    pub claims_implementation: StorageAddress,
 }
 
 impl VaultNativeStorage {
     pub fn storage() -> VaultNativeStorage {
         StorageSlot::get_slot::<VaultNativeStorage>(VAULT_NATIVE_STORAGE_SLOT)
     }
-
-    pub fn set_operator(&mut self, operator: Address, status: bool) {
-        self.operators.setter(operator).set(status);
-    }
-
-    pub fn is_operator(&self, operator: Address) -> bool {
-        self.operators.get(operator)
+    
+    pub fn is_operator(&self, owner: Address, operator: Address) -> bool {
+        let operators = self.operators.getter(owner);
+        operators.is_operator(operator)
     }
 
     pub fn get_quote(

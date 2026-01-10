@@ -11,16 +11,10 @@ use alloy_primitives::{Address, U128};
 use alloy_sol_types::{sol, SolEvent};
 use common::{amount::Amount, log_msg};
 use common_contracts::{
-    contracts::{
-        calls::InnerCall, keep_calls::KeepCalls, vault::VaultStorage,
-        vault_native::VaultNativeStorage,
-    },
-    interfaces::{
-        factor::IFactor,
-        vault_native::IVaultNative::{BuyOrder, SellOrder},
-    },
+    contracts::{keep_calls::KeepCalls, vault::VaultStorage, vault_native::VaultNativeStorage},
+    interfaces::vault_native::IVaultNative::OperatorSet,
 };
-use stylus_sdk::prelude::*;
+use stylus_sdk::{prelude::*, ArbResult};
 
 sol! {
     interface IERC20 {
@@ -34,6 +28,24 @@ pub struct VaultNative;
 
 #[public]
 impl VaultNative {
+    pub fn install_orders(&mut self, orders_implementation: Address) -> Result<(), Vec<u8>> {
+        let vault = VaultStorage::storage();
+        vault.only_owner(self.attendee())?;
+
+        let mut requests = VaultNativeStorage::storage();
+        requests.orders_implementation.set(orders_implementation);
+        Ok(())
+    }
+
+    pub fn install_claims(&mut self, claims_implementation: Address) -> Result<(), Vec<u8>> {
+        let vault = VaultStorage::storage();
+        vault.only_owner(self.attendee())?;
+
+        let mut requests = VaultNativeStorage::storage();
+        requests.claims_implementation.set(claims_implementation);
+        Ok(())
+    }
+
     pub fn configure_requests(
         &mut self,
         vendor_id: U128,
@@ -53,18 +65,44 @@ impl VaultNative {
         Ok(())
     }
 
-    pub fn set_operator(&mut self, operator: Address, status: bool) -> Result<(), Vec<u8>> {
-        let vault = VaultStorage::storage();
-        vault.only_owner(self.attendee())?;
-
-        let mut requests = VaultNativeStorage::storage();
-        requests.set_operator(operator, status);
-        Ok(())
+    pub fn is_operator(&self, owner: Address, operator: Address) -> bool {
+        let requests = VaultNativeStorage::storage();
+        requests.is_operator(owner, operator)
     }
 
-    pub fn is_operator(&self, operator: Address) -> bool {
-        let requests = VaultNativeStorage::storage();
-        requests.is_operator(operator)
+    pub fn set_operator(&mut self, operator: Address, approved: bool) -> bool {
+        let sender = self.attendee();
+        let mut requests = VaultNativeStorage::storage();
+        let mut operators = requests.operators.setter(sender);
+        operators.set_operator(operator, approved);
+
+        let event = OperatorSet {
+            controller: sender,
+            operator,
+            approved,
+        };
+
+        self.vm().emit_log(&event.encode_data(), 1);
+        true
+    }
+
+    pub fn set_admin_operator(&mut self, controller: Address, approved: bool) -> Result<(), Vec<u8>> {
+        let sender = self.attendee();
+        let vault = VaultStorage::storage();
+        vault.only_owner(sender)?;
+
+        let mut requests = VaultNativeStorage::storage();
+        let mut operators = requests.operators.setter(controller);
+        operators.set_operator(sender, approved);
+
+        let event = OperatorSet {
+            controller,
+            operator: sender,
+            approved,
+        };
+
+        self.vm().emit_log(&event.encode_data(), 1);
+        Ok(())
     }
 
     /// Returns asset used as collateral paying for underlying assets.
@@ -244,274 +282,21 @@ impl VaultNative {
         ))
     }
 
-    /// Places new BUY order request into the network.
-    ///
-    /// This takes the deposit into custody account, and fires an event, which
-    /// will be picked by Keeper service to perform actual order processing.
-    ///
-    /// An option of an instant fill allows users to get their order executed
-    /// immediately. However there are drawbacks of an instant fill:
-    /// - higher gas cost as user must pay for quote update and order execution
-    /// - execution prices will be off as vendor might not have supplied fresh market data
-    /// - executed quantity will be capped at MaxOrderSize
-    ///
-    pub fn place_buy_order(
-        &mut self,
-        collateral_amount: U128,
-        instant_fill: bool,
-        trader: Address,
-    ) -> Result<(), Vec<u8>> {
-        if collateral_amount.is_zero() {
-            Err(b"Zero collateral amount")?;
-        }
-        let vault = VaultStorage::storage();
-        let requests = VaultNativeStorage::storage();
-        let sender = self.attendee();
-
-        if sender != trader {
-            Err(b"Sender must be an owner")?;
-        }
-
-        // Transfer USDC collateral from user to dedicated custody
-        let asset = requests.collateral_asset.get();
-        self.external_call(
-            asset,
-            IERC20::transferFromCall {
-                from: trader,
-                to: requests.custody.get(),
-                value: collateral_amount.to(),
-            },
-        )?;
-
-        // Submit order and get instant fill if possible
-        let request_event = if instant_fill {
-            // We should use fresh prices
-            requests.update_quote(&vault, self)?;
-
-            self.external_call(
-                vault.gate_to_castle.get(),
-                IFactor::executeBuyOrderCall {
-                    vendor_id: requests.vendor_id.get().to(),
-                    index_id: vault.index_id.get().to(),
-                    trader_address: trader,
-                    collateral_added: collateral_amount.to(),
-                    collateral_removed: 0,
-                    max_order_size: requests.max_order_size.get().to(),
-                },
-            )?;
-            // We publish event with zero collateral added, as we already
-            // updated our order in Clerk Chamber, and if fill was only partial,
-            // then Keeper needs to continue filling.
-            BuyOrder {
-                index_id: vault.index_id.get().to(),
-                vendor_id: requests.vendor_id.get().to(),
-                collateral_amount: 0,
-                trader,
+    #[payable]
+    #[fallback]
+    fn fallback(&mut self, calldata: &[u8]) -> ArbResult {
+        let requests = {
+            let requests = VaultNativeStorage::storage();
+            let implementation = requests.orders_implementation.get();
+            if implementation.is_zero() {
+                Err(b"No orders implementation")?;
             }
-        } else {
-            // Send pending order without executing it
-            self.external_call(
-                vault.gate_to_castle.get(),
-                IFactor::submitBuyOrderCall {
-                    vendor_id: requests.vendor_id.get().to(),
-                    index_id: vault.index_id.get().to(),
-                    trader_address: trader,
-                    collateral_added: collateral_amount.to(),
-                    collateral_removed: 0,
-                },
-            )?;
-
-            // We publish event with original collateral amount, as we only
-            // deposited collateral, but haven't executed anything yet. Keeper
-            // service will call submitByOrder() on our behalf.
-            BuyOrder {
-                index_id: vault.index_id.get().to(),
-                vendor_id: requests.vendor_id.get().to(),
-                collateral_amount: collateral_amount.to(),
-                trader,
-            }
+            implementation
         };
 
-        // Send an event, and it will be picked up by Keeper service
-        self.vm().emit_log(&request_event.encode_data(), 1);
-
-        Ok(())
-    }
-
-    /// Places new SELL order request into the network.
-    ///
-    /// This only fires an event, which will be picked by Keeper service to
-    /// perform actual order processing.
-    ///
-    /// Once Keeper service realizes the order, the on-chain state will reflect
-    /// that in the Clerk Chamber, and an off-chain service needs to deposit
-    /// gains to custody account so that user can claim them.
-    ///
-    /// An option of an instant fill allows users to get their order executed
-    /// immediately. However there are drawbacks of an instant fill:
-    /// - higher gas cost as user must pay for quote update and order execution
-    /// - execution prices will be off as vendor might not have supplied fresh market data
-    /// - executed quantity will be capped at MaxOrderSize
-    ///
-    pub fn place_sell_order(
-        &mut self,
-        itp_amount: U128,
-        instant_fill: bool,
-        trader: Address,
-    ) -> Result<(), Vec<u8>> {
-        if itp_amount.is_zero() {
-            Err(b"Zero ITP amount")?;
+        unsafe {
+            let result = self.vm().delegate_call(&self, requests, calldata)?;
+            Ok(result)
         }
-
-        let vault = VaultStorage::storage();
-        let requests = VaultNativeStorage::storage();
-        let sender = self.attendee();
-
-        if sender != trader {
-            Err(b"Sender must be an owner")?;
-        }
-
-        let request_event = if instant_fill {
-            // We should use fresh prices
-            requests.update_quote(&vault, self)?;
-
-            // Submit order and get instant fill if possible
-            self.external_call(
-                vault.gate_to_castle.get(),
-                IFactor::executeSellOrderCall {
-                    vendor_id: requests.vendor_id.get().to(),
-                    index_id: vault.index_id.get().to(),
-                    trader_address: trader,
-                    collateral_added: itp_amount.to(),
-                    collateral_removed: 0,
-                    max_order_size: requests.max_order_size.get().to(),
-                },
-            )?;
-            // We publish event with zero ITP added, as we already updated our
-            // order in Clerk Chamber, and if fill was only partial, then Keeper
-            // needs to continue filling.
-            SellOrder {
-                index_id: vault.index_id.get().to(),
-                vendor_id: requests.vendor_id.get().to(),
-                itp_amount: 0,
-                trader,
-            }
-        } else {
-            // Send pending order without executing it
-            self.external_call(
-                vault.gate_to_castle.get(),
-                IFactor::submitSellOrderCall {
-                    vendor_id: requests.vendor_id.get().to(),
-                    index_id: vault.index_id.get().to(),
-                    trader_address: trader,
-                    collateral_added: itp_amount.to(),
-                    collateral_removed: 0,
-                },
-            )?;
-
-            // We publish event with original ITP amount, as we haven't executed
-            // anything yet. Keeper service will call submitByOrder() on our
-            // behalf.
-            SellOrder {
-                index_id: vault.index_id.get().to(),
-                vendor_id: requests.vendor_id.get().to(),
-                itp_amount: itp_amount.to(),
-                trader,
-            }
-        };
-
-        // Send an event, and it will be picked up by Keeper service.
-        self.vm().emit_log(&request_event.encode_data(), 1);
-
-        Ok(())
-    }
-
-    /// Keeper confirms that portion of SELL order has been realized and amount
-    /// of gains is available for withdrawal.
-    pub fn confirm_withdraw_available(
-        &mut self,
-        amount: U128,
-        trader: Address,
-    ) -> Result<(), Vec<u8>> {
-        let mut requests = VaultNativeStorage::storage();
-        let sender = self.attendee();
-
-        if !requests.is_operator(sender) {
-            Err(b"Sender must be an operator")?;
-        }
-
-        // Update our records of withdraw ready, as now we have confirmation
-        // that Keeper has seen BuyOrder event, and collateral is part of the
-        // active order.
-        let mut trader_order = requests.trader_orders.setter(trader);
-        let mut withdraw_ready = trader_order.withdraw_ready.get();
-        withdraw_ready = withdraw_ready
-            .checked_add(amount)
-            .ok_or_else(|| b"MathOverflow")?;
-        trader_order.withdraw_ready.set(withdraw_ready);
-
-        Ok(())
-    }
-
-    /// Withdraw gains produced from selling ITP.
-    ///
-    /// When we submit SELL order the balance of USDC remains stored in Clerk
-    /// Chamber, and we also store amount we have withdrawn so far, so we can
-    /// claim any difference. Function returns amount claimed.
-    ///
-    /// Assumption is that custody has pre-approved that amount to be withdrawn.
-    /// This approval should have happened off-chain, when Keeper service
-    /// completed SELL order.
-    ///
-    pub fn withdraw_gains(&mut self, amount: U128, trader: Address) -> Result<(), Vec<u8>> {
-        let mut requests = VaultNativeStorage::storage();
-        let sender = self.attendee();
-
-        if sender != trader {
-            Err(b"Sender must be an owner")?;
-        }
-
-        let mut trader_order = requests.trader_orders.setter(trader);
-        let mut withdraw_ready = trader_order.withdraw_ready.get();
-
-        withdraw_ready = withdraw_ready
-            .checked_sub(amount)
-            .ok_or_else(|| b"Insufficient funds ready")?;
-
-        trader_order.withdraw_ready.set(withdraw_ready);
-
-        let asset = requests.collateral_asset.get();
-        self.external_call(
-            asset,
-            IERC20::transferFromCall {
-                from: requests.custody.get(),
-                to: trader,
-                value: amount.to(),
-            },
-        )?;
-
-        Ok(())
-    }
-
-    /// USDC available for withdrawal.
-    pub fn get_withdraw_available(&self, trader: Address) -> Result<U128, Vec<u8>> {
-        let requests = VaultNativeStorage::storage();
-        let trader_order = requests.trader_orders.getter(trader);
-        let withdraw_ready = trader_order.withdraw_ready.get();
-        Ok(withdraw_ready)
-    }
-
-    /// Collateral for BUY order that was accepted by Keeper.
-    pub fn get_active_acquisition_collateral(&self, trader: Address) -> Result<U128, Vec<u8>> {
-        let vault = VaultStorage::storage();
-        let order = vault.get_order(self, trader)?;
-        Ok(order.collateral_remaining().to_u128())
-    }
-
-    /// ITP for SELL order that was accepted by Keeper.
-    pub fn get_active_disposal_itp(&self, trader: Address) -> Result<U128, Vec<u8>> {
-        let vault = VaultStorage::storage();
-        let order = vault.get_order(self, trader)?;
-        Ok(order.itp_locked().to_u128())
     }
 }
