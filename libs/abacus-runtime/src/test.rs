@@ -227,7 +227,6 @@ mod test_scenarios {
         let delta_long_id = 106;
         let delta_short_id = 107;
         let margin_id = 108;
-        let asset_contribution_fractions_id = 109;
         let solve_quadratic_bid_id = 10;
 
         let collateral_added = amount!(100.0);
@@ -238,9 +237,6 @@ mod test_scenarios {
             .unwrap();
 
         vio.store_vector(weights_id, amount_vec![0.100, 1.000, 100.0])
-            .unwrap();
-
-        vio.store_vector(asset_contribution_fractions_id, amount_vec![1, 1, 1])
             .unwrap();
 
         vio.store_vector(quote_id, amount_vec![10.00, 10_000, 100.0])
@@ -302,7 +298,6 @@ mod test_scenarios {
             delta_long_id,
             delta_short_id,
             margin_id,
-            asset_contribution_fractions_id,
             solve_quadratic_bid_id,
         );
 
@@ -419,7 +414,6 @@ mod test_scenarios {
         let delta_long_id = 106;
         let delta_short_id = 107;
         let margin_id = 108;
-        let asset_contribution_fractions_id = 109;
         let solve_quadratic_ask_id = 10;
 
         let collateral_added = amount!(0.75);
@@ -430,9 +424,6 @@ mod test_scenarios {
             .unwrap();
 
         vio.store_vector(weights_id, amount_vec![0.100, 1.000, 100.0])
-            .unwrap();
-
-        vio.store_vector(asset_contribution_fractions_id, amount_vec![1, 1, 1])
             .unwrap();
 
         vio.store_vector(quote_id, amount_vec![10.00, 10_000, 100.0])
@@ -494,7 +485,6 @@ mod test_scenarios {
             delta_long_id,
             delta_short_id,
             margin_id,
-            asset_contribution_fractions_id,
             solve_quadratic_ask_id,
         );
 

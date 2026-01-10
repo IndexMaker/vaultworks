@@ -14,10 +14,10 @@ use abacus_formulas::{
     submit_sell_order::submit_sell_order, update_market_data::update_market_data,
 };
 use alloy_primitives::{Address, U128};
-use common::vector::Vector;
+use common::{amount::Amount, vector::Vector};
 use common_contracts::contracts::{
     clerk::{ClerkStorage, SCRATCH_1, SCRATCH_2, SCRATCH_3, SCRATCH_4},
-    formulas::Order,
+    formulas::{Order, ORDER_REALIZED_OFFSET, ORDER_REMAIN_OFFSET},
     keep::{Keep, Vault},
     keep_calls::KeepCalls,
 };
@@ -187,6 +187,301 @@ fn _init_total_ask(vault: &mut Vault, clerk_storage: &mut ClerkStorage) -> U128 
     ask_id
 }
 
+impl Factor {
+    fn _transfer_buy_to_operator(
+        &mut self,
+        vault: &mut Vault,
+        clerk_storage: &mut ClerkStorage,
+        operator_address: Address,
+        index_order_id: U128,
+    ) -> Result<(), Vec<u8>> {
+        let operator_order_id = _init_trader_bid(vault, clerk_storage, operator_address);
+
+        let mut operator_order = clerk_storage
+            .fetch_vector(operator_order_id)
+            .ok_or_else(|| b"Index order not set")?;
+
+        let mut trader_order = clerk_storage
+            .fetch_vector(index_order_id)
+            .ok_or_else(|| b"Index order not set")?;
+
+        let collateral_remain = trader_order.data[ORDER_REMAIN_OFFSET];
+        let mut operator_collateral = operator_order.data[ORDER_REMAIN_OFFSET];
+
+        operator_collateral = operator_collateral
+            .checked_add(collateral_remain)
+            .ok_or_else(|| b"MathOverflow")?;
+
+        operator_order.data[ORDER_REMAIN_OFFSET] = operator_collateral;
+        trader_order.data[ORDER_REMAIN_OFFSET] = Amount::ZERO;
+
+        clerk_storage.store_vector(operator_order_id, operator_order);
+        clerk_storage.store_vector(index_order_id, trader_order);
+
+        Ok(())
+    }
+
+    fn _transfer_sell_to_operator(
+        &mut self,
+        vault: &mut Vault,
+        clerk_storage: &mut ClerkStorage,
+        operator_address: Address,
+        sender_bid_id: U128,
+        sender_ask_id: U128,
+    ) -> Result<(), Vec<u8>> {
+        let operator_bid_id = _init_trader_bid(vault, clerk_storage, operator_address);
+        let operator_ask_id = _init_trader_ask(vault, clerk_storage, operator_address);
+
+        let mut operator_bid_order = clerk_storage
+            .fetch_vector(operator_bid_id)
+            .ok_or_else(|| b"Index order not set")?;
+
+        let mut operator_ask_order = clerk_storage
+            .fetch_vector(operator_ask_id)
+            .ok_or_else(|| b"Index order not set")?;
+
+        let mut trader_bid = clerk_storage
+            .fetch_vector(sender_bid_id)
+            .ok_or_else(|| b"Index order not set")?;
+
+        let mut trader_ask = clerk_storage
+            .fetch_vector(sender_ask_id)
+            .ok_or_else(|| b"Index order not set")?;
+
+        let itp_available = trader_bid.data[ORDER_REALIZED_OFFSET];
+        let itp_locked = trader_ask.data[ORDER_REMAIN_OFFSET];
+
+        let operator_available = operator_bid_order.data[ORDER_REALIZED_OFFSET];
+        operator_bid_order.data[ORDER_REALIZED_OFFSET] = operator_available
+            .checked_add(itp_locked)
+            .ok_or_else(|| b"MathOverflow")?;
+
+        let operator_remain = operator_ask_order.data[ORDER_REMAIN_OFFSET];
+        operator_ask_order.data[ORDER_REMAIN_OFFSET] = operator_remain
+            .checked_add(itp_locked)
+            .ok_or_else(|| b"MathOverflow")?;
+
+        trader_bid.data[ORDER_REALIZED_OFFSET] = itp_available
+            .checked_sub(itp_locked)
+            .ok_or_else(|| b"MathUnderflow")?;
+
+        trader_ask.data[ORDER_REMAIN_OFFSET] = Amount::ZERO;
+
+        clerk_storage.store_vector(operator_bid_id, operator_bid_order);
+        clerk_storage.store_vector(sender_bid_id, trader_bid);
+
+        Ok(())
+    }
+
+    fn _execute_buy_order(
+        &mut self,
+        vendor_id: U128,
+        index_id: U128,
+        trader_address: Address,
+        operator_address: Option<Address>,
+        collateral_added: u128,
+        collateral_removed: u128,
+        max_order_size: u128,
+    ) -> Result<(Vec<u8>, Vec<u8>, Vec<u8>), Vec<u8>> {
+        let mut storage = Keep::storage();
+        storage.check_version()?;
+
+        let mut clerk_storage = ClerkStorage::storage();
+
+        // Allocate Quadratic Solver
+        let solve_quadratic_id = _init_solve_quadratic_bid(&mut storage, &mut clerk_storage);
+
+        let mut vault = storage.vaults.setter(index_id);
+
+        let vendor_quote_id = _get_vendor_quote_id(&mut vault, vendor_id)?;
+
+        // Allocate new Index order or get existing one
+        let index_order_id = _init_trader_bid(&mut vault, &mut clerk_storage, trader_address);
+        let vendor_order_id = _init_vendor_bid(&mut vault, &mut clerk_storage, vendor_id);
+        let total_order_id = _init_total_bid(&mut vault, &mut clerk_storage);
+
+        let account = storage.accounts.get(vendor_id);
+
+        let executed_asset_quantities_id = SCRATCH_1;
+        let executed_index_quantities_id = SCRATCH_2;
+
+        // Compile VIL program, which we will send to DeVIL for execution.
+        //
+        // The program:
+        //  - updates user's order with new collateral
+        //  - executes portion of the order that fits within Index capacity
+        //  - updates demand and delta vectors
+        //  - returns amount of collateral remaining and spent, and
+        //  - Index quantity executed and remaining
+        //
+        let update = execute_buy_order(
+            index_order_id.to(), // single trader orders aggregated per vault (we don't store individual orders)
+            vendor_order_id.to(),
+            total_order_id.to(),
+            collateral_added,
+            collateral_removed,
+            max_order_size,
+            executed_index_quantities_id.to(),
+            executed_asset_quantities_id.to(),
+            vault.assets.get().to(),
+            vault.weights.get().to(),
+            vendor_quote_id.to(),
+            account.assets.get().to(),
+            account.supply_long.get().to(),
+            account.supply_short.get().to(),
+            account.demand_long.get().to(),
+            account.demand_short.get().to(),
+            account.delta_long.get().to(),
+            account.delta_short.get().to(),
+            account.margin.get().to(),
+            solve_quadratic_id.to(),
+        );
+
+        let clerk = storage.clerk.get();
+        let num_registry = 23;
+        self.update_records(clerk, update, num_registry)?;
+
+        if let Some(operator_address) = operator_address {
+            self._transfer_buy_to_operator(
+                &mut vault,
+                &mut clerk_storage,
+                operator_address,
+                index_order_id,
+            )?;
+        }
+
+        let index_order = clerk_storage
+            .fetch_bytes(index_order_id)
+            .ok_or_else(|| b"Index order not set")?;
+
+        let executed_asset_quantities = clerk_storage
+            .fetch_bytes(executed_asset_quantities_id)
+            .ok_or_else(|| b"Executed asset quantities not set")?;
+
+        let executed_index_quantities = clerk_storage
+            .fetch_bytes(executed_index_quantities_id)
+            .ok_or_else(|| b"Executed index quantities not set")?;
+
+        Ok((
+            index_order,
+            executed_index_quantities,
+            executed_asset_quantities,
+        ))
+    }
+
+    fn _execute_sell_order(
+        &mut self,
+        vendor_id: U128,
+        index_id: U128,
+        trader_address: Address,
+        operator_address: Option<Address>,
+        collateral_added: u128,
+        collateral_removed: u128,
+        max_order_size: u128,
+    ) -> Result<(Vec<u8>, Vec<u8>, Vec<u8>), Vec<u8>> {
+        let mut storage = Keep::storage();
+        storage.check_version()?;
+
+        let mut clerk_storage = ClerkStorage::storage();
+
+        // Allocate Quadratic Solver
+        let solve_quadratic_id = _init_solve_quadratic_ask(&mut storage, &mut clerk_storage);
+
+        let mut vault = storage.vaults.setter(index_id);
+
+        let vendor_quote_id = _get_vendor_quote_id(&mut vault, vendor_id)?;
+
+        // Allocate new Index order or get existing one
+        let sender_bid_id = _init_trader_bid(&mut vault, &mut clerk_storage, trader_address);
+        let sender_ask_id = _init_trader_ask(&mut vault, &mut clerk_storage, trader_address);
+        let vendor_order_id = _init_vendor_ask(&mut vault, &mut clerk_storage, vendor_id);
+        let total_order_id = _init_total_ask(&mut vault, &mut clerk_storage);
+
+        let sender_bid_bytes = clerk_storage
+            .fetch_bytes(sender_bid_id)
+            .ok_or_else(|| b"Sender Bid not set (sell)")?;
+
+        let sender_ask_bytes = clerk_storage
+            .fetch_bytes(sender_ask_id)
+            .ok_or_else(|| b"Sender Ask not set (sell)")?;
+
+        let order = Order::try_from_vec_pair(sender_bid_bytes, sender_ask_bytes)?;
+
+        if order.tell_available()?.to_u128_raw() < collateral_added {
+            Err(b"Insufficient amount of Index token (sell)")?;
+        }
+
+        let account = storage.accounts.get(vendor_id);
+
+        let executed_asset_quantities_id = SCRATCH_1;
+        let executed_index_quantities_id = SCRATCH_2;
+
+        // Compile VIL program, which we will send to DeVIL for execution.
+        //
+        // The program:
+        //  - updates user's order with new collateral
+        //  - executes portion of the order that fits within Index capacity
+        //  - updates demand and delta vectors
+        //  - returns amount of collateral remaining and spent, and
+        //  - Index quantity executed and remaining
+        //
+        let update = execute_sell_order(
+            sender_ask_id.to(), // single trader orders aggregated per vault (we don't store individual orders)
+            vendor_order_id.to(),
+            total_order_id.to(),
+            collateral_added,
+            collateral_removed,
+            max_order_size,
+            executed_index_quantities_id.to(),
+            executed_asset_quantities_id.to(),
+            vault.assets.get().to(),
+            vault.weights.get().to(),
+            vendor_quote_id.to(),
+            account.assets.get().to(),
+            account.supply_long.get().to(),
+            account.supply_short.get().to(),
+            account.demand_long.get().to(),
+            account.demand_short.get().to(),
+            account.delta_long.get().to(),
+            account.delta_short.get().to(),
+            account.margin.get().to(),
+            solve_quadratic_id.to(),
+        );
+
+        let clerk = storage.clerk.get();
+        let num_registry = 22;
+        self.update_records(clerk, update, num_registry)?;
+
+        if let Some(operator_address) = operator_address {
+            self._transfer_sell_to_operator(
+                &mut vault,
+                &mut clerk_storage,
+                operator_address,
+                sender_bid_id,
+                sender_ask_id,
+            )?;
+        }
+
+        let index_order = clerk_storage
+            .fetch_bytes(sender_ask_id)
+            .ok_or_else(|| b"Index order not set")?;
+
+        let executed_asset_quantities = clerk_storage
+            .fetch_bytes(executed_asset_quantities_id)
+            .ok_or_else(|| b"Executed asset quantities not set")?;
+
+        let executed_index_quantities = clerk_storage
+            .fetch_bytes(executed_index_quantities_id)
+            .ok_or_else(|| b"Executed index quantities not set")?;
+
+        Ok((
+            index_order,
+            executed_index_quantities,
+            executed_asset_quantities,
+        ))
+    }
+}
+
 #[public]
 impl Factor {
     /// Submit Market Data
@@ -246,44 +541,6 @@ impl Factor {
         let num_registry = 16;
         self.update_records(clerk, update, num_registry)?;
         Ok(())
-    }
-
-    pub fn process_trader_buy_order(
-        &mut self,
-        vendor_id: U128,
-        index_id: U128,
-        trader_address: Address,
-        max_order_size: u128,
-        asset_contribution_fractions: Bytes,
-    ) -> Result<(Bytes, Bytes, Bytes), Vec<u8>> {
-        self.execute_buy_order(
-            vendor_id,
-            index_id,
-            trader_address,
-            0,
-            0,
-            max_order_size,
-            asset_contribution_fractions,
-        )
-    }
-
-    pub fn process_trader_sell_order(
-        &mut self,
-        vendor_id: U128,
-        index_id: U128,
-        trader_address: Address,
-        max_order_size: u128,
-        asset_contribution_fractions: Bytes,
-    ) -> Result<(Bytes, Bytes, Bytes), Vec<u8>> {
-        self.execute_sell_order(
-            vendor_id,
-            index_id,
-            trader_address,
-            0,
-            0,
-            max_order_size,
-            asset_contribution_fractions,
-        )
     }
 
     pub fn submit_buy_order(
@@ -356,103 +613,91 @@ impl Factor {
         Ok(())
     }
 
+    pub fn process_pending_buy_order(
+        &mut self,
+        vendor_id: U128,
+        index_id: U128,
+        trader_address: Address,
+        max_order_size: u128,
+    ) -> Result<Vec<Bytes>, Vec<u8>> {
+        let (index_order, executed_index_quantities, executed_asset_quantities) = self
+            ._execute_buy_order(
+                vendor_id,
+                index_id,
+                trader_address,
+                None,
+                0,
+                0,
+                max_order_size,
+            )?;
+
+        Ok(vec![
+            index_order.into(),
+            executed_index_quantities.into(),
+            executed_asset_quantities.into(),
+        ])
+    }
+
+    pub fn process_pending_sell_order(
+        &mut self,
+        vendor_id: U128,
+        index_id: U128,
+        trader_address: Address,
+        max_order_size: u128,
+    ) -> Result<Vec<Bytes>, Vec<u8>> {
+        let (index_order, executed_index_quantities, executed_asset_quantities) = self
+            ._execute_sell_order(
+                vendor_id,
+                index_id,
+                trader_address,
+                None,
+                0,
+                0,
+                max_order_size,
+            )?;
+
+        Ok(vec![
+            index_order.into(),
+            executed_index_quantities.into(),
+            executed_asset_quantities.into(),
+        ])
+    }
+
     /// Submit BUY Index order
     ///
     /// Add collateral amount to user's order, and match for immediate execution.
+    ///
+    /// Any remaining collateral is transferred to operator for further execution.
     ///
     pub fn execute_buy_order(
         &mut self,
         vendor_id: U128,
         index_id: U128,
         trader_address: Address,
-        collateral_added: u128,
-        collateral_removed: u128,
+        operator_address: Address,
+        collateral_amount: u128,
         max_order_size: u128,
-        asset_contribution_fractions: Bytes,
-    ) -> Result<(Bytes, Bytes, Bytes), Vec<u8>> {
-        let mut storage = Keep::storage();
-        storage.check_version()?;
+    ) -> Result<Vec<Bytes>, Vec<u8>> {
+        let (index_order, executed_index_quantities, executed_asset_quantities) = self
+            ._execute_buy_order(
+                vendor_id,
+                index_id,
+                trader_address,
+                if trader_address != operator_address {
+                    Some(operator_address)
+                } else {
+                    None
+                },
+                collateral_amount,
+                0,
+                max_order_size,
+            )?;
 
-        let mut clerk_storage = ClerkStorage::storage();
-
-        // Allocate Quadratic Solver
-        let solve_quadratic_id = _init_solve_quadratic_bid(&mut storage, &mut clerk_storage);
-
-        let mut vault = storage.vaults.setter(index_id);
-
-        let vendor_quote_id = _get_vendor_quote_id(&mut vault, vendor_id)?;
-
-        // Allocate new Index order or get existing one
-        let index_order_id = _init_trader_bid(&mut vault, &mut clerk_storage, trader_address);
-        let vendor_order_id = _init_vendor_bid(&mut vault, &mut clerk_storage, vendor_id);
-        let total_order_id = _init_total_bid(&mut vault, &mut clerk_storage);
-
-        let account = storage.accounts.get(vendor_id);
-
-        let asset_contribution_fractions_id = SCRATCH_1;
-
-        clerk_storage.store_bytes(
-            asset_contribution_fractions_id,
-            asset_contribution_fractions,
-        );
-
-        let executed_asset_quantities_id = SCRATCH_2;
-        let executed_index_quantities_id = SCRATCH_3;
-
-        // Compile VIL program, which we will send to DeVIL for execution.
-        //
-        // The program:
-        //  - updates user's order with new collateral
-        //  - executes portion of the order that fits within Index capacity
-        //  - updates demand and delta vectors
-        //  - returns amount of collateral remaining and spent, and
-        //  - Index quantity executed and remaining
-        //
-        let update = execute_buy_order(
-            index_order_id.to(), // single trader orders aggregated per vault (we don't store individual orders)
-            vendor_order_id.to(),
-            total_order_id.to(),
-            collateral_added,
-            collateral_removed,
-            max_order_size,
-            executed_index_quantities_id.to(),
-            executed_asset_quantities_id.to(),
-            vault.assets.get().to(),
-            vault.weights.get().to(),
-            vendor_quote_id.to(),
-            account.assets.get().to(),
-            account.supply_long.get().to(),
-            account.supply_short.get().to(),
-            account.demand_long.get().to(),
-            account.demand_short.get().to(),
-            account.delta_long.get().to(),
-            account.delta_short.get().to(),
-            account.margin.get().to(),
-            asset_contribution_fractions_id.to(),
-            solve_quadratic_id.to(),
-        );
-
-        let clerk = storage.clerk.get();
-        let num_registry = 23;
-        self.update_records(clerk, update, num_registry)?;
-
-        let index_order = clerk_storage
-            .fetch_bytes(index_order_id)
-            .ok_or_else(|| b"Index order not set")?;
-
-        let executed_asset_quantities = clerk_storage
-            .fetch_bytes(executed_asset_quantities_id)
-            .ok_or_else(|| b"Executed asset quantities not set")?;
-
-        let executed_index_quantities = clerk_storage
-            .fetch_bytes(executed_index_quantities_id)
-            .ok_or_else(|| b"Executed index quantities not set")?;
-
-        Ok((
+        Ok(vec![
             index_order.into(),
             executed_index_quantities.into(),
             executed_asset_quantities.into(),
-        ))
+        ])
     }
 
     pub fn execute_sell_order(
@@ -460,109 +705,30 @@ impl Factor {
         vendor_id: U128,
         index_id: U128,
         trader_address: Address,
-        collateral_added: u128,
-        collateral_removed: u128,
+        operator_address: Address,
+        itp_amount: u128,
         max_order_size: u128,
-        asset_contribution_fractions: Bytes,
-    ) -> Result<(Bytes, Bytes, Bytes), Vec<u8>> {
-        let mut storage = Keep::storage();
-        storage.check_version()?;
+    ) -> Result<Vec<Bytes>, Vec<u8>> {
+        let (index_order, executed_index_quantities, executed_asset_quantities) = self
+            ._execute_sell_order(
+                vendor_id,
+                index_id,
+                trader_address,
+                if trader_address != operator_address {
+                    Some(operator_address)
+                } else {
+                    None
+                },
+                itp_amount,
+                0,
+                max_order_size,
+            )?;
 
-        let mut clerk_storage = ClerkStorage::storage();
-
-        // Allocate Quadratic Solver
-        let solve_quadratic_id = _init_solve_quadratic_ask(&mut storage, &mut clerk_storage);
-
-        let mut vault = storage.vaults.setter(index_id);
-
-        let vendor_quote_id = _get_vendor_quote_id(&mut vault, vendor_id)?;
-
-        // Allocate new Index order or get existing one
-        let sender_bid_id = _init_trader_bid(&mut vault, &mut clerk_storage, trader_address);
-        let sender_ask_id = _init_trader_ask(&mut vault, &mut clerk_storage, trader_address);
-        let vendor_order_id = _init_vendor_ask(&mut vault, &mut clerk_storage, vendor_id);
-        let total_order_id = _init_total_ask(&mut vault, &mut clerk_storage);
-        
-        let sender_bid_bytes = clerk_storage
-            .fetch_bytes(sender_bid_id)
-            .ok_or_else(|| b"Sender Bid not set (sell)")?;
-
-        let sender_ask_bytes = clerk_storage
-            .fetch_bytes(sender_ask_id)
-            .ok_or_else(|| b"Sender Ask not set (sell)")?;
-
-        let order = Order::try_from_vec_pair(sender_bid_bytes, sender_ask_bytes)?;
-
-        if order.tell_available()?.to_u128_raw() < collateral_added {
-            Err(b"Insufficient amount of Index token (sell)")?;
-        }
-
-        let account = storage.accounts.get(vendor_id);
-
-        let asset_contribution_fractions_id = SCRATCH_1;
-
-        clerk_storage.store_bytes(
-            asset_contribution_fractions_id,
-            asset_contribution_fractions,
-        );
-
-        let executed_asset_quantities_id = SCRATCH_2;
-        let executed_index_quantities_id = SCRATCH_3;
-
-        // Compile VIL program, which we will send to DeVIL for execution.
-        //
-        // The program:
-        //  - updates user's order with new collateral
-        //  - executes portion of the order that fits within Index capacity
-        //  - updates demand and delta vectors
-        //  - returns amount of collateral remaining and spent, and
-        //  - Index quantity executed and remaining
-        //
-        let update = execute_sell_order(
-            sender_ask_id.to(), // single trader orders aggregated per vault (we don't store individual orders)
-            vendor_order_id.to(),
-            total_order_id.to(),
-            collateral_added,
-            collateral_removed,
-            max_order_size,
-            executed_index_quantities_id.to(),
-            executed_asset_quantities_id.to(),
-            vault.assets.get().to(),
-            vault.weights.get().to(),
-            vendor_quote_id.to(),
-            account.assets.get().to(),
-            account.supply_long.get().to(),
-            account.supply_short.get().to(),
-            account.demand_long.get().to(),
-            account.demand_short.get().to(),
-            account.delta_long.get().to(),
-            account.delta_short.get().to(),
-            account.margin.get().to(),
-            asset_contribution_fractions_id.to(),
-            solve_quadratic_id.to(),
-        );
-
-        let clerk = storage.clerk.get();
-        let num_registry = 22;
-        self.update_records(clerk, update, num_registry)?;
-
-        let index_order = clerk_storage
-            .fetch_bytes(sender_ask_id)
-            .ok_or_else(|| b"Index order not set")?;
-
-        let executed_asset_quantities = clerk_storage
-            .fetch_bytes(executed_asset_quantities_id)
-            .ok_or_else(|| b"Executed asset quantities not set")?;
-
-        let executed_index_quantities = clerk_storage
-            .fetch_bytes(executed_index_quantities_id)
-            .ok_or_else(|| b"Executed index quantities not set")?;
-
-        Ok((
+        Ok(vec![
             index_order.into(),
             executed_index_quantities.into(),
             executed_asset_quantities.into(),
-        ))
+        ])
     }
 
     // pub fn submit_rebalance_order(

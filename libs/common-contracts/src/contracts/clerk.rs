@@ -49,6 +49,9 @@ impl ClerkStorage {
     }
 
     pub fn next_vector(&mut self) -> U128 {
+        if !self.is_constructed() {
+            panic!("Keep not constructed");
+        }
         let value = self.last_vector.get() + U128::ONE;
         self.last_vector.set(value);
         value

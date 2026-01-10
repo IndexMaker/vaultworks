@@ -22,7 +22,6 @@ pub fn execute_sell_order(
     delta_long_id: u128,
     delta_short_id: u128,
     margin_id: u128,
-    asset_contribution_fractions_id: u128,
     solve_quadratic_id: u128,
 ) -> Vec<u8> {
     abacus! {
@@ -68,25 +67,23 @@ pub fn execute_sell_order(
         // Compute CapacityLimit = MIN( (DeltaShort + MIN(Margin - DeltaLong, Capacity * AssetWeights)) / AssetWeights)
         LDL         asset_names_id              // Stack: [AssetNames]
         LDL         market_asset_names_id       // Stack: [AN = AssetNames, MAN = MarketAssetNames]
-        LDV         asset_contribution_fractions_id // Stack: [AN, MAN, ACF = AssetContributionFractions]
-        LDV         margin_id                   // Stack: [AN, MAN, ACF, M = Margin]
-        LDV         delta_short_id              // Stack: [AN, MAN, ACF, M, DS = DeltaShort]
-        JFLT        3   4                       // Stack: [AN, MAN, ACF, M, fDS]
-        LDV         delta_long_id               // Stack: [AN, MAN, ACF, M, fDS, DL = DeltaLong]
-        SWAP        2                           // Stack: [AN, MAN, ACF, DL, fDS, M]
-        SSB         2                           // Stack: [AN, MAN, ACF, DL, fDS, M_DL = M s- DL]
-        JFLT        4   5                       // Stack: [AN, MAN, ACF, DL, fDS, fM_DL]
-        LDR         _Weights                    // Stack: [AN, MAN, ACF, DL, fDS, fM_DL, W = AssetWeights]
-        LDM         _Capacity                   // Stack: [AN, MAN, ACF, DL, fDS, fM_DL, W, Cap]
-        LDD         1                           // Stack: [AN, MAN, ACF, DL, fDS, fM_DL, W, Cap, W]
-        MUL         1                           // Stack: [AN, MAN, ACF, DL, fDS, fM_DL, W, Cap, Cap_W = Cap * W]
-        MIN         3                           // Stack: [AN, MAN, ACF, DL, fDS, fM_DL, W, Cap, MA = MIN(fM_DL, Cap_W)]
-        ADD         4                           // Stack: [AN, MAN, ACF, DL, fDS, fM_DL, W, Cap, L = MA + fDS]
-        DIV         2                           // Stack: [AN, MAN, ACF, DL, fDS, fM_DL, W, Cap, CL_vec = L / W]
-        MUL         6                           // Stack: [AN, MAN, ACF, DL, fDS, fM_DL, W, Cap, CL_vec_acf = CL_vec * ACF]
-        VMIN                                    // Stack: [AN, MAN, ACF, DL, fDS, fM_DL, W, Cap, CL = VMIN(CL_vec_acf)]
-        SWAP        6                           // Stack: [AN, MAN, CL, DL, fDS, fM_DL, W, Cap, ACF]
-        POPN        6                           // Stack: [AN, MAN, CL]
+        LDV         margin_id                   // Stack: [AN, MAN, M = Margin]
+        LDV         delta_short_id              // Stack: [AN, MAN, M, DS = DeltaShort]
+        JFLT        2   3                       // Stack: [AN, MAN, M, fDS]
+        LDV         delta_long_id               // Stack: [AN, MAN, M, fDS, DL = DeltaLong]
+        SWAP        2                           // Stack: [AN, MAN, DL, fDS, M]
+        SSB         2                           // Stack: [AN, MAN, DL, fDS, M_DL = M s- DL]
+        JFLT        3   4                       // Stack: [AN, MAN, DL, fDS, fM_DL]
+        LDR         _Weights                    // Stack: [AN, MAN, DL, fDS, fM_DL, W = AssetWeights]
+        LDM         _Capacity                   // Stack: [AN, MAN, DL, fDS, fM_DL, W, Cap]
+        LDD         1                           // Stack: [AN, MAN, DL, fDS, fM_DL, W, Cap, W]
+        MUL         1                           // Stack: [AN, MAN, DL, fDS, fM_DL, W, Cap, Cap_W = Cap * W]
+        MIN         3                           // Stack: [AN, MAN, DL, fDS, fM_DL, W, Cap, MA = MIN(fM_DL, Cap_W)]
+        ADD         4                           // Stack: [AN, MAN, DL, fDS, fM_DL, W, Cap, L = MA + fDS]
+        DIV         2                           // Stack: [AN, MAN, DL, fDS, fM_DL, W, Cap, CL_vec = L / W]
+        VMIN                                    // Stack: [AN, MAN, DL, fDS, fM_DL, W, Cap, CL = VMIN(CL_vec_acf)]
+        SWAP        5                           // Stack: [AN, MAN, CL, fDS, fM_DL, W, Cap, DL]
+        POPN        5                           // Stack: [AN, MAN, CL]
         SWAP        2                           // Stack: [CL, MAN, AN]
         STR         _AssetNames                 // Stack: [CL, MAN]
         STR         _MarketAssetNames           // Stack: [CapacityLimit = CL]

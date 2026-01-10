@@ -5475,6 +5475,38 @@ dependencies = [
 ]
 
 [[package]]
+name = "vault_native_claims"
+version = "0.1.0"
+dependencies = [
+ "alloy-primitives",
+ "alloy-sol-types",
+ "common",
+ "common-contracts",
+ "dotenv",
+ "ethers",
+ "eyre",
+ "hex",
+ "stylus-sdk",
+ "tokio",
+]
+
+[[package]]
+name = "vault_native_orders"
+version = "0.1.0"
+dependencies = [
+ "alloy-primitives",
+ "alloy-sol-types",
+ "common",
+ "common-contracts",
+ "dotenv",
+ "ethers",
+ "eyre",
+ "hex",
+ "stylus-sdk",
+ "tokio",
+]
+
+[[package]]
 name = "vault_requests"
 version = "0.1.0"
 dependencies = [

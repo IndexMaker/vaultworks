@@ -2,15 +2,26 @@ use alloy_primitives::uint;
 use amount_macros::amount;
 use common::{labels::Labels, log_msg, vector::Vector};
 use ethers::types::Address;
+use eyre::bail;
 use labels_macros::label_vec;
 use vector_macros::amount_vec;
 
 use common_ethers::{
-    ToBytes, contracts::{Banker, Factor, Guildmaster}, tx_sender::TxClient
+    contracts::{Banker, Factor, Guildmaster},
+    tx_sender::TxClient,
+    ToBytes,
 };
 
-pub async fn run_scenario(client: &TxClient, castle_address: Address) -> eyre::Result<()> {
+pub async fn run_scenario(
+    client: &TxClient,
+    castle_address: Address,
+    keeper_address: Address,
+) -> eyre::Result<()> {
     log_msg!("Scenario 5.");
+
+    if keeper_address == client.address() {
+        bail!("Keeper must use distinct address")
+    }
 
     let banker = Banker::new(castle_address, client.client());
     let guildmaster = Guildmaster::new(castle_address, client.client());
@@ -141,9 +152,7 @@ pub async fn run_scenario(client: &TxClient, castle_address: Address) -> eyre::R
         log_msg!("Submit Buy Order");
 
         let collateral_added = amount!(10.0);
-        let collateral_removed = amount!(0);
         let max_order_size = amount!(1000.0);
-        let acf = amount_vec!(1.0, 1.0, 1.0, 0.5, 0.5);
 
         let result = client
             .begin_tx()
@@ -151,25 +160,21 @@ pub async fn run_scenario(client: &TxClient, castle_address: Address) -> eyre::R
                 vendor_id,
                 index_id,
                 client.address(),
+                keeper_address,
                 collateral_added.to_u128_raw(),
-                collateral_removed.to_u128_raw(),
                 max_order_size.to_u128_raw(),
-                acf.to_bytes(),
             ))
             .send()
             .await?;
 
         log_msg!("Buy order placement result: {:?}", result);
     }
-    
+
     {
         log_msg!("Submit Sell Order");
 
-        //let collateral_added = amount!(0.1);
         let collateral_added = amount!(0.04);
-        let collateral_removed = amount!(0);
         let max_order_size = amount!(1000.0);
-        let acf = amount_vec!(1.0, 1.0, 1.0, 0.5, 0.5);
 
         let result = client
             .begin_tx()
@@ -177,10 +182,9 @@ pub async fn run_scenario(client: &TxClient, castle_address: Address) -> eyre::R
                 vendor_id,
                 index_id,
                 client.address(),
+                keeper_address,
                 collateral_added.to_u128_raw(),
-                collateral_removed.to_u128_raw(),
                 max_order_size.to_u128_raw(),
-                acf.to_bytes(),
             ))
             .send()
             .await?;

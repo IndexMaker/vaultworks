@@ -5,10 +5,6 @@ use ethers::types::Address;
 use common_ethers::tx_sender::TxClient;
 use eyre::{eyre, OptionExt};
 
-// mod scenario_1;
-// mod scenario_2;
-// mod scenario_3;
-// mod scenario_4;
 mod scenario_5;
 
 #[derive(Parser, Debug)]
@@ -23,8 +19,8 @@ struct Cli {
     #[arg(long)]
     castle_address: Option<String>,
 
-    // #[arg(long)]
-    // clerk_address: Option<String>,
+    #[arg(long)]
+    keeper_address: Option<String>,
 
     #[arg(short, long, value_delimiter = ',')]
     scenario: Vec<String>,
@@ -42,11 +38,11 @@ async fn main() -> eyre::Result<()> {
         None
     };
 
-    // let clerk_address: Option<Address> = if let Some(a) = cli.clerk_address {
-    //     Some(a.parse()?)
-    // } else {
-    //     None
-    // };
+    let keeper_address: Option<Address> = if let Some(a) = cli.keeper_address {
+        Some(a.parse()?)
+    } else {
+        None
+    };
 
     let scenario = cli.scenario;
 
@@ -54,38 +50,11 @@ async fn main() -> eyre::Result<()> {
 
     for s in scenario {
         match s.as_str() {
-            /*"scenario1" => {
-                scenario_1::run_scenario(
-                    &client,
-                    clerk_address.ok_or_eyre("Clerk address is required")?,
-                )
-                .await?;
-            }
-            "scenario2" => {
-                scenario_2::run_scenario(
-                    &client,
-                    clerk_address.ok_or_eyre("Clerk address is required")?,
-                )
-                .await?;
-            }
-            "scenario3" => {
-                scenario_3::run_scenario(
-                    &client,
-                    clerk_address.ok_or_eyre("Clerk address is required")?,
-                )
-                .await?;
-            }
-            "scenario4" => {
-                scenario_4::run_scenario(
-                    &client,
-                    clerk_address.ok_or_eyre("Clerk address is required")?,
-                )
-                .await?;
-            }*/
             "scenario5" => {
                 scenario_5::run_scenario(
                     &client,
                     castle_address.ok_or_eyre("Castle address is required")?,
+                    keeper_address.ok_or_eyre("Keeper address is required")?,
                 )
                 .await?;
             }

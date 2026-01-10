@@ -2,7 +2,7 @@ use alloy_sol_types::sol;
 
 sol! {
     interface ISteward  {
-        function getMarketData(uint128 vendor_id) external view returns (bytes memory, bytes memory, bytes memory);
+        function getMarketData(uint128 vendor_id) external view returns (bytes[] memory);
 
         function getIndexAssetsCount(uint128 index_id) external view returns (uint128);
 
@@ -30,11 +30,11 @@ sol! {
 
         function getVendorMargin(uint128 vendor_id) external returns (bytes memory);
 
-        function getVendorSupply(uint128 vendor_id) external returns (bytes memory, bytes memory);
+        function getVendorSupply(uint128 vendor_id) external returns (bytes[] memory);
 
-        function getVendorDemand(uint128 vendor_id) external returns (bytes memory, bytes memory);
+        function getVendorDemand(uint128 vendor_id) external returns (bytes[] memory);
 
-        function getVendorDelta(uint128 vendor_id) external returns (bytes memory, bytes memory);
+        function getVendorDelta(uint128 vendor_id) external returns (bytes[] memory);
 
         function fetchVector(uint128 id) external view returns (bytes memory);
     }
