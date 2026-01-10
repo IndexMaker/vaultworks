@@ -81,7 +81,19 @@ Copy address of the `Vault Gate` and export as `$VAULT` vailable, e.g.
 export VAULT=0xeff7b46049fc677f58264e0ebb19df1a39195a21
 ```
 
-for now we can grant *Vault Role* to the *Vault* like:
+Need to deploy Orders & Claims:
+```
+./scripts/deploy.sh vault_native_orders
+./scripts/deploy.sh vault_native_claims
+```
+
+and then install using the addresses deployed orders & claims, e.g.:
+```
+./scripts/send.sh $VAULT "installOrders(address)" 0xfb8c3906979fa82ed9e9e18c3ee21995761a13e7
+./scripts/send.sh $VAULT "installClaims(address)" 0x95e7a50f9bd7189c9e8d52462410c921592e821e
+```
+
+For now we can grant *Vault Role* to the *Vault* like:
 ```
 ./scripts/roles.sh grant $CASTLE "Castle.VAULT_ROLE" $VAULT
 ./scripts/roles.sh grant $CASTLE "Castle.KEEPER_ROLE" $VAULT

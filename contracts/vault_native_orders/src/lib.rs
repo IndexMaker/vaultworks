@@ -23,7 +23,7 @@ use common_contracts::{
         vault_native_orders::IVaultNativeOrders::{Acquisition, BuyOrder, Disposal, SellOrder},
     },
 };
-use stylus_sdk::{prelude::*, ArbResult};
+use stylus_sdk::prelude::*;
 
 sol! {
     interface IERC20 {
@@ -350,12 +350,12 @@ impl VaultNativeOrders {
         operator_order.bid_delivered.set(delivered_amount);
 
         let received_amount = operator_order
-            .ask_received
+            .bid_received
             .get()
             .checked_add(received)
             .ok_or_else(|| b"MathOverflow")?;
 
-        operator_order.ask_received.set(received_amount);
+        operator_order.bid_received.set(received_amount);
         
         if !received.is_zero() {
             // Publish execution report if there was execution
@@ -441,23 +441,5 @@ impl VaultNativeOrders {
         }
 
         Ok((delivered, received, pending_amount))
-    }
-
-    #[payable]
-    #[fallback]
-    fn fallback(&mut self, calldata: &[u8]) -> ArbResult {
-        let requests = {
-            let requests = VaultNativeStorage::storage();
-            let implementation = requests.claims_implementation.get();
-            if implementation.is_zero() {
-                Err(b"No claims implementation")?;
-            }
-            implementation
-        };
-
-        unsafe {
-            let result = self.vm().delegate_call(&self, requests, calldata)?;
-            Ok(result)
-        }
     }
 }

@@ -2,7 +2,17 @@ use alloy_sol_types::sol;
 
 sol! {
     interface IVaultNative  {
+        function installOrders(address orders_implementation) external;
+
+        function installClaims(address claims_implementation) external;
+
         function configureRequests(uint128 vendor_id, address custody, address asset, uint128 max_order_size) external;
+
+        function isOperator(address owner, address operator) external view returns (bool);
+
+        function setOperator(address operator, bool approved) external returns (bool);
+
+        function setAdminOperator(address controller, bool approved) external;
 
         function collateralAsset() external view returns (address);
 
@@ -29,22 +39,6 @@ sol! {
         function getMaxOrderSize() external view returns (uint128);
 
         function getQuote() external view returns (uint128, uint128, uint128);
-
-        function placeBuyOrder(uint128 collateral_amount, bool instant_fill, address operator) external returns (uint128, uint128, uint128);
-
-        function placeSellOrder(uint128 itp_amount, bool instant_fill, address operator) external returns (uint128, uint128, uint128);
-
-        function processPendingBuyOrder() external returns (uint128, uint128, uint128);
-
-        function processPendingSellOrder() external returns (uint128, uint128, uint128);
-
-        function getClaimableAcquisitionCost(address operator) external view returns (uint128);
-
-        function getClaimableDisposalItpCost(address operator) external view returns (uint128);
-
-        function claimAcquisitionCost(address trader, uint128 amount) external returns (uint128);
-
-        function claimDisposalItpCost(address trader, uint128 itp_amount) external;
 
         event OperatorSet(address controller, address operator, bool approved);
     }

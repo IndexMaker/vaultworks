@@ -8,11 +8,13 @@ extern crate alloc;
 use alloc::vec::Vec;
 
 use alloy_primitives::{Address, U128};
-use alloy_sol_types::{sol, SolEvent};
+use alloy_sol_types::{sol, SolCall, SolEvent};
 use common::{amount::Amount, log_msg};
 use common_contracts::{
     contracts::{keep_calls::KeepCalls, vault::VaultStorage, vault_native::VaultNativeStorage},
-    interfaces::vault_native::IVaultNative::OperatorSet,
+    interfaces::{
+        vault_native::IVaultNative::OperatorSet, vault_native_orders::IVaultNativeOrders,
+    },
 };
 use stylus_sdk::{prelude::*, ArbResult};
 
@@ -86,7 +88,11 @@ impl VaultNative {
         true
     }
 
-    pub fn set_admin_operator(&mut self, controller: Address, approved: bool) -> Result<(), Vec<u8>> {
+    pub fn set_admin_operator(
+        &mut self,
+        controller: Address,
+        approved: bool,
+    ) -> Result<(), Vec<u8>> {
         let sender = self.attendee();
         let vault = VaultStorage::storage();
         vault.only_owner(sender)?;
@@ -286,8 +292,19 @@ impl VaultNative {
     #[fallback]
     fn fallback(&mut self, calldata: &[u8]) -> ArbResult {
         let requests = {
+            let mut sig = [0u8; 4];
+            sig.copy_from_slice(&calldata[0..4]);
+
             let requests = VaultNativeStorage::storage();
-            let implementation = requests.orders_implementation.get();
+            let implementation = match &sig {
+                &IVaultNativeOrders::placeBuyOrderCall::SELECTOR
+                | &IVaultNativeOrders::placeSellOrderCall::SELECTOR
+                | &IVaultNativeOrders::processPendingBuyOrderCall::SELECTOR
+                | &IVaultNativeOrders::processPendingSellOrderCall::SELECTOR => {
+                    requests.orders_implementation.get()
+                }
+                _ => requests.claims_implementation.get(),
+            };
             if implementation.is_zero() {
                 Err(b"No orders implementation")?;
             }

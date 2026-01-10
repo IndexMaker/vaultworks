@@ -15,7 +15,10 @@ use common_contracts::{
         calls::InnerCall, keep_calls::KeepCalls, vault::VaultStorage,
         vault_native::VaultNativeStorage,
     },
-    interfaces::vault_native_claims::IVaultNativeClaims::{AcquisitionClaim, DisposalClaim},
+    interfaces::{
+        factor::IFactor,
+        vault_native_claims::IVaultNativeClaims::{AcquisitionClaim, DisposalClaim},
+    },
 };
 use stylus_sdk::prelude::*;
 
@@ -93,10 +96,11 @@ impl VaultNativeClaims {
         // Transfer ITP from keeper to Trader
         self.external_call(
             vault.gate_to_castle.get(),
-            transferFromCall {
-                from: keeper,
-                to: trader,
-                value: itp_claimed.to(),
+            IFactor::executeTransferCall {
+                index_id: vault.index_id.get().to(),
+                sender: keeper,
+                receiver: trader,
+                amount: itp_claimed.to(),
             },
         )?;
 
@@ -207,5 +211,25 @@ impl VaultNativeClaims {
         }
 
         Ok(amount_received)
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use alloy_primitives::U128;
+    use common::amount::Amount;
+
+    #[test]
+    fn test_amount_received() {
+        let itp_claimed = Amount::from_u128_raw(101907499999999999430u128)
+            .checked_mul(Amount::from_u128_with_scale(1, 0))
+            .ok_or_else(|| b"MathOverflow")
+            .unwrap()
+            .checked_div(Amount::from_u128_with_scale(141_9075, 4))
+            .ok_or_else(|| b"MathOverflow")
+            .unwrap()
+            .to_u128();
+
+        assert_eq!(itp_claimed, U128::ZERO);
     }
 }
