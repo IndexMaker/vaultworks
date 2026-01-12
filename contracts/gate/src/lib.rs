@@ -33,6 +33,21 @@ impl Gate {
     ) -> Result<(), erc1967::utils::Error> {
         self.erc1967.constructor(implementation, &data)
     }
+    
+    /// If we cannot use constructor() due to Cargo/Stylus limitation
+    /// we shall use initialize() once-and-only-once (this is tested
+    /// by checking implementation is zero).
+    pub fn initialize(
+        &mut self,
+        implementation: Address,
+        data: Bytes,
+    ) -> Result<(), Vec<u8>> {
+        if !self.implementation()?.is_zero() {
+            Err(b"Can only call initialize once")?;
+        }
+        self.erc1967.constructor(implementation, &data)?;
+        Ok(())
+    }
 
     fn implementation(&self) -> Result<Address, Vec<u8>> {
         self.erc1967.implementation()

@@ -17,7 +17,7 @@ use alloy_primitives::{Address, U128};
 use common::{amount::Amount, vector::Vector};
 use common_contracts::contracts::{
     clerk::{ClerkStorage, SCRATCH_1, SCRATCH_2, SCRATCH_3, SCRATCH_4},
-    formulas::{Order, ORDER_REALIZED_OFFSET, ORDER_REMAIN_OFFSET},
+    formulas::{Order, ORDER_REMAIN_OFFSET},
     keep::{Keep, Vault},
     keep_calls::KeepCalls,
 };
@@ -205,6 +205,9 @@ impl Factor {
             .fetch_vector(index_order_id)
             .ok_or_else(|| b"Index order not set")?;
 
+        // Carry over of Collateral Remain from Trader to Operator
+        // is a straight-forward process. We zero C/Remain for Trader
+        // and add to Operator's C/Remain.
         let collateral_remain = trader_order.data[ORDER_REMAIN_OFFSET];
         let mut operator_collateral = operator_order.data[ORDER_REMAIN_OFFSET];
 
@@ -225,50 +228,55 @@ impl Factor {
         &mut self,
         vault: &mut Vault,
         clerk_storage: &mut ClerkStorage,
+        clerk: Address,
         operator_address: Address,
         sender_bid_id: U128,
         sender_ask_id: U128,
     ) -> Result<(), Vec<u8>> {
-        let operator_bid_id = _init_trader_bid(vault, clerk_storage, operator_address);
-        let operator_ask_id = _init_trader_ask(vault, clerk_storage, operator_address);
-
-        let mut operator_bid_order = clerk_storage
-            .fetch_vector(operator_bid_id)
-            .ok_or_else(|| b"Index order not set")?;
-
-        let mut operator_ask_order = clerk_storage
-            .fetch_vector(operator_ask_id)
-            .ok_or_else(|| b"Index order not set")?;
-
-        let mut trader_bid = clerk_storage
-            .fetch_vector(sender_bid_id)
-            .ok_or_else(|| b"Index order not set")?;
-
         let mut trader_ask = clerk_storage
             .fetch_vector(sender_ask_id)
             .ok_or_else(|| b"Index order not set")?;
 
-        let itp_available = trader_bid.data[ORDER_REALIZED_OFFSET];
+        // This is pretty intricate:
+        // - First we need to zero ITP Locked for Trader,
+        //   buy we must carry it over to Operator later on (...)
         let itp_locked = trader_ask.data[ORDER_REMAIN_OFFSET];
-
-        let operator_available = operator_bid_order.data[ORDER_REALIZED_OFFSET];
-        operator_bid_order.data[ORDER_REALIZED_OFFSET] = operator_available
-            .checked_add(itp_locked)
-            .ok_or_else(|| b"MathOverflow")?;
-
-        let operator_remain = operator_ask_order.data[ORDER_REMAIN_OFFSET];
-        operator_ask_order.data[ORDER_REMAIN_OFFSET] = operator_remain
-            .checked_add(itp_locked)
-            .ok_or_else(|| b"MathOverflow")?;
-
-        trader_bid.data[ORDER_REALIZED_OFFSET] = itp_available
-            .checked_sub(itp_locked)
-            .ok_or_else(|| b"MathUnderflow")?;
-
         trader_ask.data[ORDER_REMAIN_OFFSET] = Amount::ZERO;
 
-        clerk_storage.store_vector(operator_bid_id, operator_bid_order);
-        clerk_storage.store_vector(sender_bid_id, trader_bid);
+        clerk_storage.store_vector(sender_ask_id, trader_ask);
+
+        let operator_bid_id = _init_trader_bid(vault, clerk_storage, operator_address);
+        let operator_ask_id = _init_trader_ask(vault, clerk_storage, operator_address);
+
+        // - Before we carry over ITP Locked to Operator, we must first
+        //   transfer that amount of ITP from Trader to Operator, and then (...)
+        let update = execute_transfer(
+            sender_bid_id.to(),
+            sender_ask_id.to(),
+            operator_bid_id.to(),
+            itp_locked.to_u128_raw(),
+        );
+
+        let num_registry = 6;
+        self.update_records(clerk, update, num_registry)?;
+
+        // - Once we have transferred ITP from Trader to Operator, we can now
+        //   carry over ITP Locked to Operator
+        //
+        // NOTE: While this process might seem complex, it is necessary to zero
+        // ITP Locked for Trader before making transfer, as otherwise transfer
+        // would fail. Also it would be incorrect to carry over ITP Locked before
+        // transfer, as that would result in negative balance of the Operator.
+        let mut operator_ask_order = clerk_storage
+            .fetch_vector(operator_ask_id)
+            .ok_or_else(|| b"Index order not set")?;
+
+        let operator_itp_locked = operator_ask_order.data[ORDER_REMAIN_OFFSET];
+        operator_ask_order.data[ORDER_REMAIN_OFFSET] = operator_itp_locked
+            .checked_add(itp_locked)
+            .ok_or_else(|| b"MathOverflow")?;
+
+        clerk_storage.store_vector(operator_ask_id, operator_ask_order);
 
         Ok(())
     }
@@ -456,6 +464,7 @@ impl Factor {
             self._transfer_sell_to_operator(
                 &mut vault,
                 &mut clerk_storage,
+                clerk,
                 operator_address,
                 sender_bid_id,
                 sender_ask_id,

@@ -20,7 +20,9 @@ to_upper() { echo "$1" | tr '[:lower:]' '[:upper:]'; }
 # --- Core Functions ---
 
 deploy_logic() {
-    local ADDR=$(deploy_construct treasury "constructor(address)" "$DEPLOYER_ADDRESS" | tee /dev/stderr | parse_deployment_address)
+    # Having issues calling constructors
+    #local ADDR=$(deploy_construct treasury "constructor(address)" "$DEPLOYER_ADDRESS" | tee /dev/stderr | parse_deployment_address)
+    local ADDR=$(deploy treasury | tee /dev/stderr | parse_deployment_address)
     [ -z "$ADDR" ] && die "Failed to parse Treasury logic address"
     echo "$ADDR"
 }
@@ -28,7 +30,10 @@ deploy_logic() {
 deploy_gate() {
     local logic_addr=$1
     local init_data=$(calldata "initialize(address)" "$DEPLOYER_ADDRESS")
-    local gate_addr=$(deploy_construct gate "constructor(address,bytes)" "$logic_addr" "$init_data" | tee /dev/stderr | parse_deployment_address)
+    # Having issues calling constructors
+    #local gate_addr=$(deploy_construct gate "constructor(address,bytes)" "$logic_addr" "$init_data" | tee /dev/stderr | parse_deployment_address)
+    local gate_addr=$(deploy gate | tee /dev/stderr | parse_deployment_address)
+    contract_send $gate_addr "initialize(address,bytes)" "$logic_addr" "$init_data"
     [ -z "$gate_addr" ] && die "Failed to parse Gate address"
     echo "$gate_addr"
 }

@@ -169,7 +169,7 @@ contract_send() {
     
     echo "cast send --private-key \$DEPLOY_PRIVATE_KEY ${CAST_ARGS[@]}" >&2
 
-    cast send --private-key $DEPLOY_PRIVATE_KEY "${CAST_ARGS[@]}"
+    cast send --private-key $DEPLOY_PRIVATE_KEY "${CAST_ARGS[@]}" >&2
 }
 
 contract_call() {

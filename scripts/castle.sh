@@ -87,7 +87,10 @@ else
 
     if [ "$USE_GATES" = true ]; then
         CALLDATA=$(calldata "initialize(address,address)" "$CASTLE_ADDRESS" "$DEPLOYER_ADDRESS")
-        TARGET_ADDRESS=$(deploy_construct gate "constructor(address,bytes)" "$CASTLE_ADDRESS" "$CALLDATA" | tee /dev/stderr | parse_deployment_address)
+        # Having issues calling constructors
+        #TARGET_ADDRESS=$(deploy_construct gate "constructor(address,bytes)" "$CASTLE_ADDRESS" "$CALLDATA" | tee /dev/stderr | parse_deployment_address)
+        TARGET_ADDRESS=$(deploy gate | tee /dev/stderr | parse_deployment_address)
+        contract_send $TARGET_ADDRESS "initialize(address,bytes)" "$CASTLE_ADDRESS" "$CALLDATA"
         [ -z "$TARGET_ADDRESS" ] && die "Cannot parse address of: gate (Castle Proxy)"
     else
         TARGET_ADDRESS=$CASTLE_ADDRESS
