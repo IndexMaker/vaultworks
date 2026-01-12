@@ -362,7 +362,7 @@ impl VaultNativeOrders {
 
         let ret = self.external_call_ret(
             vault.gate_to_castle.get(),
-            IFactor::processPendingBuyOrderCall {
+            IFactor::processPendingSellOrderCall {
                 vendor_id: requests.vendor_id.get().to(),
                 index_id: vault.index_id.get().to(),
                 trader_address: keeper,

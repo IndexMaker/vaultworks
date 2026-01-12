@@ -41,7 +41,10 @@ deploy_gate() {
     # UUPS Initialization for vault
     local init_data=$(calldata "initialize(address,address,address)" "$DEPLOYER_ADDRESS" "$provider_addr" "$castle_gate")
     
-    local gate_addr=$(deploy_construct gate "constructor(address,bytes)" "$logic_addr" "$init_data" | tee /dev/stderr | parse_deployment_address)
+    # Having issues calling constructors
+    #local gate_addr=$(deploy_construct gate "constructor(address,bytes)" "$logic_addr" "$init_data" | tee /dev/stderr | parse_deployment_address)
+    local gate_addr=$(deploy gate | tee /dev/stderr | parse_deployment_address)
+    contract_send $gate_addr "initialize(address,bytes)" "$logic_addr" "$init_data"
     [ -z "$gate_addr" ] && die "Failed to parse vault Gate address"
     echo "$gate_addr"
 }

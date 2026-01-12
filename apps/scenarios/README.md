@@ -347,3 +347,65 @@ They can be inspected to troubleshoot issues, however one needs to be aware that
 these vectors are reused by various functions as a scratch memory for sharing temporary data with *Vector IL* programs.
 Note also that only appointed members of the *Castle* have *write* access to any vectors, and while
 we give developers access to fetch them, we do not provide any method to change them directly.
+
+
+### Upgrading Castle NPC's
+
+Should we need to upgrade one of the Castle's NPC's, e.g. Factor, we can do that easily as long
+as we have *Admin* role granted.
+
+We'll show on example of how to upgrade Factor.
+
+First need to re-build Factor contract:
+```
+./scripts/check.sh factor
+```
+
+Next need to deploy it:
+```
+./scripts/deploy.sh factor 
+```
+
+That at the end should print line like this one:
+```
+Contract 'factor' deployed at: 0x956ab88947478591b52e068a81ef2c54906448af by: 0xC0D3Cb0c97CbF87F103a9901100D8f6D3e94D42A
+```
+
+We can take that address and call *Constable* method on *Castle* address to performa upgrade:
+```
+./scripts/send.sh $CASTLE "appointFactor(address)" 0x956ab88947478591b52e068a81ef2c54906448af
+```
+
+### Upgrading Vault Native
+
+We can upgrade *Vault Native* contract.
+
+First re-build and deploy *Vault Native* contract:
+```
+./scripts/check.sh vault_native
+./scripts/deploy.sh vault_native
+```
+
+Next we need to re-initialize *Vault* with new implementation:
+```
+./scripts/send.sh $VAULT "initialize(address,address,address)" $DEPLOYER_ADDRESS 0x(deployed vault_native address) $CASTLE
+```
+
+### Upgrading Facets of Vault Native
+
+We have already seen how to install *Orders* and *Claims* facets, and we shall use same methods.
+
+First need to re-build either facet, e.g. *Orders*:
+```
+./scripts/check.sh vault_native_orders
+```
+
+The deploy:
+```
+./scripts/deploy.sh vault_native_orders
+```
+
+And eventually call *Vault Native* method to install *Orders* facet:
+```
+./scripts/send.sh $VAULT "installOrders(address)" 0xfb8c3906979fa82ed9e9e18c3ee21995761a13e7
+```

@@ -106,16 +106,16 @@ impl VaultNativeClaims {
 
         let collateral_spent = collateral_spent
             .checked_sub(collateral_amount)
-            .ok_or_else(|| b"limit exceeded")?;
+            .ok_or_else(|| b"limit exceeded (spent - amount)")?;
 
         let itp_received = itp_received
             .checked_sub(itp_claimed)
-            .ok_or_else(|| b"Limit exceeded")?;
+            .ok_or_else(|| b"Limit exceeded (received - claimed)")?;
 
         let pending_amount = pending_bid
             .get()
             .checked_sub(collateral_amount)
-            .ok_or_else(|| b"Limit exceeded")?;
+            .ok_or_else(|| b"Limit exceeded (pending - amount)")?;
 
         keeper_order.bid_delivered.set(collateral_spent);
         keeper_order.bid_received.set(itp_received);
@@ -180,16 +180,16 @@ impl VaultNativeClaims {
 
         let itp_burned = itp_burned
             .checked_sub(itp_amount)
-            .ok_or_else(|| b"Limit exceeded")?;
+            .ok_or_else(|| b"Limit exceeded (itp_burned - itp_amount)")?;
 
         let amount_received = amount_received
             .checked_sub(amount_claimed)
-            .ok_or_else(|| b"Limit exceeded")?;
+            .ok_or_else(|| b"Limit exceeded (received - claimed)")?;
 
         let pending_amount = pending_ask
             .get()
             .checked_sub(itp_amount)
-            .ok_or_else(|| b"Limit exceeded")?;
+            .ok_or_else(|| b"Limit exceeded (pending - itp_amount)")?;
 
         keeper_order.ask_delivered.set(itp_burned);
         keeper_order.ask_received.set(amount_received);
