@@ -5,14 +5,18 @@
 #[macro_use]
 extern crate alloc;
 
-use alloc::vec::Vec;
+use alloc::{string::String, vec::Vec};
 
 use alloy_primitives::{uint, Address, U128, U256};
-use common_contracts::
-    contracts::{keep::Keep, storage::StorageSlot}
-;
+use alloy_sol_types::SolEvent;
+use common_contracts::{
+    contracts::{calls::InnerCall, keep::Keep, storage::StorageSlot},
+    interfaces::{
+        vault::IVault::{self},
+        worksman::IWorksman,
+    },
+};
 use stylus_sdk::{
-    abi::Bytes,
     keccak_const,
     prelude::*,
     storage::{StorageAddress, StorageBool, StorageMap, StorageVec},
@@ -66,7 +70,12 @@ impl Worksman {
         Ok(())
     }
 
-    pub fn build_vault(&mut self, index: U128, info: Bytes) -> Result<Address, Vec<u8>> {
+    pub fn build_vault(
+        &mut self,
+        index: U128,
+        name: String,
+        symbol: String,
+    ) -> Result<Address, Vec<u8>> {
         let keep = Keep::storage();
         if keep.worksman.get().is_zero() {
             Err(b"Worksman not appointed")?;
@@ -74,9 +83,23 @@ impl Worksman {
         let mut storage = Self::_storage();
         let vault = storage.next_vault()?;
 
-        // TODO: Store these in Vault contract
-        let _ = index;
-        let _ = info;
+        self.external_call(
+            vault,
+            IVault::configureVaultCall {
+                index_id: index.to(),
+                name: name.clone(),
+                symbol: symbol.clone(),
+            },
+        )?;
+
+        let event = IWorksman::VautlDeployed {
+            index: index.to(),
+            name,
+            symbol,
+            vault,
+        };
+
+        self.vm().emit_log(&event.encode_data(), 1);
         Ok(vault)
     }
 }

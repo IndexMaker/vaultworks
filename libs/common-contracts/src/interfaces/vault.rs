@@ -2,11 +2,21 @@ use alloy_sol_types::sol;
 
 sol!{
     interface IVault  {
-        function initialize(address owner, address requests, address gate_to_castle) external;
+        function initialize(address owner, address implementation, address gate_to_castle) external;
+
+        function installOrders(address orders_implementation) external;
+
+        function installClaims(address claims_implementation) external;
 
         function setVersion() external;
 
         function getVersion() external view returns (uint32);
+
+        function UPGRADE_INTERFACE_VERSION() external view returns (string memory);
+
+        function upgradeToAndCall(address new_implementation, bytes calldata data) external payable;
+
+        function proxiableUuid() external view returns (bytes32);
 
         function owner() external view returns (address);
 
@@ -15,6 +25,10 @@ sol!{
         function renounceOwnership() external;
 
         function configureVault(uint128 index_id, string calldata name, string calldata symbol) external;
+
+        function castle() external view returns (address);
+
+        function indexId() external view returns (uint128);
 
         function name() external view returns (string memory);
 
@@ -33,11 +47,5 @@ sol!{
         function approve(address spender, uint256 value) external returns (bool);
 
         function transferFrom(address from, address to, uint256 value) external returns (bool);
-
-        function UPGRADE_INTERFACE_VERSION() external view returns (string memory);
-
-        function upgradeToAndCall(address new_implementation, bytes calldata data) external payable;
-
-        function proxiableUuid() external view returns (bytes32);
     }
 }

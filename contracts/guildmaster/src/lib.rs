@@ -6,11 +6,20 @@
 extern crate alloc;
 
 use abacus_formulas::update_quote::update_quote;
-use alloc::vec::Vec;
+use alloc::{string::String, vec::Vec};
 
 use alloy_primitives::U128;
+use alloy_sol_types::SolEvent;
 use common::vector::Vector;
-use common_contracts::contracts::{clerk::ClerkStorage, keep::{Keep, Vault}, keep_calls::KeepCalls};
+use common_contracts::{
+    contracts::{
+        calls::InnerCall,
+        clerk::ClerkStorage,
+        keep::{Keep, Vault},
+        keep_calls::KeepCalls,
+    },
+    interfaces::{guildmaster::IGuildmaster, vault::IVault},
+};
 use stylus_sdk::{abi::Bytes, prelude::*};
 use vector_macros::amount_vec;
 
@@ -53,7 +62,8 @@ impl Guildmaster {
         index: U128,
         asset_names: Bytes,
         asset_weights: Bytes,
-        info: Bytes,
+        name: String,
+        symbol: String,
     ) -> Result<(), Vec<u8>> {
         let mut storage = Keep::storage();
         storage.check_version()?;
@@ -74,9 +84,54 @@ impl Guildmaster {
         vault.weights.set(asset_weights_id);
 
         let worksman = storage.worksman.get();
-        let gate_to_vault = self.build_vault(worksman, index.to(), info.0)?;
+        let gate_to_vault = self.build_vault(worksman, index.to(), name, symbol)?;
 
         vault.gate_to_vault.set(gate_to_vault);
+
+        Ok(())
+    }
+
+    pub fn begin_edit_index(&mut self, index: U128) -> Result<(), Vec<u8>> {
+        let mut storage = Keep::storage();
+        let sender = self.attendee();
+        storage.check_version()?;
+
+        let vault = storage.vaults.setter(index);
+
+        self.external_call(
+            vault.gate_to_vault.get(),
+            IVault::transferOwnershipCall { new_owner: sender },
+        )?;
+
+        let event = IGuildmaster::BeginEditIndex {
+            index: index.to(),
+            sender,
+        };
+
+        self.vm().emit_log(&event.encode_data(), 1);
+
+        Ok(())
+    }
+
+    pub fn finish_edit_index(&mut self, index: U128) -> Result<(), Vec<u8>> {
+        let mut storage = Keep::storage();
+        let sender = self.attendee();
+        storage.check_version()?;
+
+        let vault = storage.vaults.setter(index);
+        let IVault::ownerReturn { _0: owner } =
+            self.static_call_ret(vault.gate_to_vault.get(), IVault::ownerCall {})?;
+
+        if owner != self.top_level() {
+            Err(b"Vault ownership must be returned")?;
+        }
+
+        let event = IGuildmaster::FinishEditIndex {
+            index: index.to(),
+            sender,
+        };
+
+        self.vm().emit_log(&event.encode_data(), 1);
 
         Ok(())
     }

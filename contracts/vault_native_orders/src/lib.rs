@@ -58,7 +58,7 @@ impl VaultNativeOrders {
         if collateral_amount.is_zero() {
             Err(b"Zero collateral amount")?;
         }
-        let vault = VaultStorage::storage();
+        let mut vault = VaultStorage::storage();
         let mut requests = VaultNativeStorage::storage();
         let sender = self.attendee();
 
@@ -85,7 +85,7 @@ impl VaultNativeOrders {
             requests.update_quote(&vault, self)?;
 
             let ret = self.external_call_ret(
-                vault.gate_to_castle.get(),
+                vault.castle.get(),
                 IFactor::executeBuyOrderCall {
                     vendor_id: requests.vendor_id.get().to(),
                     index_id: vault.index_id.get().to(),
@@ -100,7 +100,7 @@ impl VaultNativeOrders {
         } else {
             // Send pending order without executing it
             self.external_call(
-                vault.gate_to_castle.get(),
+                vault.castle.get(),
                 IFactor::submitBuyOrderCall {
                     vendor_id: requests.vendor_id.get().to(),
                     index_id: vault.index_id.get().to(),
@@ -130,6 +130,8 @@ impl VaultNativeOrders {
 
         if !received.is_zero() {
             // Publish execution report if there was execution
+
+            vault.mint(trader, received.to())?;
 
             let exec_report = Acquisition {
                 controller: trader,
@@ -186,7 +188,7 @@ impl VaultNativeOrders {
             Err(b"Zero ITP amount")?;
         }
 
-        let vault = VaultStorage::storage();
+        let mut vault = VaultStorage::storage();
         let mut requests = VaultNativeStorage::storage();
         let sender = self.attendee();
 
@@ -202,7 +204,7 @@ impl VaultNativeOrders {
 
             // Submit order and get instant fill if possible
             let ret = self.external_call_ret(
-                vault.gate_to_castle.get(),
+                vault.castle.get(),
                 IFactor::executeSellOrderCall {
                     vendor_id: requests.vendor_id.get().to(),
                     index_id: vault.index_id.get().to(),
@@ -217,7 +219,7 @@ impl VaultNativeOrders {
         } else {
             // Send pending order without executing it
             self.external_call(
-                vault.gate_to_castle.get(),
+                vault.castle.get(),
                 IFactor::submitSellOrderCall {
                     vendor_id: requests.vendor_id.get().to(),
                     index_id: vault.index_id.get().to(),
@@ -248,6 +250,8 @@ impl VaultNativeOrders {
         if !received.is_zero() {
             // Publish execution report if there was execution
 
+            vault.burn(trader, delivered.to())?;
+
             let exec_report = Disposal {
                 controller: trader,
                 index_id: vault.index_id.get().to(),
@@ -262,6 +266,8 @@ impl VaultNativeOrders {
 
         if !itp_remain.is_zero() {
             // Send an event, and it will be picked up by Keeper service.
+
+            vault.transfer(trader, keeper, itp_remain.to())?;
 
             let request_event = SellOrder {
                 keeper,
@@ -282,7 +288,7 @@ impl VaultNativeOrders {
         &mut self,
         keeper: Address,
     ) -> Result<(U128, U128, U128), Vec<u8>> {
-        let vault = VaultStorage::storage();
+        let mut vault = VaultStorage::storage();
         let mut requests = VaultNativeStorage::storage();
         let sender = self.attendee();
 
@@ -293,7 +299,7 @@ impl VaultNativeOrders {
         }
 
         let ret = self.external_call_ret(
-            vault.gate_to_castle.get(),
+            vault.castle.get(),
             IFactor::processPendingBuyOrderCall {
                 vendor_id: requests.vendor_id.get().to(),
                 index_id: vault.index_id.get().to(),
@@ -330,6 +336,8 @@ impl VaultNativeOrders {
         if !received.is_zero() {
             // Publish execution report if there was execution
 
+            vault.mint(keeper, received.to())?;
+
             let exec_report = Acquisition {
                 controller: keeper,
                 index_id: vault.index_id.get().to(),
@@ -350,7 +358,7 @@ impl VaultNativeOrders {
         &mut self,
         keeper: Address,
     ) -> Result<(U128, U128, U128), Vec<u8>> {
-        let vault = VaultStorage::storage();
+        let mut vault = VaultStorage::storage();
         let mut requests = VaultNativeStorage::storage();
         let sender = self.attendee();
 
@@ -361,7 +369,7 @@ impl VaultNativeOrders {
         }
 
         let ret = self.external_call_ret(
-            vault.gate_to_castle.get(),
+            vault.castle.get(),
             IFactor::processPendingSellOrderCall {
                 vendor_id: requests.vendor_id.get().to(),
                 index_id: vault.index_id.get().to(),
@@ -397,6 +405,8 @@ impl VaultNativeOrders {
 
         if !received.is_zero() {
             // Publish execution report if there was execution
+
+            vault.burn(keeper, delivered.to())?;
 
             let exec_report = Disposal {
                 controller: keeper,

@@ -2,10 +2,6 @@ use alloy_sol_types::sol;
 
 sol! {
     interface IVaultNative  {
-        function installOrders(address orders_implementation) external;
-
-        function installClaims(address claims_implementation) external;
-
         function configureRequests(uint128 vendor_id, address custody, address asset, uint128 max_order_size) external;
 
         function isOperator(address owner, address operator) external view returns (bool);
@@ -39,6 +35,10 @@ sol! {
         function getMaxOrderSize() external view returns (uint128);
 
         function getQuote() external view returns (uint128, uint128, uint128);
+
+        function syncTotalSupply() external returns (uint256);
+
+        function syncBalanceOf(address account) external returns (uint256);
 
         event OperatorSet(address controller, address operator, bool approved);
     }

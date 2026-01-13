@@ -59,8 +59,6 @@ pub struct VaultNativeStorage {
     pub trader_orders: StorageMap<Address, TraderOrder>,
     pub opearator_order: StorageMap<Address, OperatorOrder>,
     pub operators: StorageMap<Address, Operator>,
-    pub orders_implementation: StorageAddress,
-    pub claims_implementation: StorageAddress,
 }
 
 impl VaultNativeStorage {
@@ -83,7 +81,7 @@ impl VaultNativeStorage {
             vendor_id: self.vendor_id.get().to(),
         };
         let ISteward::getIndexQuoteReturn { _0: ret } =
-            caller.static_call_ret(vault.gate_to_castle.get(), call)?;
+            caller.static_call_ret(vault.castle.get(), call)?;
 
         let quote = Quote::try_from_vec(ret.into()).map_err(|_| b"Failed to decode quote data")?;
         Ok(quote)
@@ -95,7 +93,7 @@ impl VaultNativeStorage {
         caller: &mut impl InnerCall,
     ) -> Result<(), Vec<u8>> {
         caller.external_call(
-            vault.gate_to_castle.get(),
+            vault.castle.get(),
             IGuildmaster::updateIndexQuoteCall {
                 vendor_id: self.vendor_id.get().to(),
                 index_id: vault.index_id.get().to(),

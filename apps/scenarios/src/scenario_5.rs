@@ -29,6 +29,8 @@ pub async fn run_scenario(
 
     let vendor_id = uint!(1u128);
     let index_id = 1001;
+    let index_name = "Test 5 Assets";
+    let index_symbol = "T5A";
 
     {
         log_msg!("Submit Assets #1");
@@ -91,7 +93,6 @@ pub async fn run_scenario(
 
         let asset_names = label_vec!(102, 103, 104, 106, 107);
         let asset_weights = amount_vec!(1.0, 0.5, 0.5, 0.5, 1.5);
-        let info = b"Test Index 1001".to_vec();
 
         client
             .begin_tx()
@@ -99,7 +100,8 @@ pub async fn run_scenario(
                 index_id,
                 asset_names.to_bytes(),
                 asset_weights.to_bytes(),
-                info.to_bytes(),
+                index_name.to_string(),
+                index_symbol.to_string(),
             ))
             .send()
             .await?;
