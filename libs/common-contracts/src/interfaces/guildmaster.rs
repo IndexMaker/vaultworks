@@ -2,12 +2,20 @@ use alloy_sol_types::sol;
 
 sol! {
     interface IGuildmaster  {
-        function submitIndex(uint128 index, bytes calldata asset_names, bytes calldata asset_weights, bytes calldata info) external;
+        function submitIndex(uint128 index, bytes calldata asset_names, bytes calldata asset_weights, string calldata name, string calldata symbol) external;
+
+        function beginEditIndex(uint128 index) external;
+
+        function finishEditIndex(uint128 index) external;
 
         function submitVote(uint128 index, bytes calldata vote) external;
 
         function updateIndexQuote(uint128 vendor_id, uint128 index_id) external;
 
         function updateMultipleIndexQuotes(uint128 vendor_id, uint128[] memory index_ids) external;
+
+        event BeginEditIndex(uint128 index, address sender);
+
+        event FinishEditIndex(uint128 index, address sender);
     }
 }

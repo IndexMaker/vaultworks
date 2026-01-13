@@ -83,7 +83,7 @@ abigen!(
 abigen!(
     Guildmaster,
     r"[
-        function submitIndex(uint128 index, bytes calldata asset_names, bytes calldata asset_weights, bytes calldata info) external
+        function submitIndex(uint128 index, bytes calldata asset_names, bytes calldata asset_weights, string calldata name, string calldata symbol) external
 
         function submitVote(uint128 index, bytes calldata vote) external
 

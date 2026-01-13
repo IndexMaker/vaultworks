@@ -128,7 +128,6 @@ export CUSTODY=$CASTLE
 
 until worksman does it, we can also configure *Vault* like:
 ```
-./scripts/send.sh $VAULT "configureVault(uint128,string,string)" 1001 "Top100" "T100"
 ./scripts/send.sh $VAULT "configureRequests(uint128,address,address,uint128)" "1" $CUSTODY $COLLATERAL 100000000000000000000
 ```
 
@@ -157,6 +156,12 @@ We want to set our-selves as operator of that *Keeper*, so that we can make call
 **Note** The `setAdminOperator()` function is only available to *Vault* admin.
 
 
+Now, transfer *Vault* owerhip to the *Castle*:
+```
+./scripts/send.sh $VAULT "transferOwnership(address)" $CASTLE
+```
+
+
 ### Step 7. Run Scenario 5.
 
 Congratulations, you have set-up the environment to run once-and-only-once Scenario 5.
@@ -176,6 +181,19 @@ This will run Scenario 5. which:
 - Submit Market Data from Vendor
 - Update Index pricing (quote)
 - Submit Buy order
+
+Scenario sends Buy and Sell orders directly to the *Castle*, which puts *Vault* out-of-sync.
+Normally this would not be happening, as users cannot call those functions,
+however Scenario 5. tests those functions leaving this inconsiscency.
+
+Here is how we can fix this:
+```
+./scripts/send.sh $CASTLE "beginEditIndex(uint128)" 1001
+./scripts/send.sh $VAULT "syncBalanceOf(address)" $DEPLOYER_ADDRESS
+./scripts/send.sh $VAULT "syncTotalSupply()"
+./scripts/send.sh $VAULT "transferOwnership(address)" $CASTLE
+./scripts/send.sh $CASTLE "finishEditIndex(uint128)" 1001 
+```
 
 ## After Setup
 

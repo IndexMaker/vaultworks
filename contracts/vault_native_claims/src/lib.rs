@@ -71,7 +71,7 @@ impl VaultNativeClaims {
         keeper: Address,
         trader: Address,
     ) -> Result<U128, Vec<u8>> {
-        let vault = VaultStorage::storage();
+        let mut vault = VaultStorage::storage();
         let mut requests = VaultNativeStorage::storage();
         let sender = self.attendee();
 
@@ -95,7 +95,7 @@ impl VaultNativeClaims {
 
         // Transfer ITP from keeper to Trader
         self.external_call(
-            vault.gate_to_castle.get(),
+            vault.castle.get(),
             IFactor::executeTransferCall {
                 index_id: vault.index_id.get().to(),
                 sender: keeper,
@@ -123,6 +123,8 @@ impl VaultNativeClaims {
 
         if !itp_claimed.is_zero() {
             // Publish execution report if there was execution
+
+            vault.transfer(keeper, trader, itp_claimed.to())?;
 
             let exec_report = AcquisitionClaim {
                 controller: keeper,

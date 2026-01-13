@@ -359,6 +359,15 @@ impl Constable {
         self._create_protected_functions(
             guildmaster,
             vec![
+                IGuildmaster::beginEditIndexCall::SELECTOR.into(),
+                IGuildmaster::finishEditIndexCall::SELECTOR.into(),
+            ],
+            CASTLE_ADMIN_ROLE.into(),
+        )?;
+
+        self._create_protected_functions(
+            guildmaster,
+            vec![
                 IGuildmaster::updateIndexQuoteCall::SELECTOR.into(),
                 IGuildmaster::updateMultipleIndexQuotesCall::SELECTOR.into(),
             ],

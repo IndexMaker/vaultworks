@@ -5507,22 +5507,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "vault_requests"
-version = "0.1.0"
-dependencies = [
- "alloy-primitives",
- "alloy-sol-types",
- "common",
- "common-contracts",
- "dotenv",
- "ethers",
- "eyre",
- "hex",
- "stylus-sdk",
- "tokio",
-]
-
-[[package]]
 name = "vcpkg"
 version = "0.2.15"
 source = "registry+https://github.com/rust-lang/crates.io-index"

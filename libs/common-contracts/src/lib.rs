@@ -17,7 +17,6 @@ pub mod contracts {
     pub mod storage;
     pub mod vault;
     pub mod vault_native;
-    pub mod vault_requests;
 }
 
 pub mod interfaces {
@@ -34,6 +33,5 @@ pub mod interfaces {
     pub mod vault_native;
     pub mod vault_native_orders;
     pub mod vault_native_claims;
-    pub mod vault_requests;
     pub mod worksman;
 }

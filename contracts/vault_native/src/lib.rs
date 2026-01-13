@@ -7,16 +7,14 @@ extern crate alloc;
 
 use alloc::vec::Vec;
 
-use alloy_primitives::{Address, U128};
-use alloy_sol_types::{sol, SolCall, SolEvent};
+use alloy_primitives::{Address, U128, U256};
+use alloy_sol_types::{sol, SolEvent};
 use common::{amount::Amount, log_msg};
 use common_contracts::{
     contracts::{keep_calls::KeepCalls, vault::VaultStorage, vault_native::VaultNativeStorage},
-    interfaces::{
-        vault_native::IVaultNative::OperatorSet, vault_native_orders::IVaultNativeOrders,
-    },
+    interfaces::vault_native::IVaultNative::OperatorSet,
 };
-use stylus_sdk::{prelude::*, ArbResult};
+use stylus_sdk::prelude::*;
 
 sol! {
     interface IERC20 {
@@ -30,24 +28,6 @@ pub struct VaultNative;
 
 #[public]
 impl VaultNative {
-    pub fn install_orders(&mut self, orders_implementation: Address) -> Result<(), Vec<u8>> {
-        let vault = VaultStorage::storage();
-        vault.only_owner(self.attendee())?;
-
-        let mut requests = VaultNativeStorage::storage();
-        requests.orders_implementation.set(orders_implementation);
-        Ok(())
-    }
-
-    pub fn install_claims(&mut self, claims_implementation: Address) -> Result<(), Vec<u8>> {
-        let vault = VaultStorage::storage();
-        vault.only_owner(self.attendee())?;
-
-        let mut requests = VaultNativeStorage::storage();
-        requests.claims_implementation.set(claims_implementation);
-        Ok(())
-    }
-
     pub fn configure_requests(
         &mut self,
         vendor_id: U128,
@@ -288,32 +268,29 @@ impl VaultNative {
         ))
     }
 
-    #[payable]
-    #[fallback]
-    fn fallback(&mut self, calldata: &[u8]) -> ArbResult {
-        let requests = {
-            let mut sig = [0u8; 4];
-            sig.copy_from_slice(&calldata[0..4]);
+    /// Utility to sync with trade vectors
+    pub fn sync_total_supply(&mut self) -> Result<U256, Vec<u8>> {
+        let mut vault = VaultStorage::storage();
+        vault.only_owner(self.attendee())?;
 
-            let requests = VaultNativeStorage::storage();
-            let implementation = match &sig {
-                &IVaultNativeOrders::placeBuyOrderCall::SELECTOR
-                | &IVaultNativeOrders::placeSellOrderCall::SELECTOR
-                | &IVaultNativeOrders::processPendingBuyOrderCall::SELECTOR
-                | &IVaultNativeOrders::processPendingSellOrderCall::SELECTOR => {
-                    requests.orders_implementation.get()
-                }
-                _ => requests.claims_implementation.get(),
-            };
-            if implementation.is_zero() {
-                Err(b"No orders implementation")?;
-            }
-            implementation
-        };
+        let order = vault.get_total_order(self)?;
+        let itp_amount = order.tell_total()?;
 
-        unsafe {
-            let result = self.vm().delegate_call(&self, requests, calldata)?;
-            Ok(result)
-        }
+        vault.total_supply.set(itp_amount.to_u256());
+
+        Ok(itp_amount.to_u256())
+    }
+
+    /// Utility to sync with trade vectors
+    pub fn sync_balance_of(&mut self, account: Address) -> Result<U256, Vec<u8>> {
+        let mut vault = VaultStorage::storage();
+        vault.only_owner(self.attendee())?;
+
+        let order = vault.get_order(self, account)?;
+        let itp_amount = order.tell_available()?;
+
+        vault.balances.setter(account).set(itp_amount.to_u256());
+
+        Ok(itp_amount.to_u256())
     }
 }

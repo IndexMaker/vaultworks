@@ -16,7 +16,6 @@ members = [
     "contracts/vault_native",
     "contracts/vault_native_claims",
     "contracts/vault_native_orders",
-    "contracts/vault_requests",
     "contracts/worksman",
 
     # Library Packages

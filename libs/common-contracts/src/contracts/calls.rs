@@ -8,18 +8,22 @@ pub trait InnerCall
 where
     Self: HostAccess + TopLevelStorage,
 {
+    fn top_level(&self) -> Address {
+        self.vm().contract_address()
+    }
+
     fn top_level_call<C>(&mut self, call: C) -> Result<(), Vec<u8>>
     where
         C: SolCall,
     {
-        self.inner_call(self.vm().contract_address(), call)
+        self.inner_call(self.top_level(), call)
     }
 
     fn top_level_call_ret<C>(&mut self, call: C) -> Result<C::Return, Vec<u8>>
     where
         C: SolCall,
     {
-        self.inner_call_ret(self.vm().contract_address(), call)
+        self.inner_call_ret(self.top_level(), call)
     }
 
     fn inner_call<C>(&mut self, to: Address, call: C) -> Result<(), Vec<u8>>

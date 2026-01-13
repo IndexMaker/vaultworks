@@ -59,9 +59,13 @@ pub struct VaultStorage {
     pub symbol: StorageString,
     pub version: StorageU32,
     pub owner: StorageAddress,
+    pub total_supply: StorageU256,
+    pub balances: StorageMap<Address, StorageU256>,
     pub allowances: StorageMap<Address, Allowance>,
-    pub requests_implementation: StorageAddress,
-    pub gate_to_castle: StorageAddress,
+    pub castle: StorageAddress,
+    pub implementation: StorageAddress,
+    pub orders_implementation: StorageAddress,
+    pub claims_implementation: StorageAddress,
 }
 
 impl VaultStorage {
@@ -90,12 +94,72 @@ impl VaultStorage {
         Ok(())
     }
 
-    pub fn set_requests(&mut self, requests: Address) {
-        self.requests_implementation.set(requests);
+    pub fn set_implementation(&mut self, implementation: Address) {
+        self.implementation.set(implementation);
+    }
+
+    pub fn set_orders_implementation(&mut self, orders_implementation: Address) {
+        self.orders_implementation.set(orders_implementation);
+    }
+
+    pub fn set_claims_implementation(&mut self, claims_implementation: Address) {
+        self.claims_implementation.set(claims_implementation);
     }
 
     pub fn set_castle(&mut self, gate_to_castle: Address) {
-        self.gate_to_castle.set(gate_to_castle);
+        self.castle.set(gate_to_castle);
+    }
+
+    fn _add_balance(&mut self, to: Address, amount: U256) -> Result<(), Vec<u8>> {
+        let mut balance = self.balances.setter(to);
+        let current_balance = balance.get();
+        let new_balance = current_balance
+            .checked_add(amount)
+            .ok_or_else(|| b"MathOverflow (balance + amount)")?;
+        balance.set(new_balance);
+        Ok(())
+    }
+
+    fn _reduce_balance(&mut self, to: Address, amount: U256) -> Result<(), Vec<u8>> {
+        let mut balance = self.balances.setter(to);
+        let current_balance = balance.get();
+        let new_balance = current_balance
+            .checked_sub(amount)
+            .ok_or_else(|| b"MathOverflow (balance - amount)")?;
+        balance.set(new_balance);
+        Ok(())
+    }
+
+    pub fn mint(&mut self, to: Address, amount: U256) -> Result<(), Vec<u8>> {
+        let current_supply = self.total_supply.get();
+        let new_supply = current_supply
+            .checked_add(amount)
+            .ok_or_else(|| b"MathOverflow (total_supply + amount)")?;
+        self.total_supply.set(new_supply);
+        self._add_balance(to, amount)
+    }
+
+    pub fn burn(&mut self, from: Address, amount: U256) -> Result<(), Vec<u8>> {
+        let current_supply = self.total_supply.get();
+        let new_supply = current_supply
+            .checked_sub(amount)
+            .ok_or_else(|| b"MathOverflow (total_supply - amount)")?;
+        self.total_supply.set(new_supply);
+        self._reduce_balance(from, amount)
+    }
+
+    pub fn transfer(&mut self, from: Address, to: Address, amount: U256) -> Result<(), Vec<u8>> {
+        self._reduce_balance(from, amount)?;
+        self._add_balance(to, amount)?;
+        Ok(())
+    }
+
+    pub fn balance_of(&self, account: Address) -> U256 {
+        self.balances.get(account)
+    }
+
+    pub fn get_total_supply(&self) -> U256 {
+        self.total_supply.get()
     }
 
     pub fn get_order(&self, caller: &impl InnerCall, account: Address) -> Result<Order, Vec<u8>> {
@@ -104,7 +168,7 @@ impl VaultStorage {
             trader: account,
         };
         let ISteward::getTraderOrderReturn { _0: ret } =
-            caller.static_call_ret(self.gate_to_castle.get(), call)?;
+            caller.static_call_ret(self.castle.get(), call)?;
 
         let order = Order::try_from_vec(ret.into()).map_err(|_| b"Failed to decode order data")?;
         Ok(order)
@@ -115,7 +179,7 @@ impl VaultStorage {
             index_id: self.index_id.get().to(),
         };
         let ISteward::getTotalOrderReturn { _0: ret } =
-            caller.static_call_ret(self.gate_to_castle.get(), call)?;
+            caller.static_call_ret(self.castle.get(), call)?;
 
         let order = Order::try_from_vec(ret.into()).map_err(|_| b"Failed to decode order data")?;
         Ok(order)

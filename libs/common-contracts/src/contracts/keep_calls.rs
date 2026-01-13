@@ -1,4 +1,4 @@
-use alloc::vec::Vec;
+use alloc::{string::String, vec::Vec};
 
 use alloy_primitives::{Address, Bytes};
 
@@ -21,7 +21,8 @@ pub trait KeepCalls {
         &mut self,
         worksman: Address,
         index_id: u128,
-        info: impl Into<Bytes>,
+        name: String,
+        symbol: String,
     ) -> Result<Address, Vec<u8>>;
 
     fn verify_signature(
@@ -57,13 +58,15 @@ where
         &mut self,
         worksman: Address,
         index_id: u128,
-        info: impl Into<Bytes>,
+        name: String,
+        symbol: String,
     ) -> Result<Address, Vec<u8>> {
         let IWorksman::buildVaultReturn { _0: result } = self.inner_call_ret(
             worksman,
             IWorksman::buildVaultCall {
                 index: index_id,
-                info: info.into(),
+                name,
+                symbol,
             },
         )?;
         Ok(result)

@@ -8,7 +8,7 @@ extern crate alloc;
 use alloc::{string::String, vec::Vec};
 
 use alloy_primitives::{uint, Address, B256, U128, U256, U32, U8};
-use alloy_sol_types::{sol, SolEvent};
+use alloy_sol_types::{sol, SolCall, SolEvent};
 use common::amount::Amount;
 use common_contracts::{
     contracts::{
@@ -17,7 +17,10 @@ use common_contracts::{
         keep_calls::KeepCalls,
         vault::VaultStorage,
     },
-    interfaces::factor::IFactor,
+    interfaces::{
+        factor::IFactor, vault_native_claims::IVaultNativeClaims,
+        vault_native_orders::IVaultNativeOrders,
+    },
 };
 use stylus_sdk::{abi::Bytes, prelude::*, ArbResult};
 
@@ -49,7 +52,7 @@ impl Vault {
     fn initialize(
         &mut self,
         owner: Address,
-        requests: Address,
+        implementation: Address,
         gate_to_castle: Address,
     ) -> Result<(), Vec<u8>> {
         Gate::only_delegated()?;
@@ -57,8 +60,22 @@ impl Vault {
         vault.only_owner(self.attendee())?;
         vault.set_version(VERSION_NUMBER)?;
         vault.set_owner(owner)?;
-        vault.set_requests(requests);
+        vault.set_implementation(implementation);
         vault.set_castle(gate_to_castle);
+        Ok(())
+    }
+
+    pub fn install_orders(&mut self, orders_implementation: Address) -> Result<(), Vec<u8>> {
+        let mut vault = VaultStorage::storage();
+        vault.only_owner(self.attendee())?;
+        vault.set_orders_implementation(orders_implementation);
+        Ok(())
+    }
+
+    pub fn install_claims(&mut self, claims_implementation: Address) -> Result<(), Vec<u8>> {
+        let mut vault = VaultStorage::storage();
+        vault.only_owner(self.attendee())?;
+        vault.set_claims_implementation(claims_implementation);
         Ok(())
     }
 
@@ -133,7 +150,7 @@ impl Vault {
 
     pub fn castle(&self) -> Address {
         let vault = VaultStorage::storage();
-        vault.gate_to_castle.get()
+        vault.castle.get()
     }
 
     pub fn index_id(&self) -> U128 {
@@ -160,28 +177,24 @@ impl Vault {
     pub fn total_supply(&self) -> Result<U256, Vec<u8>> {
         let vault = VaultStorage::storage();
 
-        let order = vault.get_total_order(self)?;
-        let itp_amount = order.tell_total()?;
-
-        Ok(itp_amount.to_u256())
+        Ok(vault.get_total_supply())
     }
 
     pub fn balance_of(&self, account: Address) -> Result<U256, Vec<u8>> {
         let vault = VaultStorage::storage();
 
-        let order = vault.get_order(self, account)?;
-        let itp_amount = order.tell_available()?;
-
-        Ok(itp_amount.to_u256())
+        Ok(vault.balance_of(account))
     }
 
     pub fn transfer(&mut self, to: Address, value: U256) -> Result<(), Vec<u8>> {
-        let vault = VaultStorage::storage();
+        let mut vault = VaultStorage::storage();
         let sender = self.attendee();
+
+        vault.transfer(sender, to, value)?;
 
         // Vault is submitting transfer on behalf of msg.sender (attendee)
         self.external_call(
-            vault.gate_to_castle.get(),
+            vault.castle.get(),
             IFactor::executeTransferCall {
                 index_id: vault.index_id.get().to(),
                 sender,
@@ -245,8 +258,10 @@ impl Vault {
         let mut allowance = vault.allowances.setter(self.attendee());
         allowance.spend_allowance(from, value)?;
 
+        vault.transfer(from, to, value)?;
+
         self.external_call(
-            vault.gate_to_castle.get(),
+            vault.castle.get(),
             IFactor::executeTransferCall {
                 index_id: vault.index_id.get().to(),
                 sender: from,
@@ -266,17 +281,35 @@ impl Vault {
     #[payable]
     #[fallback]
     fn fallback(&mut self, calldata: &[u8]) -> ArbResult {
-        let requests = {
+        let calee = {
+            let mut sig = [0u8; 4];
+            sig.copy_from_slice(&calldata[0..4]);
             let vault = VaultStorage::storage();
-            let requests = vault.requests_implementation.get();
-            if requests.is_zero() {
-                Err(b"No requests implementation")?;
+
+            let implementation = match &sig {
+                &IVaultNativeOrders::placeBuyOrderCall::SELECTOR
+                | &IVaultNativeOrders::placeSellOrderCall::SELECTOR
+                | &IVaultNativeOrders::processPendingBuyOrderCall::SELECTOR
+                | &IVaultNativeOrders::processPendingSellOrderCall::SELECTOR => {
+                    vault.orders_implementation.get()
+                }
+                &IVaultNativeClaims::getPendingOrderCall::SELECTOR
+                | &IVaultNativeClaims::getClaimableAcquisitionCall::SELECTOR
+                | &IVaultNativeClaims::getClaimableDisposalCall::SELECTOR
+                | &IVaultNativeClaims::claimAcquisitionCall::SELECTOR
+                | &IVaultNativeClaims::claimDisposalCall::SELECTOR => {
+                    vault.claims_implementation.get()
+                }
+                _ => vault.implementation.get(),
+            };
+            if implementation.is_zero() {
+                Err(b"No implementation found")?;
             }
-            requests
+            implementation
         };
 
         unsafe {
-            let result = self.vm().delegate_call(&self, requests, calldata)?;
+            let result = self.vm().delegate_call(&self, calee, calldata)?;
             Ok(result)
         }
     }
