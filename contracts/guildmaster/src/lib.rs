@@ -9,7 +9,6 @@ use abacus_formulas::update_quote::update_quote;
 use alloc::{string::String, vec::Vec};
 
 use alloy_primitives::U128;
-use alloy_sol_types::SolEvent;
 use common::vector::Vector;
 use common_contracts::{
     contracts::{
@@ -20,7 +19,7 @@ use common_contracts::{
     },
     interfaces::{guildmaster::IGuildmaster, vault::IVault},
 };
-use stylus_sdk::{abi::Bytes, prelude::*};
+use stylus_sdk::{abi::Bytes, prelude::*, stylus_core};
 use vector_macros::amount_vec;
 
 #[storage]
@@ -103,12 +102,13 @@ impl Guildmaster {
             IVault::transferOwnershipCall { new_owner: sender },
         )?;
 
-        let event = IGuildmaster::BeginEditIndex {
-            index: index.to(),
-            sender,
-        };
-
-        self.vm().emit_log(&event.encode_data(), 1);
+        stylus_core::log(
+            self.vm(),
+            IGuildmaster::BeginEditIndex {
+                index: index.to(),
+                sender,
+            },
+        );
 
         Ok(())
     }
@@ -126,12 +126,13 @@ impl Guildmaster {
             Err(b"Vault ownership must be returned")?;
         }
 
-        let event = IGuildmaster::FinishEditIndex {
-            index: index.to(),
-            sender,
-        };
-
-        self.vm().emit_log(&event.encode_data(), 1);
+        stylus_core::log(
+            self.vm(),
+            IGuildmaster::FinishEditIndex {
+                index: index.to(),
+                sender,
+            },
+        );
 
         Ok(())
     }

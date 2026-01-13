@@ -8,13 +8,13 @@ extern crate alloc;
 use alloc::vec::Vec;
 
 use alloy_primitives::{Address, U128, U256};
-use alloy_sol_types::{sol, SolEvent};
+use alloy_sol_types::sol;
 use common::{amount::Amount, log_msg};
 use common_contracts::{
     contracts::{keep_calls::KeepCalls, vault::VaultStorage, vault_native::VaultNativeStorage},
     interfaces::vault_native::IVaultNative::OperatorSet,
 };
-use stylus_sdk::prelude::*;
+use stylus_sdk::{prelude::*, stylus_core};
 
 sol! {
     interface IERC20 {
@@ -64,7 +64,7 @@ impl VaultNative {
             approved,
         };
 
-        self.vm().emit_log(&event.encode_data(), 1);
+        stylus_core::log(self.vm(), event);
         true
     }
 
@@ -87,7 +87,7 @@ impl VaultNative {
             approved,
         };
 
-        self.vm().emit_log(&event.encode_data(), 1);
+        stylus_core::log(self.vm(), event);
         Ok(())
     }
 

@@ -8,7 +8,7 @@ extern crate alloc;
 use alloc::vec::Vec;
 
 use alloy_primitives::{Address, U128};
-use alloy_sol_types::{sol, SolEvent};
+use alloy_sol_types::sol;
 use common::amount::Amount;
 use common_contracts::{
     contracts::{
@@ -20,7 +20,7 @@ use common_contracts::{
         vault_native_claims::IVaultNativeClaims::{AcquisitionClaim, DisposalClaim},
     },
 };
-use stylus_sdk::prelude::*;
+use stylus_sdk::{prelude::*, stylus_core};
 
 use crate::IERC20::transferFromCall;
 
@@ -135,7 +135,7 @@ impl VaultNativeClaims {
                 itp_minted: itp_claimed.to(),
             };
 
-            self.vm().emit_log(&exec_report.encode_data(), 1);
+            stylus_core::log(self.vm(), exec_report);
         }
 
         Ok(itp_claimed)
@@ -209,7 +209,7 @@ impl VaultNativeClaims {
                 gains: amount_received.to(),
             };
 
-            self.vm().emit_log(&exec_report.encode_data(), 1);
+            stylus_core::log(self.vm(), exec_report);
         }
 
         Ok(amount_received)

@@ -8,7 +8,6 @@ extern crate alloc;
 use alloc::{string::String, vec::Vec};
 
 use alloy_primitives::{uint, Address, U128, U256};
-use alloy_sol_types::SolEvent;
 use common_contracts::{
     contracts::{calls::InnerCall, keep::Keep, storage::StorageSlot},
     interfaces::{
@@ -19,7 +18,7 @@ use common_contracts::{
 use stylus_sdk::{
     keccak_const,
     prelude::*,
-    storage::{StorageAddress, StorageBool, StorageMap, StorageVec},
+    storage::{StorageAddress, StorageBool, StorageMap, StorageVec}, stylus_core,
 };
 
 pub const WORKSMAN_STORAGE_SLOT: U256 = {
@@ -99,7 +98,7 @@ impl Worksman {
             vault,
         };
 
-        self.vm().emit_log(&event.encode_data(), 1);
+        stylus_core::log(self.vm(), event);
         Ok(vault)
     }
 }

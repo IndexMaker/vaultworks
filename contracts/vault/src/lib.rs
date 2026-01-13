@@ -8,7 +8,7 @@ extern crate alloc;
 use alloc::{string::String, vec::Vec};
 
 use alloy_primitives::{uint, Address, B256, U128, U256, U32, U8};
-use alloy_sol_types::{sol, SolCall, SolEvent};
+use alloy_sol_types::{sol, SolCall};
 use common::amount::Amount;
 use common_contracts::{
     contracts::{
@@ -22,7 +22,7 @@ use common_contracts::{
         vault_native_orders::IVaultNativeOrders,
     },
 };
-use stylus_sdk::{abi::Bytes, prelude::*, ArbResult};
+use stylus_sdk::{abi::Bytes, prelude::*, stylus_core, ArbResult};
 
 pub const VERSION_NUMBER: U32 = uint!(1_U32);
 
@@ -205,13 +205,14 @@ impl Vault {
             },
         )?;
 
-        let event = IERC20::Transfer {
-            from: sender,
-            to,
-            value,
-        };
-
-        self.vm().emit_log(&event.encode_data(), 1);
+        stylus_core::log(
+            self.vm(),
+            IERC20::Transfer {
+                from: sender,
+                to,
+                value,
+            },
+        );
 
         Ok(())
     }
@@ -231,13 +232,14 @@ impl Vault {
         let mut allowance = vault.allowances.setter(sender);
         let result = allowance.approve(spender, value)?;
 
-        let event = IERC20::Approval {
-            owner: sender,
-            spender,
-            value,
-        };
-
-        self.vm().emit_log(&event.encode_data(), 1);
+        stylus_core::log(
+            self.vm(),
+            IERC20::Approval {
+                owner: sender,
+                spender,
+                value,
+            },
+        );
 
         Ok(result)
     }
@@ -272,9 +274,8 @@ impl Vault {
             },
         )?;
 
-        let event = IERC20::Transfer { from, to, value };
+        stylus_core::log(self.vm(), IERC20::Transfer { from, to, value });
 
-        self.vm().emit_log(&event.encode_data(), 1);
         Ok(true)
     }
 

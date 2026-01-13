@@ -22,7 +22,7 @@ use common_contracts::{
         guildmaster::IGuildmaster, scribe::IScribe, steward::ISteward, worksman::IWorksman,
     },
 };
-use stylus_sdk::{keccak_const, prelude::*};
+use stylus_sdk::{keccak_const, prelude::*, stylus_core};
 
 pub const CASTLE_ISSUER_ROLE: [u8; 32] = keccak_const::Keccak256::new()
     .update(b"Castle.ISSUER_ROLE")
@@ -53,7 +53,7 @@ impl Constable {
     where
         T: SolEvent,
     {
-        self.vm().emit_log(&event.encode_data(), 1);
+        stylus_core::log(self.vm(), event);
     }
 
     fn _attendee(&self) -> Address {
@@ -227,7 +227,7 @@ impl Constable {
 
     //
     // Castle's NPCs (Diamond Facets)
-    // 
+    //
 
     pub fn appoint_banker(&mut self, banker: Address) -> Result<(), Vec<u8>> {
         if banker.is_zero() {
@@ -290,7 +290,8 @@ impl Constable {
                 IFactor::submitSellOrderCall::SELECTOR.into(),
                 IFactor::executeBuyOrderCall::SELECTOR.into(),
                 IFactor::executeSellOrderCall::SELECTOR.into(),
-                IFactor::executeTransferCall::SELECTOR.into()],
+                IFactor::executeTransferCall::SELECTOR.into(),
+            ],
             CASTLE_VAULT_ROLE.into(),
         )?;
 
