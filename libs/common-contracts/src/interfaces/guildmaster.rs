@@ -17,5 +17,7 @@ sol! {
         event BeginEditIndex(uint128 index, address sender);
 
         event FinishEditIndex(uint128 index, address sender);
+
+        event IndexCreated(uint128 index, string name, string symbol, address vault);
     }
 }

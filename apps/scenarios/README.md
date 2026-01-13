@@ -131,11 +131,6 @@ until worksman does it, we can also configure *Vault* like:
 ./scripts/send.sh $VAULT "configureRequests(uint128,address,address,uint128)" "1" $CUSTODY $COLLATERAL 100000000000000000000
 ```
 
-and in next command add *Vault* to free-list, which will look like:
-```
-./scripts/send.sh $CASTLE "addVault(address)" $VAULT
-```
-
 This adds that *Gate* to *Workman's* free-list, and then when *Guildmaster*
 requests to build a *Vault* *Worksman* will pick next from that free-list.
 
@@ -159,6 +154,11 @@ We want to set our-selves as operator of that *Keeper*, so that we can make call
 Now, transfer *Vault* owerhip to the *Castle*:
 ```
 ./scripts/send.sh $VAULT "transferOwnership(address)" $CASTLE
+```
+
+and in next command add *Vault* to free-list, which will look like:
+```
+./scripts/send.sh $CASTLE "addVault(address)" $VAULT
 ```
 
 

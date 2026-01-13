@@ -88,19 +88,33 @@ impl Guildmaster {
         vault.weights.set(asset_weights_id);
 
         let worksman = storage.worksman.get();
-        let gate_to_vault = self.build_vault(
-            worksman,
-            index.to(),
-            name,
-            symbol,
-            description,
-            methodology,
-            initial_price.to(),
-            curator,
-            custody,
-        )?;
+        let gate_to_vault = self.build_vault(worksman)?;
 
         vault.gate_to_vault.set(gate_to_vault);
+
+        self.external_call(
+            gate_to_vault,
+            IVault::configureVaultCall {
+                index_id: index.to(),
+                name: name.clone(),
+                symbol: symbol.clone(),
+                description,
+                methodology,
+                initial_price: initial_price.to(),
+                curator,
+                custody,
+            },
+        )?;
+
+        stylus_core::log(
+            self.vm(),
+            IGuildmaster::IndexCreated {
+                index: index.to(),
+                name,
+                symbol,
+                vault: gate_to_vault,
+            },
+        );
 
         Ok(())
     }
