@@ -8,6 +8,14 @@ sol!{
 
         function installClaims(address claims_implementation) external;
 
+        function castle() external view returns (address);
+
+        function implementation() external view returns (address);
+
+        function ordersImplementation() external view returns (address);
+
+        function claimsImplementation() external view returns (address);
+
         function setVersion() external;
 
         function getVersion() external view returns (uint32);
@@ -26,9 +34,17 @@ sol!{
 
         function configureVault(uint128 index_id, string calldata name, string calldata symbol, string calldata description, string calldata methodology, uint128 initial_price, address curator, string calldata custody) external;
 
-        function castle() external view returns (address);
-
         function indexId() external view returns (uint128);
+
+        function description() external view returns (string memory);
+
+        function methodology() external view returns (string memory);
+
+        function initialPrice() external view returns (uint128);
+
+        function curator() external view returns (address);
+
+        function custody() external view returns (string memory);
 
         function name() external view returns (string memory);
 
