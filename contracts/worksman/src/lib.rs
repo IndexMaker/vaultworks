@@ -18,7 +18,8 @@ use common_contracts::{
 use stylus_sdk::{
     keccak_const,
     prelude::*,
-    storage::{StorageAddress, StorageBool, StorageMap, StorageVec}, stylus_core,
+    storage::{StorageAddress, StorageBool, StorageMap, StorageVec},
+    stylus_core,
 };
 
 pub const WORKSMAN_STORAGE_SLOT: U256 = {
@@ -74,6 +75,11 @@ impl Worksman {
         index: U128,
         name: String,
         symbol: String,
+        description: String,
+        methodology: String,
+        initial_price: U128,
+        curator: Address,
+        custody: String,
     ) -> Result<Address, Vec<u8>> {
         let keep = Keep::storage();
         if keep.worksman.get().is_zero() {
@@ -88,6 +94,11 @@ impl Worksman {
                 index_id: index.to(),
                 name: name.clone(),
                 symbol: symbol.clone(),
+                description,
+                methodology,
+                initial_price: initial_price.to(),
+                curator,
+                custody,
             },
         )?;
 

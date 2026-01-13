@@ -2,7 +2,7 @@ use alloy_sol_types::sol;
 
 sol! {
     interface IGuildmaster  {
-        function submitIndex(uint128 index, bytes calldata asset_names, bytes calldata asset_weights, string calldata name, string calldata symbol) external;
+        function submitIndex(uint128 index, bytes calldata asset_names, bytes calldata asset_weights, string calldata name, string calldata symbol, string calldata description, string calldata methodology, uint128 initial_price, address curator, string calldata custody) external;
 
         function beginEditIndex(uint128 index) external;
 

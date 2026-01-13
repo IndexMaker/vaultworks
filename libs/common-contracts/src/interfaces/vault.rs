@@ -24,7 +24,7 @@ sol!{
 
         function renounceOwnership() external;
 
-        function configureVault(uint128 index_id, string calldata name, string calldata symbol) external;
+        function configureVault(uint128 index_id, string calldata name, string calldata symbol, string calldata description, string calldata methodology, uint128 initial_price, address curator, string calldata custody) external;
 
         function castle() external view returns (address);
 

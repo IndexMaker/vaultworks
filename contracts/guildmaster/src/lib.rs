@@ -8,7 +8,7 @@ extern crate alloc;
 use abacus_formulas::update_quote::update_quote;
 use alloc::{string::String, vec::Vec};
 
-use alloy_primitives::U128;
+use alloy_primitives::{Address, U128};
 use common::vector::Vector;
 use common_contracts::{
     contracts::{
@@ -63,6 +63,11 @@ impl Guildmaster {
         asset_weights: Bytes,
         name: String,
         symbol: String,
+        description: String,
+        methodology: String,
+        initial_price: U128,
+        curator: Address,
+        custody: String,
     ) -> Result<(), Vec<u8>> {
         let mut storage = Keep::storage();
         storage.check_version()?;
@@ -83,7 +88,17 @@ impl Guildmaster {
         vault.weights.set(asset_weights_id);
 
         let worksman = storage.worksman.get();
-        let gate_to_vault = self.build_vault(worksman, index.to(), name, symbol)?;
+        let gate_to_vault = self.build_vault(
+            worksman,
+            index.to(),
+            name,
+            symbol,
+            description,
+            methodology,
+            initial_price.to(),
+            curator,
+            custody,
+        )?;
 
         vault.gate_to_vault.set(gate_to_vault);
 
