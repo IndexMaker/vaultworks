@@ -31,6 +31,11 @@ pub async fn run_scenario(
     let index_id = 1001;
     let index_name = "Test 5 Assets";
     let index_symbol = "T5A";
+    let description = "Test Index containing five assets";
+    let methodology = "Testing";
+    let initial_price = amount!(1000);
+    let curator = client.address();
+    let custody = "Test Custody";
 
     {
         log_msg!("Submit Assets #1");
@@ -102,6 +107,11 @@ pub async fn run_scenario(
                 asset_weights.to_bytes(),
                 index_name.to_string(),
                 index_symbol.to_string(),
+                description.to_string(),
+                methodology.to_string(),
+                initial_price.to_u128_raw(),
+                curator,
+                custody.to_string(),
             ))
             .send()
             .await?;

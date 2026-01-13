@@ -54,18 +54,26 @@ impl Allowance {
 
 #[storage]
 pub struct VaultStorage {
-    pub index_id: StorageU128,
-    pub name: StorageString,
-    pub symbol: StorageString,
     pub version: StorageU32,
+    pub index_id: StorageU128,
     pub owner: StorageAddress,
+    pub castle: StorageAddress,
+    // balance & allowance
     pub total_supply: StorageU256,
     pub balances: StorageMap<Address, StorageU256>,
     pub allowances: StorageMap<Address, Allowance>,
-    pub castle: StorageAddress,
+    // facets
     pub implementation: StorageAddress,
     pub orders_implementation: StorageAddress,
     pub claims_implementation: StorageAddress,
+    // detail
+    pub name: StorageString,
+    pub symbol: StorageString,
+    pub description: StorageString,
+    pub methodology: StorageString,
+    pub initial_price: StorageU128,
+    pub curator: StorageAddress,
+    pub custody: StorageString,
 }
 
 impl VaultStorage {

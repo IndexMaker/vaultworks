@@ -5,16 +5,12 @@
 #[macro_use]
 extern crate alloc;
 
-use alloc::{string::String, vec::Vec};
+use alloc::vec::Vec;
 
-use alloy_primitives::{uint, Address, U128, U256};
-use alloy_sol_types::SolEvent;
+use alloy_primitives::{uint, Address, U256};
 use common_contracts::{
     contracts::{calls::InnerCall, keep::Keep, storage::StorageSlot},
-    interfaces::{
-        vault::IVault::{self},
-        worksman::IWorksman,
-    },
+    interfaces::vault::IVault,
 };
 use stylus_sdk::{
     keccak_const,
@@ -65,17 +61,18 @@ impl Worksman {
         if vault_setter.get() {
             Err(b"Vault already added")?;
         }
+        let IVault::ownerReturn { _0: owner } =
+            self.static_call_ret(vault, IVault::ownerCall {})?;
+
+        if owner != self.top_level() {
+            Err(b"Vault ownership must be returned")?;
+        }
         vault_setter.set(true);
         storage.free_vaults.push(vault);
         Ok(())
     }
 
-    pub fn build_vault(
-        &mut self,
-        index: U128,
-        name: String,
-        symbol: String,
-    ) -> Result<Address, Vec<u8>> {
+    pub fn build_vault(&mut self) -> Result<Address, Vec<u8>> {
         let keep = Keep::storage();
         if keep.worksman.get().is_zero() {
             Err(b"Worksman not appointed")?;
@@ -83,23 +80,6 @@ impl Worksman {
         let mut storage = Self::_storage();
         let vault = storage.next_vault()?;
 
-        self.external_call(
-            vault,
-            IVault::configureVaultCall {
-                index_id: index.to(),
-                name: name.clone(),
-                symbol: symbol.clone(),
-            },
-        )?;
-
-        let event = IWorksman::VautlDeployed {
-            index: index.to(),
-            name,
-            symbol,
-            vault,
-        };
-
-        self.vm().emit_log(&event.encode_data(), 1);
         Ok(vault)
     }
 }

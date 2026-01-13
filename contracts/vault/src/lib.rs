@@ -8,7 +8,7 @@ extern crate alloc;
 use alloc::{string::String, vec::Vec};
 
 use alloy_primitives::{uint, Address, B256, U128, U256, U32, U8};
-use alloy_sol_types::{sol, SolCall, SolEvent};
+use alloy_sol_types::{sol, SolCall};
 use common::amount::Amount;
 use common_contracts::{
     contracts::{
@@ -22,7 +22,7 @@ use common_contracts::{
         vault_native_orders::IVaultNativeOrders,
     },
 };
-use stylus_sdk::{abi::Bytes, prelude::*, ArbResult};
+use stylus_sdk::{abi::Bytes, prelude::*, stylus_core, ArbResult};
 
 pub const VERSION_NUMBER: U32 = uint!(1_U32);
 
@@ -79,6 +79,28 @@ impl Vault {
         Ok(())
     }
 
+    pub fn castle(&self) -> Address {
+        let vault = VaultStorage::storage();
+        vault.castle.get()
+    }
+
+    pub fn implementation(&self) -> Address {
+        let vault = VaultStorage::storage();
+        vault.implementation.get()
+    }
+
+    pub fn orders_implementation(&self) -> Address {
+        let vault = VaultStorage::storage();
+        vault.orders_implementation.get()
+    }
+
+    pub fn claims_implementation(&self) -> Address {
+        let vault = VaultStorage::storage();
+        vault.claims_implementation.get()
+    }
+
+    // Version
+
     pub fn set_version(&mut self) -> Result<(), Vec<u8>> {
         Gate::only_delegated()?;
         let mut vault = VaultStorage::storage();
@@ -134,28 +156,60 @@ impl Vault {
         vault.set_owner(Address::ZERO)
     }
 
+    // Index Details
+
     pub fn configure_vault(
         &mut self,
         index_id: U128,
         name: String,
         symbol: String,
+        description: String,
+        methodology: String,
+        initial_price: U128,
+        curator: Address,
+        custody: String,
     ) -> Result<(), Vec<u8>> {
         let mut vault = VaultStorage::storage();
         vault.only_owner(self.attendee())?;
         vault.index_id.set(index_id);
         vault.name.set_str(name);
         vault.symbol.set_str(symbol);
+        vault.description.set_str(description);
+        vault.methodology.set_str(methodology);
+        vault.initial_price.set(initial_price);
+        vault.curator.set(curator);
+        vault.custody.set_str(custody);
         Ok(())
-    }
-
-    pub fn castle(&self) -> Address {
-        let vault = VaultStorage::storage();
-        vault.castle.get()
     }
 
     pub fn index_id(&self) -> U128 {
         let vault = VaultStorage::storage();
         vault.index_id.get()
+    }
+
+    pub fn description(&self) -> String {
+        let vault = VaultStorage::storage();
+        vault.description.get_string()
+    }
+    
+    pub fn methodology(&self) -> String {
+        let vault = VaultStorage::storage();
+        vault.methodology.get_string()
+    }
+    
+    pub fn initial_price(&self) -> U128 {
+        let vault = VaultStorage::storage();
+        vault.initial_price.get()
+    }
+    
+    pub fn curator(&self) -> Address {
+        let vault = VaultStorage::storage();
+        vault.curator.get()
+    }
+
+    pub fn custody(&self) -> String {
+        let vault = VaultStorage::storage();
+        vault.custody.get_string()
     }
 
     // ERC20
@@ -205,13 +259,14 @@ impl Vault {
             },
         )?;
 
-        let event = IERC20::Transfer {
-            from: sender,
-            to,
-            value,
-        };
-
-        self.vm().emit_log(&event.encode_data(), 1);
+        stylus_core::log(
+            self.vm(),
+            IERC20::Transfer {
+                from: sender,
+                to,
+                value,
+            },
+        );
 
         Ok(())
     }
@@ -231,13 +286,14 @@ impl Vault {
         let mut allowance = vault.allowances.setter(sender);
         let result = allowance.approve(spender, value)?;
 
-        let event = IERC20::Approval {
-            owner: sender,
-            spender,
-            value,
-        };
-
-        self.vm().emit_log(&event.encode_data(), 1);
+        stylus_core::log(
+            self.vm(),
+            IERC20::Approval {
+                owner: sender,
+                spender,
+                value,
+            },
+        );
 
         Ok(result)
     }
@@ -272,9 +328,8 @@ impl Vault {
             },
         )?;
 
-        let event = IERC20::Transfer { from, to, value };
+        stylus_core::log(self.vm(), IERC20::Transfer { from, to, value });
 
-        self.vm().emit_log(&event.encode_data(), 1);
         Ok(true)
     }
 

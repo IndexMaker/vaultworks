@@ -8,8 +8,7 @@ extern crate alloc;
 use abacus_formulas::update_quote::update_quote;
 use alloc::{string::String, vec::Vec};
 
-use alloy_primitives::U128;
-use alloy_sol_types::SolEvent;
+use alloy_primitives::{Address, U128};
 use common::vector::Vector;
 use common_contracts::{
     contracts::{
@@ -20,7 +19,7 @@ use common_contracts::{
     },
     interfaces::{guildmaster::IGuildmaster, vault::IVault},
 };
-use stylus_sdk::{abi::Bytes, prelude::*};
+use stylus_sdk::{abi::Bytes, prelude::*, stylus_core};
 use vector_macros::amount_vec;
 
 #[storage]
@@ -64,6 +63,11 @@ impl Guildmaster {
         asset_weights: Bytes,
         name: String,
         symbol: String,
+        description: String,
+        methodology: String,
+        initial_price: U128,
+        curator: Address,
+        custody: String,
     ) -> Result<(), Vec<u8>> {
         let mut storage = Keep::storage();
         storage.check_version()?;
@@ -84,9 +88,33 @@ impl Guildmaster {
         vault.weights.set(asset_weights_id);
 
         let worksman = storage.worksman.get();
-        let gate_to_vault = self.build_vault(worksman, index.to(), name, symbol)?;
+        let gate_to_vault = self.build_vault(worksman)?;
 
         vault.gate_to_vault.set(gate_to_vault);
+
+        self.external_call(
+            gate_to_vault,
+            IVault::configureVaultCall {
+                index_id: index.to(),
+                name: name.clone(),
+                symbol: symbol.clone(),
+                description,
+                methodology,
+                initial_price: initial_price.to(),
+                curator,
+                custody,
+            },
+        )?;
+
+        stylus_core::log(
+            self.vm(),
+            IGuildmaster::IndexCreated {
+                index: index.to(),
+                name,
+                symbol,
+                vault: gate_to_vault,
+            },
+        );
 
         Ok(())
     }
@@ -103,12 +131,13 @@ impl Guildmaster {
             IVault::transferOwnershipCall { new_owner: sender },
         )?;
 
-        let event = IGuildmaster::BeginEditIndex {
-            index: index.to(),
-            sender,
-        };
-
-        self.vm().emit_log(&event.encode_data(), 1);
+        stylus_core::log(
+            self.vm(),
+            IGuildmaster::BeginEditIndex {
+                index: index.to(),
+                sender,
+            },
+        );
 
         Ok(())
     }
@@ -126,12 +155,13 @@ impl Guildmaster {
             Err(b"Vault ownership must be returned")?;
         }
 
-        let event = IGuildmaster::FinishEditIndex {
-            index: index.to(),
-            sender,
-        };
-
-        self.vm().emit_log(&event.encode_data(), 1);
+        stylus_core::log(
+            self.vm(),
+            IGuildmaster::FinishEditIndex {
+                index: index.to(),
+                sender,
+            },
+        );
 
         Ok(())
     }

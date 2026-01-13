@@ -4,8 +4,6 @@ sol! {
     interface IWorksman  {
         function addVault(address vault) external;
 
-        function buildVault(uint128 index, string calldata name, string calldata symbol) external returns (address);
-
-        event VautlDeployed(uint128 index, string name, string symbol, address vault);
+        function buildVault() external returns (address);
     }
 }

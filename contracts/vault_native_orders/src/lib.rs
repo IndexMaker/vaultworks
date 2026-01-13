@@ -8,7 +8,7 @@ extern crate alloc;
 use alloc::vec::Vec;
 
 use alloy_primitives::{Address, U128};
-use alloy_sol_types::{sol, SolEvent};
+use alloy_sol_types::sol;
 use common::vector::Vector;
 use common_contracts::{
     contracts::{
@@ -23,7 +23,7 @@ use common_contracts::{
         vault_native_orders::IVaultNativeOrders::{Acquisition, BuyOrder, Disposal, SellOrder},
     },
 };
-use stylus_sdk::prelude::*;
+use stylus_sdk::{prelude::*, stylus_core};
 
 sol! {
     interface IERC20 {
@@ -142,7 +142,7 @@ impl VaultNativeOrders {
                 itp_minted: received.to(),
             };
 
-            self.vm().emit_log(&exec_report.encode_data(), 1);
+            stylus_core::log(self.vm(), exec_report);
         }
 
         if !collateral_remain.is_zero() {
@@ -156,7 +156,7 @@ impl VaultNativeOrders {
                 trader,
             };
 
-            self.vm().emit_log(&request_event.encode_data(), 1);
+            stylus_core::log(self.vm(), request_event);
         }
 
         Ok((received, delivered, collateral_remain))
@@ -261,7 +261,7 @@ impl VaultNativeOrders {
                 gains: received.to(),
             };
 
-            self.vm().emit_log(&exec_report.encode_data(), 1);
+            stylus_core::log(self.vm(), exec_report);
         }
 
         if !itp_remain.is_zero() {
@@ -277,7 +277,7 @@ impl VaultNativeOrders {
                 trader,
             };
 
-            self.vm().emit_log(&request_event.encode_data(), 1);
+            stylus_core::log(self.vm(), request_event);
         }
 
         Ok((received, delivered, itp_remain))
@@ -347,7 +347,7 @@ impl VaultNativeOrders {
                 itp_minted: received.to(),
             };
 
-            self.vm().emit_log(&exec_report.encode_data(), 1);
+            stylus_core::log(self.vm(), exec_report);
         }
 
         Ok((received, delivered, pending_amount))
@@ -417,7 +417,7 @@ impl VaultNativeOrders {
                 gains: received.to(),
             };
 
-            self.vm().emit_log(&exec_report.encode_data(), 1);
+            stylus_core::log(self.vm(), exec_report);
         }
 
         Ok((received, delivered, pending_amount))

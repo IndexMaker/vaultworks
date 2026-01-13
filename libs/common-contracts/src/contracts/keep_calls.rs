@@ -1,4 +1,4 @@
-use alloc::{string::String, vec::Vec};
+use alloc::vec::Vec;
 
 use alloy_primitives::{Address, Bytes};
 
@@ -17,13 +17,7 @@ pub trait KeepCalls {
         num_registry: u128,
     ) -> Result<(), Vec<u8>>;
 
-    fn build_vault(
-        &mut self,
-        worksman: Address,
-        index_id: u128,
-        name: String,
-        symbol: String,
-    ) -> Result<Address, Vec<u8>>;
+    fn build_vault(&mut self, worksman: Address) -> Result<Address, Vec<u8>>;
 
     fn verify_signature(
         &mut self,
@@ -54,21 +48,9 @@ where
         Ok(())
     }
 
-    fn build_vault(
-        &mut self,
-        worksman: Address,
-        index_id: u128,
-        name: String,
-        symbol: String,
-    ) -> Result<Address, Vec<u8>> {
-        let IWorksman::buildVaultReturn { _0: result } = self.inner_call_ret(
-            worksman,
-            IWorksman::buildVaultCall {
-                index: index_id,
-                name,
-                symbol,
-            },
-        )?;
+    fn build_vault(&mut self, worksman: Address) -> Result<Address, Vec<u8>> {
+        let IWorksman::buildVaultReturn { _0: result } =
+            self.inner_call_ret(worksman, IWorksman::buildVaultCall {})?;
         Ok(result)
     }
 

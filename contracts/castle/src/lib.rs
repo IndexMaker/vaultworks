@@ -19,7 +19,7 @@ use common_contracts::{
     },
     interfaces::{castle::ICastle, constable::IConstable},
 };
-use stylus_sdk::{prelude::*, ArbResult};
+use stylus_sdk::{ArbResult, prelude::*, stylus_core};
 
 /// Lightweight One-To-Many Proxy (aka Diamond)
 ///
@@ -44,7 +44,7 @@ impl Castle {
     where
         T: SolEvent,
     {
-        self.vm().emit_log(&event.encode_data(), 1);
+        stylus_core::log(self.vm(), event);
     }
 
     fn _attendee(&self) -> Address {
