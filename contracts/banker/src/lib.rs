@@ -12,6 +12,7 @@ use abacus_formulas::{
     update_margin::update_margin, update_supply::update_supply,
 };
 use alloy_primitives::U128;
+use common::{labels::Labels, vector::Vector};
 use common_contracts::contracts::{
     clerk::{ClerkStorage, SCRATCH_1, SCRATCH_2, SCRATCH_3},
     keep::Keep,
@@ -42,6 +43,13 @@ impl Banker {
         vendor_id: U128,
         market_asset_names: Bytes,
     ) -> Result<(), Vec<u8>> {
+        if vendor_id.is_zero() {
+            Err(b"Vendor ID cannot be zero")?;
+        }
+        if Labels::is_valid_vec(&market_asset_names) {
+            Err(b"Invalid Market Asset Names")?;
+        }
+
         let mut storage = Keep::storage();
         storage.check_version()?;
 
@@ -136,6 +144,18 @@ impl Banker {
         asset_names: Bytes,
         asset_margin: Bytes,
     ) -> Result<(), Vec<u8>> {
+        if vendor_id.is_zero() {
+            Err(b"Vendor ID cannot be zero")?;
+        }
+        let num_assets =
+            Labels::len_from_vec(&asset_names).ok_or_else(|| b"Invalid Asset Names")?;
+
+        if num_assets
+            != Vector::len_from_vec(&asset_margin).ok_or_else(|| b"Invalid Asset Margin")?
+        {
+            Err(b"Asset Names and Asset Margin are not aligned")?;
+        }
+
         let mut storage = Keep::storage();
         storage.check_version()?;
 
@@ -188,6 +208,25 @@ impl Banker {
         asset_quantities_short: Bytes,
         asset_quantities_long: Bytes,
     ) -> Result<(), Vec<u8>> {
+        if vendor_id.is_zero() {
+            Err(b"Vendor ID cannot be zero")?;
+        }
+        let num_assets =
+            Labels::len_from_vec(&asset_names).ok_or_else(|| b"Invalid Asset Names")?;
+
+        if num_assets
+            != Vector::len_from_vec(&asset_quantities_short)
+                .ok_or_else(|| b"Invalid Asset Quantities Short")?
+        {
+            Err(b"Asset Names and Asset Quantities Short are not aligned")?;
+        }
+        if num_assets
+            != Vector::len_from_vec(&asset_quantities_short)
+                .ok_or_else(|| b"Invalid Asset Quantities Long")?
+        {
+            Err(b"Asset Names and Asset Quantities Long are not aligned")?;
+        }
+
         let mut storage = Keep::storage();
         storage.check_version()?;
 

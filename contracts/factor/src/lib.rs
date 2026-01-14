@@ -14,7 +14,7 @@ use abacus_formulas::{
     submit_sell_order::submit_sell_order, update_market_data::update_market_data,
 };
 use alloy_primitives::{Address, U128};
-use common::{amount::Amount, vector::Vector};
+use common::{amount::Amount, labels::Labels, vector::Vector};
 use common_contracts::contracts::{
     clerk::{ClerkStorage, SCRATCH_1, SCRATCH_2, SCRATCH_3, SCRATCH_4},
     formulas::{Order, ORDER_REMAIN_OFFSET},
@@ -286,7 +286,7 @@ impl Factor {
         vendor_id: U128,
         index_id: U128,
         trader_address: Address,
-        operator_address: Option<Address>,
+        operator_address: Address,
         collateral_added: u128,
         collateral_removed: u128,
         max_order_size: u128,
@@ -349,7 +349,7 @@ impl Factor {
         let num_registry = 23;
         self.update_records(clerk, update, num_registry)?;
 
-        if let Some(operator_address) = operator_address {
+        if operator_address != trader_address {
             self._transfer_buy_to_operator(
                 &mut vault,
                 &mut clerk_storage,
@@ -382,7 +382,7 @@ impl Factor {
         vendor_id: U128,
         index_id: U128,
         trader_address: Address,
-        operator_address: Option<Address>,
+        operator_address: Address,
         collateral_added: u128,
         collateral_removed: u128,
         max_order_size: u128,
@@ -460,7 +460,7 @@ impl Factor {
         let num_registry = 22;
         self.update_records(clerk, update, num_registry)?;
 
-        if let Some(operator_address) = operator_address {
+        if operator_address != trader_address {
             self._transfer_sell_to_operator(
                 &mut vault,
                 &mut clerk_storage,
@@ -517,6 +517,28 @@ impl Factor {
         asset_prices: Bytes,
         asset_slopes: Bytes,
     ) -> Result<(), Vec<u8>> {
+        if vendor_id.is_zero() {
+            Err(b"Vendor ID cannot be zero")?;
+        }
+        let num_assets =
+            Labels::len_from_vec(&asset_names).ok_or_else(|| b"Invalid Asset Names")?;
+
+        if num_assets
+            != Vector::len_from_vec(&asset_liquidity).ok_or_else(|| b"Invalid Asset Liquidity")?
+        {
+            Err(b"Asset Names and Asset Liquidity are not aligned")?;
+        }
+        if num_assets
+            != Vector::len_from_vec(&asset_prices).ok_or_else(|| b"Invalid Asset Prices")?
+        {
+            Err(b"Asset Names and Asset Prices are not aligned")?;
+        }
+        if num_assets
+            != Vector::len_from_vec(&asset_slopes).ok_or_else(|| b"Invalid Asset Slopes")?
+        {
+            Err(b"Asset Names and Asset Slopes are not aligned")?;
+        }
+
         let mut storage = Keep::storage();
         storage.check_version()?;
 
@@ -560,6 +582,16 @@ impl Factor {
         collateral_added: u128,
         collateral_removed: u128,
     ) -> Result<(), Vec<u8>> {
+        if vendor_id.is_zero() {
+            Err(b"Vendor ID cannot be zero")?;
+        }
+        if index_id.is_zero() {
+            Err(b"Index ID cannot be zero")?;
+        }
+        if trader_address.is_zero() {
+            Err(b"Trader Address cannot be zero")?;
+        }
+
         let mut storage = Keep::storage();
         storage.check_version()?;
 
@@ -595,6 +627,16 @@ impl Factor {
         collateral_added: u128,
         collateral_removed: u128,
     ) -> Result<(), Vec<u8>> {
+        if vendor_id.is_zero() {
+            Err(b"Vendor ID cannot be zero")?;
+        }
+        if index_id.is_zero() {
+            Err(b"Index ID cannot be zero")?;
+        }
+        if trader_address.is_zero() {
+            Err(b"Trader Address cannot be zero")?;
+        }
+
         let mut storage = Keep::storage();
         storage.check_version()?;
 
@@ -629,12 +671,25 @@ impl Factor {
         trader_address: Address,
         max_order_size: u128,
     ) -> Result<Vec<Bytes>, Vec<u8>> {
+        if vendor_id.is_zero() {
+            Err(b"Vendor ID cannot be zero")?;
+        }
+        if index_id.is_zero() {
+            Err(b"Index ID cannot be zero")?;
+        }
+        if trader_address.is_zero() {
+            Err(b"Trader Address cannot be zero")?;
+        }
+        if max_order_size == 0 {
+            Err(b"MaxOrderSize cannot be zero")?;
+        }
+
         let (index_order, executed_index_quantities, executed_asset_quantities) = self
             ._execute_buy_order(
                 vendor_id,
                 index_id,
                 trader_address,
-                None,
+                trader_address,
                 0,
                 0,
                 max_order_size,
@@ -654,12 +709,25 @@ impl Factor {
         trader_address: Address,
         max_order_size: u128,
     ) -> Result<Vec<Bytes>, Vec<u8>> {
+        if vendor_id.is_zero() {
+            Err(b"Vendor ID cannot be zero")?;
+        }
+        if index_id.is_zero() {
+            Err(b"Index ID cannot be zero")?;
+        }
+        if trader_address.is_zero() {
+            Err(b"Trader Address cannot be zero")?;
+        }
+        if max_order_size == 0 {
+            Err(b"MaxOrderSize cannot be zero")?;
+        }
+
         let (index_order, executed_index_quantities, executed_asset_quantities) = self
             ._execute_sell_order(
                 vendor_id,
                 index_id,
                 trader_address,
-                None,
+                trader_address,
                 0,
                 0,
                 max_order_size,
@@ -672,7 +740,7 @@ impl Factor {
         ])
     }
 
-    /// Submit BUY Index order
+    /// Execute BUY Index order
     ///
     /// Add collateral amount to user's order, and match for immediate execution.
     ///
@@ -687,16 +755,28 @@ impl Factor {
         collateral_amount: u128,
         max_order_size: u128,
     ) -> Result<Vec<Bytes>, Vec<u8>> {
+        if vendor_id.is_zero() {
+            Err(b"Vendor ID cannot be zero")?;
+        }
+        if index_id.is_zero() {
+            Err(b"Index ID cannot be zero")?;
+        }
+        if trader_address.is_zero() {
+            Err(b"Trader Address cannot be zero")?;
+        }
+        if operator_address.is_zero() {
+            Err(b"Trader Address and Operator Address must differ")?;
+        }
+        if max_order_size == 0 {
+            Err(b"MaxOrderSize cannot be zero")?;
+        }
+
         let (index_order, executed_index_quantities, executed_asset_quantities) = self
             ._execute_buy_order(
                 vendor_id,
                 index_id,
                 trader_address,
-                if trader_address != operator_address {
-                    Some(operator_address)
-                } else {
-                    None
-                },
+                operator_address,
                 collateral_amount,
                 0,
                 max_order_size,
@@ -709,6 +789,12 @@ impl Factor {
         ])
     }
 
+    /// Execute SELL Index order
+    ///
+    /// Add ITP amount to user's order, and match for immediate execution.
+    ///
+    /// Any remaining ITP is transferred to operator for further execution.
+    ///
     pub fn execute_sell_order(
         &mut self,
         vendor_id: U128,
@@ -718,16 +804,28 @@ impl Factor {
         itp_amount: u128,
         max_order_size: u128,
     ) -> Result<Vec<Bytes>, Vec<u8>> {
+        if vendor_id.is_zero() {
+            Err(b"Vendor ID cannot be zero")?;
+        }
+        if index_id.is_zero() {
+            Err(b"Index ID cannot be zero")?;
+        }
+        if trader_address.is_zero() {
+            Err(b"Trader Address cannot be zero")?;
+        }
+        if operator_address.is_zero() {
+            Err(b"Trader Address and Operator Address must differ")?;
+        }
+        if max_order_size == 0 {
+            Err(b"MaxOrderSize cannot be zero")?;
+        }
+
         let (index_order, executed_index_quantities, executed_asset_quantities) = self
             ._execute_sell_order(
                 vendor_id,
                 index_id,
                 trader_address,
-                if trader_address != operator_address {
-                    Some(operator_address)
-                } else {
-                    None
-                },
+                operator_address,
                 itp_amount,
                 0,
                 max_order_size,
@@ -740,20 +838,10 @@ impl Factor {
         ])
     }
 
-    // pub fn submit_rebalance_order(
-    //     &mut self,
-    //     vendor_id: U128,
-    //     new_assets: Vec<u8>,
-    //     new_weigthts: Vec<u8>,
-    // ) -> Result<(), Vec<u8>> {
-    //     //
-    //     // This needs to:
-    //     //  - compute rebalance_weights_long = max(0, weights - new_weights) -- assets long in inventory (sell them)
-    //     //  - compute rebalance_weights_short = max(0, new_weights - weights) -- assets short in inventory (buy more)
-    //     //
-    //     Err(b"Not implemented yet".into())
-    // }
-
+    /// Execute Transfer from Sender to Receiver
+    ///
+    /// This transfers both ITP and proportionalcollateral cost.
+    ///
     pub fn execute_transfer(
         &mut self,
         index_id: U128,
@@ -761,6 +849,19 @@ impl Factor {
         receiver: Address,
         amount: u128,
     ) -> Result<(), Vec<u8>> {
+        if index_id.is_zero() {
+            Err(b"Index ID cannot be zero")?;
+        }
+        if sender.is_zero() {
+            Err(b"Sender cannot be zero")?;
+        }
+        if receiver.is_zero() {
+            Err(b"Receiver cannot be zero")?;
+        }
+        if amount == 0 {
+            return Ok(());
+        }
+
         let mut storage = Keep::storage();
         storage.check_version()?;
 
@@ -821,4 +922,18 @@ impl Factor {
 
         Ok(())
     }
+
+    // pub fn submit_rebalance_order(
+    //     &mut self,
+    //     vendor_id: U128,
+    //     new_assets: Vec<u8>,
+    //     new_weigthts: Vec<u8>,
+    // ) -> Result<(), Vec<u8>> {
+    //     //
+    //     // This needs to:
+    //     //  - compute rebalance_weights_long = max(0, weights - new_weights) -- assets long in inventory (sell them)
+    //     //  - compute rebalance_weights_short = max(0, new_weights - weights) -- assets short in inventory (buy more)
+    //     //
+    //     Err(b"Not implemented yet".into())
+    // }
 }

@@ -27,6 +27,26 @@ impl Labels {
     }
 
     #[cfg(feature = "vec-u8")]
+    pub fn is_valid_vec(data_ref: &impl AsRef<[u8]>) -> bool {
+        let data = data_ref.as_ref();
+        let len = data.len();
+        0 == len % size_of::<u128>()
+    }
+
+    #[cfg(feature = "vec-u8")]
+    pub fn len_from_vec(data_ref: &impl AsRef<[u8]>) -> Option<usize> {
+        let data = data_ref.as_ref();
+        let len = data.len();
+        
+        if 0 != len % size_of::<u128>() {
+            return None;
+        }
+
+        let vec_len = len / size_of::<u128>();
+        Some(vec_len)
+    }
+
+    #[cfg(feature = "vec-u8")]
     pub fn from_vec(data_ref: impl AsRef<[u8]>) -> Self {
         let mut this = Self::new();
         let data = data_ref.as_ref();
@@ -65,7 +85,7 @@ macro_rules! label {
     };
     ($num:expr) => {
         ($num as u128)
-    }
+    };
 }
 
 #[cfg(any(not(feature = "stylus"), feature = "debug"))]
