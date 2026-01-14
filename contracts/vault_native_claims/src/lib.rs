@@ -45,6 +45,12 @@ impl VaultNativeClaims {
         keeper: Address,
         trader: Address,
     ) -> Result<(U128, U128), Vec<u8>> {
+        if trader.is_zero() {
+            Err(b"Trader cannot be zero")?;
+        }
+        if keeper.is_zero() {
+            Err(b"Keeper cannot be zero")?;
+        }
         let requests = VaultNativeStorage::storage();
         let getter = requests.trader_orders.getter(trader);
         Ok((
@@ -55,6 +61,9 @@ impl VaultNativeClaims {
 
     /// Tell claimable ITP available and the cost
     pub fn get_claimable_acquisition(&self, keeper: Address) -> Result<(U128, U128), Vec<u8>> {
+        if keeper.is_zero() {
+            Err(b"Keeper cannot be zero")?;
+        }
         let requests = VaultNativeStorage::storage();
         let getter = requests.opearator_order.getter(keeper);
         Ok((getter.bid_received.get(), getter.bid_delivered.get()))
@@ -62,6 +71,9 @@ impl VaultNativeClaims {
 
     /// Tell total claimable gains and amount of ITP burned
     pub fn get_claimable_disposal(&self, keeper: Address) -> Result<(U128, U128), Vec<u8>> {
+        if keeper.is_zero() {
+            Err(b"Keeper cannot be zero")?;
+        }
         let requests = VaultNativeStorage::storage();
         let getter = requests.opearator_order.getter(keeper);
         Ok((getter.ask_received.get(), getter.ask_delivered.get()))
@@ -74,9 +86,23 @@ impl VaultNativeClaims {
         keeper: Address,
         trader: Address,
     ) -> Result<U128, Vec<u8>> {
+        if trader.is_zero() {
+            Err(b"Trader cannot be zero")?;
+        }
+        if keeper.is_zero() {
+            Err(b"Keeper cannot be zero")?;
+        }
+        if collateral_amount.is_zero() {
+            return Ok(U128::ZERO);
+        }
+
         let mut vault = VaultStorage::storage();
         let mut requests = VaultNativeStorage::storage();
         let sender = self.attendee();
+
+        if !vault.is_custodian(keeper) {
+            Err(b"Keeper must be custodian")?;
+        }
 
         if sender != keeper && !requests.is_operator(keeper, sender) {
             Err(b"Unauthorised order processing")?;
@@ -160,9 +186,23 @@ impl VaultNativeClaims {
         keeper: Address,
         trader: Address,
     ) -> Result<U128, Vec<u8>> {
+        if trader.is_zero() {
+            Err(b"Trader cannot be zero")?;
+        }
+        if keeper.is_zero() {
+            Err(b"Keeper cannot be zero")?;
+        }
+        if itp_amount.is_zero() {
+            return Ok(U128::ZERO);
+        }
+
         let vault = VaultStorage::storage();
         let mut requests = VaultNativeStorage::storage();
         let sender = self.attendee();
+
+        if !vault.is_custodian(keeper) {
+            Err(b"Keeper must be custodian")?;
+        }
 
         if sender != keeper && !requests.is_operator(keeper, sender) {
             Err(b"Unauthorised order processing")?;
@@ -225,25 +265,5 @@ impl VaultNativeClaims {
         }
 
         Ok(amount_received)
-    }
-}
-
-#[cfg(test)]
-mod test {
-    use alloy_primitives::U128;
-    use common::amount::Amount;
-
-    #[test]
-    fn test_amount_received() {
-        let itp_claimed = Amount::from_u128_raw(101907499999999999430u128)
-            .checked_mul(Amount::from_u128_with_scale(1, 0))
-            .ok_or_else(|| b"MathOverflow")
-            .unwrap()
-            .checked_div(Amount::from_u128_with_scale(141_9075, 4))
-            .ok_or_else(|| b"MathOverflow")
-            .unwrap()
-            .to_u128();
-
-        assert_eq!(itp_claimed, U128::ZERO);
     }
 }

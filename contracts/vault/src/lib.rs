@@ -269,6 +269,9 @@ impl Vault {
     pub fn transfer(&mut self, to: Address, value: U256) -> Result<bool, Vec<u8>> {
         let mut vault = VaultStorage::storage();
         let sender = self.attendee();
+        if self.is_custodian(to) {
+            Err(b"Cannot transfer to custodian")?;
+        }
 
         vault.transfer(sender, to, value)?;
 
@@ -336,6 +339,13 @@ impl Vault {
         if to.is_zero() {
             Err(b"Invalid Receiver")?;
         }
+        if self.is_custodian(from) {
+            Err(b"Cannot transfer from custodian")?;
+        }
+        if self.is_custodian(to) {
+            Err(b"Cannot transfer to custodian")?;
+        }
+
         let mut vault = VaultStorage::storage();
         let mut allowance = vault.allowances.setter(self.attendee());
         allowance.spend_allowance(from, value)?;
@@ -357,6 +367,70 @@ impl Vault {
         stylus_core::log(self.vm(), IERC20::Transfer { from, to, value });
 
         Ok(true)
+    }
+
+    // Custody
+
+    /// An account added as custodian is prohibited for life from making
+    /// transfers.
+    ///
+    /// Unlike ERC20 standard, where once you're an owner of an account you
+    /// fully control your token, here if you are set to be custodian, you
+    /// cannot make transfers.
+    ///
+    /// This is our custom extension to ERC20 to allow multiple sub-accounts for
+    /// operators, who act in the name of the users. Operators can perform only
+    /// internal trading operations, and cannot withdraw or fund those accounts.
+    ///
+    pub fn add_custodian(&mut self, account: Address) -> Result<(), Vec<u8>> {
+        let sender = self.attendee();
+        let mut vault = VaultStorage::storage();
+        if sender != account && !vault.is_owner(sender) {
+            Err(b"Only owner or account")?;
+        }
+        vault.set_custodian(account, true);
+
+        stylus_core::log(
+            self.vm(),
+            IVault::CustodianSet {
+                account,
+                is_custodian: false,
+            },
+        );
+
+        Ok(())
+    }
+
+    /// Remove account from being a custodian.
+    ///
+    /// Only administrator of this Vault is allowed to perform such dangerous
+    /// action as removal of custodian status from an account. One needs to be
+    /// meticuluously carrefuly as account may still hold tokens, and releasing
+    /// custoidian status would mean that owner of that account will be able to
+    /// move those tokens to another account.
+    ///
+    pub fn remove_custodian(&mut self, account: Address) -> Result<(), Vec<u8>> {
+        let sender = self.attendee();
+        let mut vault = VaultStorage::storage();
+        if !vault.is_owner(sender) {
+            Err(b"Only owner")?;
+        }
+        vault.set_custodian(account, false);
+
+        stylus_core::log(
+            self.vm(),
+            IVault::CustodianSet {
+                account,
+                is_custodian: false,
+            },
+        );
+
+        Ok(())
+    }
+
+    pub fn is_custodian(&self, account: Address) -> bool {
+        let vault = VaultStorage::storage();
+        vault.is_custodian(account)
     }
 
     #[payable]

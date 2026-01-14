@@ -62,9 +62,23 @@ impl VaultNativeOrders {
         if collateral_amount.is_zero() {
             Err(b"Zero collateral amount")?;
         }
+        if trader.is_zero() {
+            Err(b"Trader cannot be zero")?;
+        }
+        if keeper.is_zero() {
+            Err(b"Keeper cannot be zero")?;
+        }
+        if trader == keeper {
+            Err(b"Trader and Keeper must differ")?;
+        }
+
         let mut vault = VaultStorage::storage();
         let mut requests = VaultNativeStorage::storage();
         let sender = self.attendee();
+
+        if !vault.is_custodian(keeper) {
+            Err(b"Keeper must be custodian")?;
+        }
 
         // Order can be placed by either trader or an operator elected by trader.
         // e.g. another smart-contract can act on behalf of trader.
@@ -202,10 +216,23 @@ impl VaultNativeOrders {
         if itp_amount.is_zero() {
             Err(b"Zero ITP amount")?;
         }
+        if trader.is_zero() {
+            Err(b"Trader cannot be zero")?;
+        }
+        if keeper.is_zero() {
+            Err(b"Keeper cannot be zero")?;
+        }
+        if trader == keeper {
+            Err(b"Trader and Keeper must differ")?;
+        }
 
         let mut vault = VaultStorage::storage();
         let mut requests = VaultNativeStorage::storage();
         let sender = self.attendee();
+
+        if !vault.is_custodian(keeper) {
+            Err(b"Keeper must be custodian")?;
+        }
 
         // Order can be placed by either trader or an operator elected by trader.
         // e.g. another smart-contract can act on behalf of trader.
@@ -321,9 +348,17 @@ impl VaultNativeOrders {
         &mut self,
         keeper: Address,
     ) -> Result<(U128, U128, U128), Vec<u8>> {
+        if keeper.is_zero() {
+            Err(b"Keeper cannot be zero")?;
+        }
+
         let mut vault = VaultStorage::storage();
         let mut requests = VaultNativeStorage::storage();
         let sender = self.attendee();
+
+        if !vault.is_custodian(keeper) {
+            Err(b"Keeper must be custodian")?;
+        }
 
         // Pending orders can be processed by either keeper or an operator
         // elected by keeper.
@@ -400,9 +435,17 @@ impl VaultNativeOrders {
         &mut self,
         keeper: Address,
     ) -> Result<(U128, U128, U128), Vec<u8>> {
+        if keeper.is_zero() {
+            Err(b"Keeper cannot be zero")?;
+        }
+
         let mut vault = VaultStorage::storage();
         let mut requests = VaultNativeStorage::storage();
         let sender = self.attendee();
+
+        if !vault.is_custodian(keeper) {
+            Err(b"Keeper must be custodian")?;
+        }
 
         // Pending orders can be processed by either keeper or an operator
         // elected by keeper.
