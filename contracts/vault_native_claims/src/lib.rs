@@ -22,13 +22,16 @@ use common_contracts::{
 };
 use stylus_sdk::{prelude::*, stylus_core};
 
-use crate::IERC20::transferFromCall;
+use crate::IERC20::{Transfer, transferFromCall};
 
 sol! {
     interface IERC20 {
         function transferFrom(address from, address to, uint256 value) external returns (bool);
+
+        event Transfer(address indexed from, address indexed to, uint256 value);
     }
 }
+
 
 #[storage]
 #[entrypoint]
@@ -125,6 +128,15 @@ impl VaultNativeClaims {
             // Publish execution report if there was execution
 
             vault.transfer(keeper, trader, itp_claimed.to())?;
+            
+            stylus_core::log(
+                self.vm(),
+                Transfer {
+                    from: keeper,
+                    to: trader,
+                    value: itp_claimed.to(),
+                },
+            );
 
             let exec_report = AcquisitionClaim {
                 controller: keeper,

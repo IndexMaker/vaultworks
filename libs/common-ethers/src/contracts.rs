@@ -10,6 +10,8 @@ abigen!(
 abigen!(
     Steward,
     r"[
+        function getVault(uint128 index_id) external view returns (address)
+
         function getMarketData(uint128 vendor_id) external view returns (bytes[] memory)
 
         function getIndexAssetsCount(uint128 index_id) external view returns (uint128)
@@ -83,7 +85,13 @@ abigen!(
 abigen!(
     Guildmaster,
     r"[
-        function submitIndex(uint128 index, bytes calldata asset_names, bytes calldata asset_weights, string calldata name, string calldata symbol, string calldata description, string calldata methodology, uint128 initial_price, address curator, string calldata custody) external
+        function submitIndex(uint128 index, string calldata name, string calldata symbol, string calldata description, string calldata methodology, uint128 initial_price, address curator, string calldata custody) external
+
+        function beginEditIndex(uint128 index) external
+
+        function finishEditIndex(uint128 index) external
+
+        function submitAssetWeights(uint128 index, bytes calldata asset_names, bytes calldata asset_weights) external
 
         function submitVote(uint128 index, bytes calldata vote) external
 

@@ -59,8 +59,6 @@ impl Guildmaster {
     pub fn submit_index(
         &mut self,
         index: U128,
-        asset_names: Bytes,
-        asset_weights: Bytes,
         name: String,
         symbol: String,
         description: String,
@@ -72,23 +70,16 @@ impl Guildmaster {
         let mut storage = Keep::storage();
         storage.check_version()?;
 
+        /*
         let mut vault = storage.vaults.setter(index);
-        if !vault.assets.get().is_zero() {
+        if !vault.gate_to_vault.get().is_zero() {
             return Err(b"Vault already exists".into());
         }
 
-        let mut clerk_storage = ClerkStorage::storage();
-        let asset_names_id = clerk_storage.next_vector();
-        let asset_weights_id = clerk_storage.next_vector();
-
-        clerk_storage.store_bytes(asset_names_id, asset_names);
-        clerk_storage.store_bytes(asset_weights_id, asset_weights);
-
-        vault.assets.set(asset_names_id);
-        vault.weights.set(asset_weights_id);
-
         let worksman = storage.worksman.get();
-        let gate_to_vault = self.build_vault(worksman)?;
+        let gate_to_vault = self
+            .build_vault(worksman)
+            .map_err(|_| b"Failed to build vault")?;
 
         vault.gate_to_vault.set(gate_to_vault);
 
@@ -104,7 +95,8 @@ impl Guildmaster {
                 curator,
                 custody,
             },
-        )?;
+        )
+        .map_err(|_| b"Failed to configure vault")?;
 
         stylus_core::log(
             self.vm(),
@@ -115,6 +107,7 @@ impl Guildmaster {
                 vault: gate_to_vault,
             },
         );
+        */
 
         Ok(())
     }
@@ -162,6 +155,33 @@ impl Guildmaster {
                 sender,
             },
         );
+
+        Ok(())
+    }
+
+    pub fn submit_asset_weights(
+        &mut self,
+        index: U128,
+        asset_names: Bytes,
+        asset_weights: Bytes,
+    ) -> Result<(), Vec<u8>> {
+        let mut storage = Keep::storage();
+        storage.check_version()?;
+
+        let mut vault = storage.vaults.setter(index);
+        if !vault.assets.get().is_zero() {
+            return Err(b"Vault already exists".into());
+        }
+
+        let mut clerk_storage = ClerkStorage::storage();
+        let asset_names_id = clerk_storage.next_vector();
+        let asset_weights_id = clerk_storage.next_vector();
+
+        clerk_storage.store_bytes(asset_names_id, asset_names);
+        clerk_storage.store_bytes(asset_weights_id, asset_weights);
+
+        vault.assets.set(asset_names_id);
+        vault.weights.set(asset_weights_id);
 
         Ok(())
     }

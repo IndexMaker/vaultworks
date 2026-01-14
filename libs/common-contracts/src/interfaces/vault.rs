@@ -2,15 +2,17 @@ use alloy_sol_types::sol;
 
 sol!{
     interface IVault  {
-        function initialize(address owner, address implementation, address gate_to_castle) external;
+        function initialize(address owner, address vault_implementation, address gate_to_castle) external;
 
         function installOrders(address orders_implementation) external;
 
         function installClaims(address claims_implementation) external;
 
+        function cloneImplementation(address to, address new_owner) external;
+
         function castle() external view returns (address);
 
-        function implementation() external view returns (address);
+        function vaultImplementation() external view returns (address);
 
         function ordersImplementation() external view returns (address);
 

@@ -2,6 +2,8 @@ use alloy_sol_types::sol;
 
 sol! {
     interface ISteward  {
+        function getVault(uint128 index_id) external view returns (address);
+
         function getMarketData(uint128 vendor_id) external view returns (bytes[] memory);
 
         function getIndexAssetsCount(uint128 index_id) external view returns (uint128);

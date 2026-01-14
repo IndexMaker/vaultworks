@@ -18,7 +18,7 @@ use common_contracts::{
         vault::VaultStorage,
     },
     interfaces::{
-        factor::IFactor, vault_native_claims::IVaultNativeClaims,
+        factor::IFactor, vault::IVault, vault_native_claims::IVaultNativeClaims,
         vault_native_orders::IVaultNativeOrders,
     },
 };
@@ -52,7 +52,7 @@ impl Vault {
     fn initialize(
         &mut self,
         owner: Address,
-        implementation: Address,
+        vault_implementation: Address,
         gate_to_castle: Address,
     ) -> Result<(), Vec<u8>> {
         Gate::only_delegated()?;
@@ -60,7 +60,7 @@ impl Vault {
         vault.only_owner(self.attendee())?;
         vault.set_version(VERSION_NUMBER)?;
         vault.set_owner(owner)?;
-        vault.set_implementation(implementation);
+        vault.set_vault_implementation(vault_implementation);
         vault.set_castle(gate_to_castle);
         Ok(())
     }
@@ -79,14 +79,42 @@ impl Vault {
         Ok(())
     }
 
+    pub fn clone_implementation(&mut self, to: Address, new_owner: Address) -> Result<(), Vec<u8>> {
+        let vault = VaultStorage::storage();
+
+        let orders_implementation = vault.orders_implementation.get();
+        if !orders_implementation.is_zero() {
+            self.external_call(
+                to,
+                IVault::installOrdersCall {
+                    orders_implementation,
+                },
+            )?;
+        }
+
+        let claims_implementation = vault.claims_implementation.get();
+        if !claims_implementation.is_zero() {
+            self.external_call(
+                to,
+                IVault::installClaimsCall {
+                    claims_implementation: vault.claims_implementation.get(),
+                },
+            )?;
+        }
+
+        self.external_call(to, IVault::transferOwnershipCall { new_owner })?;
+
+        Ok(())
+    }
+
     pub fn castle(&self) -> Address {
         let vault = VaultStorage::storage();
         vault.castle.get()
     }
 
-    pub fn implementation(&self) -> Address {
+    pub fn vault_implementation(&self) -> Address {
         let vault = VaultStorage::storage();
-        vault.implementation.get()
+        vault.vault_implementation.get()
     }
 
     pub fn orders_implementation(&self) -> Address {
@@ -191,17 +219,17 @@ impl Vault {
         let vault = VaultStorage::storage();
         vault.description.get_string()
     }
-    
+
     pub fn methodology(&self) -> String {
         let vault = VaultStorage::storage();
         vault.methodology.get_string()
     }
-    
+
     pub fn initial_price(&self) -> U128 {
         let vault = VaultStorage::storage();
         vault.initial_price.get()
     }
-    
+
     pub fn curator(&self) -> Address {
         let vault = VaultStorage::storage();
         vault.curator.get()
@@ -228,19 +256,17 @@ impl Vault {
         U8::from(18)
     }
 
-    pub fn total_supply(&self) -> Result<U256, Vec<u8>> {
+    pub fn total_supply(&self) -> U256 {
         let vault = VaultStorage::storage();
-
-        Ok(vault.get_total_supply())
+        vault.get_total_supply()
     }
 
-    pub fn balance_of(&self, account: Address) -> Result<U256, Vec<u8>> {
+    pub fn balance_of(&self, account: Address) -> U256 {
         let vault = VaultStorage::storage();
-
-        Ok(vault.balance_of(account))
+        vault.balance_of(account)
     }
 
-    pub fn transfer(&mut self, to: Address, value: U256) -> Result<(), Vec<u8>> {
+    pub fn transfer(&mut self, to: Address, value: U256) -> Result<bool, Vec<u8>> {
         let mut vault = VaultStorage::storage();
         let sender = self.attendee();
 
@@ -268,7 +294,7 @@ impl Vault {
             },
         );
 
-        Ok(())
+        Ok(true)
     }
 
     pub fn allowance(&self, owner: Address, spender: Address) -> U256 {
@@ -355,7 +381,7 @@ impl Vault {
                 | &IVaultNativeClaims::claimDisposalCall::SELECTOR => {
                     vault.claims_implementation.get()
                 }
-                _ => vault.implementation.get(),
+                _ => vault.vault_implementation.get(),
             };
             if implementation.is_zero() {
                 Err(b"No implementation found")?;

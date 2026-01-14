@@ -63,7 +63,7 @@ pub struct VaultStorage {
     pub balances: StorageMap<Address, StorageU256>,
     pub allowances: StorageMap<Address, Allowance>,
     // facets
-    pub implementation: StorageAddress,
+    pub vault_implementation: StorageAddress,
     pub orders_implementation: StorageAddress,
     pub claims_implementation: StorageAddress,
     // detail
@@ -102,8 +102,8 @@ impl VaultStorage {
         Ok(())
     }
 
-    pub fn set_implementation(&mut self, implementation: Address) {
-        self.implementation.set(implementation);
+    pub fn set_vault_implementation(&mut self, vault_implementation: Address) {
+        self.vault_implementation.set(vault_implementation);
     }
 
     pub fn set_orders_implementation(&mut self, orders_implementation: Address) {

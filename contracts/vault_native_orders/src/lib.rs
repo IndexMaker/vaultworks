@@ -25,9 +25,13 @@ use common_contracts::{
 };
 use stylus_sdk::{prelude::*, stylus_core};
 
+use crate::IERC20::Transfer;
+
 sol! {
     interface IERC20 {
         function transferFrom(address from, address to, uint256 value) external returns (bool);
+
+        event Transfer(address indexed from, address indexed to, uint256 value);
     }
 }
 
@@ -133,30 +137,41 @@ impl VaultNativeOrders {
 
             vault.mint(trader, received.to())?;
 
-            let exec_report = Acquisition {
-                controller: trader,
-                index_id: vault.index_id.get().to(),
-                vendor_id: requests.vendor_id.get().to(),
-                remain: collateral_remain.to(),
-                spent: delivered.to(),
-                itp_minted: received.to(),
-            };
+            stylus_core::log(
+                self.vm(),
+                Transfer {
+                    from: Address::ZERO,
+                    to: trader,
+                    value: received.to(),
+                },
+            );
 
-            stylus_core::log(self.vm(), exec_report);
+            stylus_core::log(
+                self.vm(),
+                Acquisition {
+                    controller: trader,
+                    index_id: vault.index_id.get().to(),
+                    vendor_id: requests.vendor_id.get().to(),
+                    remain: collateral_remain.to(),
+                    spent: delivered.to(),
+                    itp_minted: received.to(),
+                },
+            );
         }
 
         if !collateral_remain.is_zero() {
             // Send an event, and it will be picked up by Keeper service
 
-            let request_event = BuyOrder {
-                keeper,
-                index_id: vault.index_id.get().to(),
-                vendor_id: requests.vendor_id.get().to(),
-                collateral_amount: collateral_remain.to(),
-                trader,
-            };
-
-            stylus_core::log(self.vm(), request_event);
+            stylus_core::log(
+                self.vm(),
+                BuyOrder {
+                    keeper,
+                    index_id: vault.index_id.get().to(),
+                    vendor_id: requests.vendor_id.get().to(),
+                    collateral_amount: collateral_remain.to(),
+                    trader,
+                },
+            );
         }
 
         Ok((received, delivered, collateral_remain))
@@ -252,6 +267,15 @@ impl VaultNativeOrders {
 
             vault.burn(trader, delivered.to())?;
 
+            stylus_core::log(
+                self.vm(),
+                Transfer {
+                    from: trader,
+                    to: Address::ZERO,
+                    value: delivered.to(),
+                },
+            );
+
             let exec_report = Disposal {
                 controller: trader,
                 index_id: vault.index_id.get().to(),
@@ -268,6 +292,15 @@ impl VaultNativeOrders {
             // Send an event, and it will be picked up by Keeper service.
 
             vault.transfer(trader, keeper, itp_remain.to())?;
+
+            stylus_core::log(
+                self.vm(),
+                Transfer {
+                    from: trader,
+                    to: keeper,
+                    value: itp_remain.to(),
+                },
+            );
 
             let request_event = SellOrder {
                 keeper,
@@ -338,6 +371,15 @@ impl VaultNativeOrders {
 
             vault.mint(keeper, received.to())?;
 
+            stylus_core::log(
+                self.vm(),
+                Transfer {
+                    from: Address::ZERO,
+                    to: keeper,
+                    value: received.to(),
+                },
+            );
+
             let exec_report = Acquisition {
                 controller: keeper,
                 index_id: vault.index_id.get().to(),
@@ -407,6 +449,15 @@ impl VaultNativeOrders {
             // Publish execution report if there was execution
 
             vault.burn(keeper, delivered.to())?;
+
+            stylus_core::log(
+                self.vm(),
+                Transfer {
+                    from: keeper,
+                    to: Address::ZERO,
+                    value: delivered.to(),
+                },
+            );
 
             let exec_report = Disposal {
                 controller: keeper,

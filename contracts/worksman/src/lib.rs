@@ -7,40 +7,34 @@ extern crate alloc;
 
 use alloc::vec::Vec;
 
-use alloy_primitives::{uint, Address, U256};
+use alloy_primitives::{hex, uint, Address, U256};
+use alloy_sol_types::{sol, SolCall};
 use common_contracts::{
     contracts::{calls::InnerCall, keep::Keep, storage::StorageSlot},
     interfaces::vault::IVault,
 };
-use stylus_sdk::{
-    keccak_const,
-    prelude::*,
-    storage::{StorageAddress, StorageBool, StorageMap, StorageVec},
-};
+use stylus_sdk::{keccak_const, prelude::*, storage::StorageAddress};
 
 pub const WORKSMAN_STORAGE_SLOT: U256 = {
     const HASH: [u8; 32] = keccak_const::Keccak256::new()
-        .update(b"Keep.STORAGE_SLOT")
+        .update(b"Worksman.STORAGE_SLOT")
         .finalize();
     U256::from_be_bytes(HASH).wrapping_sub(uint!(1_U256))
 };
 
-#[storage]
-struct WorksmanStorage {
-    all_vaults: StorageMap<Address, StorageBool>,
-    free_vaults: StorageVec<StorageAddress>,
+const CREATION_CODE: &[u8] = include_bytes!("../code.txt");
+
+sol! {
+    interface IGate {
+        function initialize(address implementation, bytes calldata data) external;
+
+        function implementation() external view returns (address);
+    }
 }
 
-impl WorksmanStorage {
-    fn next_vault(&mut self) -> Result<Address, Vec<u8>> {
-        let last_index = self.free_vaults.len();
-        if let Some(vault) = self.free_vaults.get(last_index - 1) {
-            self.free_vaults.erase_last();
-            Ok(vault)
-        } else {
-            Err(b"No more Vaults available")?
-        }
-    }
+#[storage]
+struct WorksmanStorage {
+    prototype: StorageAddress,
 }
 
 #[storage]
@@ -51,24 +45,62 @@ impl Worksman {
     fn _storage() -> WorksmanStorage {
         StorageSlot::get_slot::<WorksmanStorage>(WORKSMAN_STORAGE_SLOT)
     }
+
+    fn _build_gate(&mut self, prototype: Address) -> Result<Address, Vec<u8>> {
+        let creation_code = hex::decode(CREATION_CODE).map_err(|_| b"Failed to decode hex")?;
+        let gate = unsafe {
+            self.vm()
+                .deploy(&creation_code, U256::ZERO, None, deploy::CachePolicy::Flush)?
+        };
+
+        let castle = self.top_level();
+
+        let IGate::implementationReturn { _0: implementation } = self
+            .static_call_ret(prototype, IGate::implementationCall {})
+            .map_err(|_| "Failed to obtain implementation")?;
+
+        let IVault::vaultImplementationReturn {
+            _0: vault_implementation,
+        } = self
+            .static_call_ret(prototype, IVault::vaultImplementationCall {})
+            .map_err(|_| "Failed to obtain vault implementation")?;
+
+        let init_vault = IVault::initializeCall {
+            owner: prototype,
+            vault_implementation,
+            gate_to_castle: castle,
+        };
+
+        let init_gate = IGate::initializeCall {
+            implementation,
+            data: init_vault.abi_encode().into(),
+        };
+
+        self.external_call(gate, init_gate)
+            .map_err(|_| b"Failed to initialize gate")?;
+
+        let clone_implementation = IVault::cloneImplementationCall {
+            to: gate,
+            new_owner: castle,
+        };
+
+        self.external_call(prototype, clone_implementation)
+            .map_err(|_| b"Failed to clone implementation")?;
+
+        Ok(gate)
+    }
 }
 
 #[public]
 impl Worksman {
-    pub fn add_vault(&mut self, vault: Address) -> Result<(), Vec<u8>> {
-        let mut storage = Self::_storage();
-        let mut vault_setter = storage.all_vaults.setter(vault);
-        if vault_setter.get() {
-            Err(b"Vault already added")?;
+    pub fn set_vault_prototype(&mut self, vault: Address) -> Result<(), Vec<u8>> {
+        let keep = Keep::storage();
+        if keep.worksman.get().is_zero() {
+            Err(b"Worksman not appointed")?;
         }
-        let IVault::ownerReturn { _0: owner } =
-            self.static_call_ret(vault, IVault::ownerCall {})?;
 
-        if owner != self.top_level() {
-            Err(b"Vault ownership must be returned")?;
-        }
-        vault_setter.set(true);
-        storage.free_vaults.push(vault);
+        let mut storage = Self::_storage();
+        storage.prototype.set(vault);
         Ok(())
     }
 
@@ -77,9 +109,11 @@ impl Worksman {
         if keep.worksman.get().is_zero() {
             Err(b"Worksman not appointed")?;
         }
-        let mut storage = Self::_storage();
-        let vault = storage.next_vault()?;
 
+        let storage = Self::_storage();
+        let prototype = storage.prototype.get();
+
+        let vault = self._build_gate(prototype)?;
         Ok(vault)
     }
 }

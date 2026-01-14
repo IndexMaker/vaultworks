@@ -158,7 +158,7 @@ Now, transfer *Vault* owerhip to the *Castle*:
 
 and in next command add *Vault* to free-list, which will look like:
 ```
-./scripts/send.sh $CASTLE "addVault(address)" $VAULT
+./scripts/send.sh $CASTLE "setVaultPrototype(address)" $VAULT
 ```
 
 

@@ -352,6 +352,7 @@ impl Constable {
             guildmaster,
             vec![
                 IGuildmaster::submitIndexCall::SELECTOR.into(),
+                IGuildmaster::submitAssetWeightsCall::SELECTOR.into(),
                 IGuildmaster::submitVoteCall::SELECTOR.into(),
             ],
             CASTLE_ISSUER_ROLE.into(),
@@ -415,7 +416,7 @@ impl Constable {
 
         self._create_protected_functions(
             worksman,
-            vec![IWorksman::addVaultCall::SELECTOR.into()],
+            vec![IWorksman::setVaultPrototypeCall::SELECTOR.into()],
             CASTLE_ADMIN_ROLE.into(),
         )?;
 
