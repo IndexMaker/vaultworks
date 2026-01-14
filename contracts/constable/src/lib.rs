@@ -310,6 +310,7 @@ impl Constable {
         self._create_public_functions(
             steward,
             vec![
+                ISteward::getVaultCall::SELECTOR.into(),
                 ISteward::getMarketDataCall::SELECTOR.into(),
                 ISteward::getIndexAssetsCountCall::SELECTOR.into(),
                 ISteward::getIndexAssetsCall::SELECTOR.into(),

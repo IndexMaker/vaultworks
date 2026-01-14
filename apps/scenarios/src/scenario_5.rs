@@ -30,15 +30,14 @@ pub async fn run_scenario(
 
     let vendor_id = uint!(1u128);
     let index_id = 1001;
-    let index_name = "Test 5 Assets ver.C";
-    let index_symbol = "T5C";
+    let index_name = "Test 5 Assets";
+    let index_symbol = "T5D";
     let description = "Test Index containing five assets";
     let methodology = "Testing";
     let initial_price = amount!(1000);
     let curator = client.address();
     let custody = "Test Custody";
 
-    /*
     {
         log_msg!("Submit Assets #1");
 
@@ -94,7 +93,6 @@ pub async fn run_scenario(
             .send()
             .await?;
     }
-    */
 
     {
         log_msg!("Submit Index");
@@ -113,9 +111,6 @@ pub async fn run_scenario(
             ))
             .send()
             .await?;
-
-        let _vault_address = steward.get_vault(index_id).call().await?;
-        log_msg!("Index {}: Vault deployed at: {}", index_id, _vault_address);
     }
 
     {
@@ -220,6 +215,11 @@ pub async fn run_scenario(
             .await?;
 
         log_msg!("Sell order placement result: {:?}", result);
+    }
+
+    {
+        let _vault_address = steward.get_vault(index_id).call().await?;
+        log_msg!("Index {}: Vault deployed at: {:#x}", index_id, _vault_address);
     }
 
     Ok(())

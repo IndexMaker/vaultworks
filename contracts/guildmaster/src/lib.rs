@@ -70,7 +70,6 @@ impl Guildmaster {
         let mut storage = Keep::storage();
         storage.check_version()?;
 
-        /*
         let mut vault = storage.vaults.setter(index);
         if !vault.gate_to_vault.get().is_zero() {
             return Err(b"Vault already exists".into());
@@ -95,8 +94,7 @@ impl Guildmaster {
                 curator,
                 custody,
             },
-        )
-        .map_err(|_| b"Failed to configure vault")?;
+        )?;
 
         stylus_core::log(
             self.vm(),
@@ -107,7 +105,6 @@ impl Guildmaster {
                 vault: gate_to_vault,
             },
         );
-        */
 
         Ok(())
     }
