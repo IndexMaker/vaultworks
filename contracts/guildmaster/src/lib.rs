@@ -14,7 +14,7 @@ use common_contracts::{
     contracts::{
         calls::InnerCall,
         clerk::ClerkStorage,
-        keep::{Keep, Vault},
+        keep::{Keep, Vault, VAULT_STATUS_APPROVED, VAULT_STATUS_NEW, VAULT_STATUS_REJECTED},
         keep_calls::KeepCalls,
     },
     interfaces::{guildmaster::IGuildmaster, vault::IVault},
@@ -73,11 +73,9 @@ impl Guildmaster {
 
         let mut storage = Keep::storage();
         storage.check_version()?;
-        
+
         let mut vault = storage.vaults.setter(index_id);
-        if !vault.gate_to_vault.get().is_zero() {
-            Err(b"Vault already exists")?;
-        }
+        vault.only_uninitialized()?;
 
         let worksman = storage.worksman.get();
         let gate_to_vault = self
@@ -85,6 +83,7 @@ impl Guildmaster {
             .map_err(|_| b"Failed to build vault")?;
 
         vault.gate_to_vault.set(gate_to_vault);
+        vault.status.set(VAULT_STATUS_NEW);
 
         self.external_call(
             gate_to_vault,
@@ -123,6 +122,7 @@ impl Guildmaster {
         storage.check_version()?;
 
         let vault = storage.vaults.setter(index_id);
+        vault.only_initialized()?;
 
         self.external_call(
             vault.gate_to_vault.get(),
@@ -150,6 +150,8 @@ impl Guildmaster {
         storage.check_version()?;
 
         let vault = storage.vaults.setter(index_id);
+        vault.only_initialized()?;
+
         let IVault::ownerReturn { _0: owner } =
             self.static_call_ret(vault.gate_to_vault.get(), IVault::ownerCall {})?;
 
@@ -191,8 +193,10 @@ impl Guildmaster {
         storage.check_version()?;
 
         let mut vault = storage.vaults.setter(index_id);
+        vault.only_initialized()?;
+
         if !vault.assets.get().is_zero() {
-            return Err(b"Vault already exists".into());
+            Err(b"Asset Weights already set")?;
         }
 
         let mut clerk_storage = ClerkStorage::storage();
@@ -229,19 +233,17 @@ impl Guildmaster {
         let sender = self.attendee();
         storage.check_version()?;
 
-        let vault = storage.vaults.setter(index_id);
-        if vault.assets.get().is_zero() {
-            Err(b"Vault not found")?;
-        }
+        let mut vault = storage.vaults.setter(index_id);
+        vault.only_unvoted()?;
 
         let scribe = storage.scribe.get();
         let verfication_result = self.verify_signature(scribe, vote.0)?;
 
-        if !verfication_result {
-            Err(b"Couldn't verify vote")?;
+        if verfication_result {
+            vault.status.set(VAULT_STATUS_APPROVED);
+        } else {
+            vault.status.set(VAULT_STATUS_REJECTED);
         }
-
-        //TODO: Send vote to Vault contract to activate
 
         stylus_core::log(
             self.vm(),
@@ -274,6 +276,8 @@ impl Guildmaster {
         let mut clerk_storage = ClerkStorage::storage();
 
         let mut vault = storage.vaults.setter(index_id);
+        vault.only_tradeable()?;
+
         let vendor_quote_id = _init_vendor_quote(&mut vault, &mut clerk_storage, vendor_id);
 
         let account = storage.accounts.get(vendor_id);
@@ -298,7 +302,7 @@ impl Guildmaster {
         let clerk = storage.clerk.get();
         let num_registry = 16;
         self.update_records(clerk, update, num_registry)?;
-        
+
         stylus_core::log(
             self.vm(),
             IGuildmaster::IndexQuoteUpdated {

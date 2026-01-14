@@ -300,6 +300,7 @@ impl Factor {
         let solve_quadratic_id = _init_solve_quadratic_bid(&mut storage, &mut clerk_storage);
 
         let mut vault = storage.vaults.setter(index_id);
+        vault.only_tradeable()?;
 
         let vendor_quote_id = _get_vendor_quote_id(&mut vault, vendor_id)?;
 
@@ -396,6 +397,7 @@ impl Factor {
         let solve_quadratic_id = _init_solve_quadratic_ask(&mut storage, &mut clerk_storage);
 
         let mut vault = storage.vaults.setter(index_id);
+        vault.only_tradeable()?;
 
         let vendor_quote_id = _get_vendor_quote_id(&mut vault, vendor_id)?;
 
@@ -598,6 +600,7 @@ impl Factor {
         let mut clerk_storage = ClerkStorage::storage();
 
         let mut vault = storage.vaults.setter(index_id);
+        vault.only_tradeable()?;
 
         // Allocate new Index order or get existing one
         let index_order_id = _init_trader_bid(&mut vault, &mut clerk_storage, trader_address);
@@ -643,6 +646,7 @@ impl Factor {
         let mut clerk_storage = ClerkStorage::storage();
 
         let mut vault = storage.vaults.setter(index_id);
+        vault.only_tradeable()?;
 
         // Allocate new Index order or get existing one
         let index_order_id = _init_trader_ask(&mut vault, &mut clerk_storage, trader_address);
@@ -867,6 +871,7 @@ impl Factor {
 
         let mut vault = storage.vaults.setter(index_id);
         let mut clerk_storage = ClerkStorage::storage();
+        vault.only_tradeable()?;
 
         // Transfers are initiated by Vaults on behalf of users and not
         // by users themselves. This way it is more efficient.

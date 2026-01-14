@@ -1,10 +1,10 @@
 use alloc::{vec, vec::Vec};
 
-use alloy_primitives::{uint, Address, U128, U256, U32};
+use alloy_primitives::{uint, Address, U128, U256, U32, U8};
 use stylus_sdk::{
     keccak_const,
     prelude::*,
-    storage::{StorageAddress, StorageMap, StorageU128, StorageU32, StorageVec},
+    storage::{StorageAddress, StorageMap, StorageU128, StorageU32, StorageU8, StorageVec},
 };
 
 use crate::contracts::storage::StorageSlot;
@@ -18,8 +18,14 @@ pub const KEEP_STORAGE_SLOT: U256 = {
     U256::from_be_bytes(HASH).wrapping_sub(uint!(1_U256))
 };
 
+pub const VAULT_STATUS_UNINITIALIZED: U8 = uint!(0_U8);
+pub const VAULT_STATUS_NEW: U8 = uint!(1_U8);
+pub const VAULT_STATUS_APPROVED: U8 = uint!(2_U8);
+pub const VAULT_STATUS_REJECTED: U8 = uint!(3_U8);
+
 #[storage]
 pub struct Vault {
+    pub status: StorageU8,
     pub gate_to_vault: StorageAddress,
 
     // Index definition
@@ -51,6 +57,48 @@ pub struct Vault {
     pub total_ask: StorageU128, // Vector = [ITP Remaining, ITP Burned, USDC Withdrawn]
 
                                 // }}
+}
+
+impl Vault {
+    pub fn only_uninitialized(&self) -> Result<(), Vec<u8>> {
+        match self.status.get() {
+            VAULT_STATUS_UNINITIALIZED => Ok(()),
+            VAULT_STATUS_NEW => Err(b"Vault already exists")?,
+            VAULT_STATUS_REJECTED => Err(b"Vault voted (rejected)")?,
+            VAULT_STATUS_APPROVED => Err(b"Vault voted (accepted)")?,
+            _ => panic!("Unexpected vault status"),
+        }
+    }
+
+    pub fn only_initialized(&self) -> Result<(), Vec<u8>> {
+        match self.status.get() {
+            VAULT_STATUS_UNINITIALIZED => Err(b"Vault does not exist")?,
+            VAULT_STATUS_NEW => Ok(()),
+            VAULT_STATUS_REJECTED => Ok(()),
+            VAULT_STATUS_APPROVED => Ok(()),
+            _ => panic!("Unexpected vault status"),
+        }
+    }
+
+    pub fn only_unvoted(&self) -> Result<(), Vec<u8>> {
+        match self.status.get() {
+            VAULT_STATUS_UNINITIALIZED => Err(b"Vault does not exist")?,
+            VAULT_STATUS_NEW => Ok(()),
+            VAULT_STATUS_REJECTED => Err(b"Vault voted (rejected)")?,
+            VAULT_STATUS_APPROVED => Err(b"Vault voted (accepted)")?,
+            _ => panic!("Unexpected vault status"),
+        }
+    }
+
+    pub fn only_tradeable(&self) -> Result<(), Vec<u8>> {
+        match self.status.get() {
+            VAULT_STATUS_UNINITIALIZED => Err(b"Vault does not exist")?,
+            VAULT_STATUS_NEW => Err(b"Vault not voted")?,
+            VAULT_STATUS_REJECTED => Err(b"Vault was rejected")?,
+            VAULT_STATUS_APPROVED => Ok(()),
+            _ => panic!("Unexpected vault status"),
+        }
+    }
 }
 
 #[storage]
