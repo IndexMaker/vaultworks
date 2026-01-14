@@ -60,6 +60,10 @@ abigen!(
         function submitSupply(uint128 vendor_id, bytes calldata asset_names, bytes calldata asset_quantities_short, bytes calldata asset_quantities_long) external
 
         function submitMarketData(uint128 vendor_id, bytes calldata asset_names, bytes calldata asset_liquidity, bytes calldata asset_prices, bytes calldata asset_slopes) external
+
+        function updateIndexQuote(uint128 vendor_id, uint128 index_id) external
+
+        function updateMultipleIndexQuotes(uint128 vendor_id, uint128[] memory index_ids) external
     ]"
 );
 
@@ -85,7 +89,7 @@ abigen!(
 abigen!(
     Guildmaster,
     r"[
-        function submitIndex(uint128 index, string calldata name, string calldata symbol, string calldata description, string calldata methodology, uint128 initial_price, address curator, string calldata custody) external
+        function submitIndex(uint128 vendor_id, uint128 index_id, string calldata name, string calldata symbol, string calldata description, string calldata methodology, uint128 initial_price, address curator, string calldata custody, address[] memory operators, address collateral_custody, address collateral_asset, uint128 max_order_size) external returns (address)
 
         function beginEditIndex(uint128 index) external
 
@@ -94,9 +98,5 @@ abigen!(
         function submitAssetWeights(uint128 index, bytes calldata asset_names, bytes calldata asset_weights) external
 
         function submitVote(uint128 index, bytes calldata vote) external
-
-        function updateIndexQuote(uint128 vendor_id, uint128 index_id) external
-
-        function updateMultipleIndexQuotes(uint128 vendor_id, uint128[] memory index_ids) external
     ]"
 );

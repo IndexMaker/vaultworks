@@ -68,6 +68,8 @@ sol!{
 
         function addCustodian(address account) external;
 
+        function addCustodians(address[] memory accounts) external;
+
         function removeCustodian(address account) external;
 
         function isCustodian(address account) external view returns (bool);

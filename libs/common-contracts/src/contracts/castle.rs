@@ -18,6 +18,26 @@ pub const CASTLE_ADMIN_ROLE: [u8; 32] = keccak_const::Keccak256::new()
     .update(b"Castle.ADMIN_ROLE")
     .finalize();
 
+pub const CASTLE_ISSUER_ROLE: [u8; 32] = keccak_const::Keccak256::new()
+    .update(b"Castle.ISSUER_ROLE")
+    .finalize();
+
+pub const CASTLE_VENDOR_ROLE: [u8; 32] = keccak_const::Keccak256::new()
+    .update(b"Castle.VENDOR_ROLE")
+    .finalize();
+
+pub const CASTLE_KEEPER_ROLE: [u8; 32] = keccak_const::Keccak256::new()
+    .update(b"Castle.KEEPER_ROLE")
+    .finalize();
+
+pub const CASTLE_VAULT_ROLE: [u8; 32] = keccak_const::Keccak256::new()
+    .update(b"Castle.VAULT_ROLE")
+    .finalize();
+
+pub const CASTLE_MAINTAINER_ROLE: [u8; 32] = keccak_const::Keccak256::new()
+    .update(b"Castle.MAINTAINER_ROLE")
+    .finalize();
+
 pub const CASTLE_STORAGE_SLOT: U256 = {
     const HASH: [u8; 32] = keccak_const::Keccak256::new()
         .update(b"Castle.STORAGE_SLOT")

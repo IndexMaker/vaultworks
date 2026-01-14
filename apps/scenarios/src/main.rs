@@ -1,8 +1,8 @@
 use clap::Parser;
 use common::log_msg;
-use ethers::types::Address;
 
 use common_ethers::tx_sender::TxClient;
+use ethers::types::Address;
 use eyre::{eyre, OptionExt};
 
 mod scenario_5;
@@ -22,6 +22,12 @@ struct Cli {
     #[arg(long)]
     keeper_address: Option<String>,
 
+    #[arg(long)]
+    collateral_custody: Option<String>,
+
+    #[arg(long)]
+    collateral_asset: Option<String>,
+
     #[arg(short, long, value_delimiter = ',')]
     scenario: Vec<String>,
 }
@@ -32,29 +38,24 @@ async fn main() -> eyre::Result<()> {
     let rpc_url = cli.rpc_url.unwrap_or("http://localhost:8547".to_owned());
     let get_private_key = || -> String { cli.private_key.clone() };
 
-    let castle_address: Option<Address> = if let Some(a) = cli.castle_address {
-        Some(a.parse()?)
-    } else {
-        None
-    };
-
-    let keeper_address: Option<Address> = if let Some(a) = cli.keeper_address {
-        Some(a.parse()?)
-    } else {
-        None
-    };
-
     let scenario = cli.scenario;
 
     let client = TxClient::try_new_from_url(&rpc_url, get_private_key).await?;
+
+    let castle_address = cli.castle_address.map(|x| x.parse::<Address>());
+    let keeper_address = cli.keeper_address.map(|x| x.parse::<Address>());
+    let collateral_custody = cli.collateral_custody.map(|x| x.parse::<Address>());
+    let collateral_asset = cli.collateral_asset.map(|x| x.parse::<Address>());
 
     for s in scenario {
         match s.as_str() {
             "scenario5" => {
                 scenario_5::run_scenario(
                     &client,
-                    castle_address.ok_or_eyre("Castle address is required")?,
-                    keeper_address.ok_or_eyre("Keeper address is required")?,
+                    castle_address.ok_or_eyre("Castle address is required")??,
+                    keeper_address.ok_or_eyre("Keeper address is required")??,
+                    collateral_custody.ok_or_eyre("Collateral Custody address is required")??,
+                    collateral_asset.ok_or_eyre("Collateral Asset address is required")??,
                 )
                 .await?;
             }

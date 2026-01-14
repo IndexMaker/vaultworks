@@ -9,7 +9,7 @@ use stylus_sdk::{
 
 use crate::{
     contracts::{calls::InnerCall, formulas::Quote, storage::StorageSlot, vault::VaultStorage},
-    interfaces::{guildmaster::IGuildmaster, steward::ISteward},
+    interfaces::{banker::IBanker, steward::ISteward},
 };
 
 pub const VAULT_NATIVE_STORAGE_SLOT: U256 = {
@@ -94,7 +94,7 @@ impl VaultNativeStorage {
     ) -> Result<(), Vec<u8>> {
         caller.external_call(
             vault.castle.get(),
-            IGuildmaster::updateIndexQuoteCall {
+            IBanker::updateIndexQuoteCall {
                 vendor_id: self.vendor_id.get().to(),
                 index_id: vault.index_id.get().to(),
             },

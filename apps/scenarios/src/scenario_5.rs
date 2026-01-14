@@ -16,6 +16,8 @@ pub async fn run_scenario(
     client: &TxClient,
     castle_address: Address,
     keeper_address: Address,
+    collateral_custody: Address,
+    collateral_asset: Address
 ) -> eyre::Result<()> {
     log_msg!("Scenario 5.");
 
@@ -37,6 +39,7 @@ pub async fn run_scenario(
     let initial_price = amount!(1000);
     let curator = client.address();
     let custody = "Test Custody";
+    let max_order_size = 100000000000000000000;
 
     {
         log_msg!("Submit Assets #1");
@@ -100,6 +103,7 @@ pub async fn run_scenario(
         client
             .begin_tx()
             .add(guildmaster.submit_index(
+                vendor_id,
                 index_id,
                 index_name.to_string(),
                 index_symbol.to_string(),
@@ -108,6 +112,10 @@ pub async fn run_scenario(
                 initial_price.to_u128_raw(),
                 curator,
                 custody.to_string(),
+                vec![keeper_address],
+                collateral_custody,
+                collateral_asset,
+                max_order_size,
             ))
             .send()
             .await?;
@@ -168,7 +176,7 @@ pub async fn run_scenario(
 
         client
             .begin_tx()
-            .add(guildmaster.update_index_quote(vendor_id, index_id))
+            .add(banker.update_index_quote(vendor_id, index_id))
             .send()
             .await?;
     }
@@ -219,7 +227,11 @@ pub async fn run_scenario(
 
     {
         let _vault_address = steward.get_vault(index_id).call().await?;
-        log_msg!("Index {}: Vault deployed at: {:#x}", index_id, _vault_address);
+        log_msg!(
+            "Index {}: Vault deployed at: {:#x}",
+            index_id,
+            _vault_address
+        );
     }
 
     Ok(())

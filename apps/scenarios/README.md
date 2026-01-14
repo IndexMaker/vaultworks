@@ -132,7 +132,7 @@ export CUSTODY=$CASTLE
 Congratulations, you have set-up the environment to run once-and-only-once Scenario 5.
 
 ```
-cargo run -p scenarios -- --rpc-url $RPC_URL --private-key $DEPLOY_PRIVATE_KEY --castle-address $CASTLE --keeper-address $VENDOR -s scenario5
+cargo run -p scenarios -- --rpc-url $RPC_URL --private-key $DEPLOY_PRIVATE_KEY --castle-address $CASTLE --keeper-address $VENDOR --collateral-custody $CUSTODY --collateral-asset $COLLATERAL -s scenario5
 ```
 
 This will run Scenario 5. which:
@@ -174,27 +174,12 @@ First we need to obtain ownership of *Vault* as otherwise *Guildmaster* is an ow
 ./scripts/send.sh $CASTLE "beginEditIndex(uint128)" $INDEX_ID
 ```
 
-Until worksman does it, we can also configure *Vault* like:
-```
-./scripts/send.sh $VAULT "configureRequests(uint128,address,address,uint128)" "1" $CUSTODY $COLLATERAL 100000000000000000000
-```
-
-We must set *Keeper* to be *Custodian* type of account:
-```
-./scripts/send.sh $VAULT "addCustodian(address)" $VENDOR
-```
-
 We want to set our-selves as operator of that *Keeper*, so that we can make calls:
 ```
 ./scripts/send.sh $VAULT "setAdminOperator(address,bool)" $VENDOR true
 ```
 
 **Note** The `setAdminOperator()` function is only available to *Vault* admin.
-
-Now, transfer *Vault* owerhip to the *Castle*:
-```
-./scripts/send.sh $VAULT "transferOwnership(address)" $CASTLE
-```
 
 Scenario sends Buy and Sell orders directly to the *Castle*, which puts *Vault* out-of-sync.
 Normally this would not be happening, as users cannot call those functions,
@@ -211,13 +196,6 @@ We need to return *Vault* ownership and notify *Guildmaster*:
 ./scripts/send.sh $VAULT "transferOwnership(address)" $CASTLE
 ./scripts/send.sh $CASTLE "finishEditIndex(uint128)" $INDEX_ID
 ```
-
-*(Guildmaster needs to do it)* For now we can grant *Vault Role* to the *Vault* like:
-```
-./scripts/roles.sh grant $CASTLE "Castle.VAULT_ROLE" $VAULT
-./scripts/roles.sh grant $CASTLE "Castle.KEEPER_ROLE" $VAULT
-```
-
 
 ### Basic Queries
 

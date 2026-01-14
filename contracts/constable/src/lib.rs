@@ -13,7 +13,10 @@ use common::log_msg;
 use common_contracts::{
     contracts::{
         acl::AccessControlList,
-        castle::{CastleStorage, CASTLE_ADMIN_ROLE},
+        castle::{
+            CastleStorage, CASTLE_ADMIN_ROLE, CASTLE_ISSUER_ROLE, CASTLE_KEEPER_ROLE,
+            CASTLE_MAINTAINER_ROLE, CASTLE_VAULT_ROLE, CASTLE_VENDOR_ROLE,
+        },
         clerk::ClerkStorage,
         keep::{Keep, KEEP_VERSION_NUMBER},
     },
@@ -22,27 +25,7 @@ use common_contracts::{
         guildmaster::IGuildmaster, scribe::IScribe, steward::ISteward, worksman::IWorksman,
     },
 };
-use stylus_sdk::{keccak_const, prelude::*, stylus_core};
-
-pub const CASTLE_ISSUER_ROLE: [u8; 32] = keccak_const::Keccak256::new()
-    .update(b"Castle.ISSUER_ROLE")
-    .finalize();
-
-pub const CASTLE_VENDOR_ROLE: [u8; 32] = keccak_const::Keccak256::new()
-    .update(b"Castle.VENDOR_ROLE")
-    .finalize();
-
-pub const CASTLE_KEEPER_ROLE: [u8; 32] = keccak_const::Keccak256::new()
-    .update(b"Castle.KEEPER_ROLE")
-    .finalize();
-
-pub const CASTLE_VAULT_ROLE: [u8; 32] = keccak_const::Keccak256::new()
-    .update(b"Castle.VAULT_ROLE")
-    .finalize();
-
-pub const CASTLE_MAINTAINER_ROLE: [u8; 32] = keccak_const::Keccak256::new()
-    .update(b"Castle.MAINTAINER_ROLE")
-    .finalize();
+use stylus_sdk::{prelude::*, stylus_core};
 
 #[storage]
 #[entrypoint]
@@ -249,6 +232,15 @@ impl Constable {
             CASTLE_VENDOR_ROLE.into(),
         )?;
 
+        self._create_protected_functions(
+            banker,
+            vec![
+                IBanker::updateIndexQuoteCall::SELECTOR.into(),
+                IBanker::updateMultipleIndexQuotesCall::SELECTOR.into(),
+            ],
+            CASTLE_KEEPER_ROLE.into(),
+        )?;
+
         Ok(())
     }
 
@@ -361,15 +353,6 @@ impl Constable {
                 IGuildmaster::finishEditIndexCall::SELECTOR.into(),
             ],
             CASTLE_ADMIN_ROLE.into(),
-        )?;
-
-        self._create_protected_functions(
-            guildmaster,
-            vec![
-                IGuildmaster::updateIndexQuoteCall::SELECTOR.into(),
-                IGuildmaster::updateMultipleIndexQuotesCall::SELECTOR.into(),
-            ],
-            CASTLE_KEEPER_ROLE.into(),
         )?;
 
         Ok(())

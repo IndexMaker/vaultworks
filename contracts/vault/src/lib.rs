@@ -401,6 +401,27 @@ impl Vault {
         Ok(())
     }
 
+    /// Add custodian accounts
+    pub fn add_custodians(&mut self, accounts: Vec<Address>) -> Result<(), Vec<u8>> {
+        let sender = self.attendee();
+        let mut vault = VaultStorage::storage();
+        if !vault.is_owner(sender) {
+            Err(b"Only owner")?;
+        }
+        for account in accounts {
+            vault.set_custodian(account, true);
+
+            stylus_core::log(
+                self.vm(),
+                IVault::CustodianSet {
+                    account,
+                    is_custodian: true,
+                },
+            );
+        }
+        Ok(())
+    }
+
     /// Remove account from being a custodian.
     ///
     /// Only administrator of this Vault is allowed to perform such dangerous

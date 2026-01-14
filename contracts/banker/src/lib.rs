@@ -8,18 +8,42 @@ extern crate alloc;
 use alloc::vec::Vec;
 
 use abacus_formulas::{
-    add_market_assets::add_market_assets, create_market::create_market,
-    update_margin::update_margin, update_market_data::update_market_data,
-    update_supply::update_supply,
+    add_market_assets::add_market_assets, create_market::create_market, update_margin::update_margin, update_market_data::update_market_data, update_quote::update_quote, update_supply::update_supply
 };
 use alloy_primitives::U128;
 use common::{labels::Labels, vector::Vector};
-use common_contracts::contracts::{
+use common_contracts::{contracts::{
     clerk::{ClerkStorage, SCRATCH_1, SCRATCH_2, SCRATCH_3, SCRATCH_4},
-    keep::Keep,
+    keep::{Keep, Vault},
     keep_calls::KeepCalls,
-};
-use stylus_sdk::{abi::Bytes, prelude::*};
+}, interfaces::banker::IBanker};
+use stylus_sdk::{abi::Bytes, prelude::*, stylus_core};
+use vector_macros::amount_vec;
+
+fn _init_vendor_quote(
+    vault: &mut Vault,
+    clerk_storage: &mut ClerkStorage,
+    vendor_id: U128,
+) -> U128 {
+    let mut set_quote_id = vault.vendor_quotes.setter(vendor_id);
+
+    let quote_id = set_quote_id.get();
+    if !quote_id.is_zero() {
+        return quote_id;
+    }
+
+    let quote_id = clerk_storage.next_vector();
+    set_quote_id.set(quote_id);
+
+    clerk_storage.store_vector(quote_id.to(), amount_vec![0, 0, 0]);
+
+    if vault.vendors_bids.get(vendor_id).is_zero() && vault.vendors_asks.get(vendor_id).is_zero() {
+        vault.vendors.push(vendor_id);
+    }
+
+    quote_id
+}
+
 
 #[storage]
 #[entrypoint]
@@ -345,6 +369,79 @@ impl Banker {
         let clerk = storage.clerk.get();
         let num_registry = 16;
         self.update_records(clerk, update?, num_registry)?;
+        Ok(())
+    }
+    
+    /// Update Index Quote
+    ///
+    /// Scan inventory assets, supply, delta, prices and liquidity and
+    /// compute capacity, price and slope for an Index.
+    ///
+    pub fn update_index_quote(&mut self, vendor_id: U128, index_id: U128) -> Result<(), Vec<u8>> {
+        if vendor_id.is_zero() {
+            Err(b"Vendor ID cannot be zero")?;
+        }
+        if index_id.is_zero() {
+            Err(b"Index ID cannot be zero")?;
+        }
+
+        let mut storage = Keep::storage();
+        let sender = self.attendee();
+        storage.check_version()?;
+
+        let mut clerk_storage = ClerkStorage::storage();
+
+        let mut vault = storage.vaults.setter(index_id);
+        vault.only_tradeable()?;
+
+        let vendor_quote_id = _init_vendor_quote(&mut vault, &mut clerk_storage, vendor_id);
+
+        let account = storage.accounts.get(vendor_id);
+
+        // Compile VIL program, which we will send to DeVIL for execution
+        //
+        // The program:
+        //  - updates index's quote, i.e. capacity, price, slope
+        //
+        // Note it could be a stored procedure as program is constant for each Vault.
+        //
+        let update = update_quote(
+            vault.assets.get().to(),
+            vault.weights.get().to(),
+            vendor_quote_id.to(),
+            account.assets.get().to(),
+            account.prices.get().to(),
+            account.slopes.get().to(),
+            account.liquidity.get().to(),
+        );
+
+        let clerk = storage.clerk.get();
+        let num_registry = 16;
+        self.update_records(clerk, update?, num_registry)?;
+
+        stylus_core::log(
+            self.vm(),
+            IBanker::IndexQuoteUpdated {
+                index_id: index_id.to(),
+                sender,
+            },
+        );
+
+        Ok(())
+    }
+
+    /// Update Quote for multiple Indexes
+    ///
+    /// This allows to update multiple Index uotes at once.
+    ///
+    pub fn update_multiple_index_quotes(
+        &mut self,
+        vendor_id: U128,
+        index_ids: Vec<U128>,
+    ) -> Result<(), Vec<u8>> {
+        for index_id in index_ids {
+            self.update_index_quote(vendor_id, index_id)?;
+        }
         Ok(())
     }
 }
