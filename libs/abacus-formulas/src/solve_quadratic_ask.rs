@@ -2,7 +2,7 @@ use abacus_macros::abacus;
 
 /// Solve Index Quantity Equation: (S, P, C) -> Q = C / (P - S * Q)
 /// 
-pub fn solve_quadratic_ask() -> Vec<u8> {
+pub fn solve_quadratic_ask() -> Result<Vec<u8>, Vec<u8>> {
     abacus! {
         // 1. Initial Load and Setup (assuming stack starts with [C_vec, P_vec, S_vec])
         STR     _C           // C_vec -> R3, POP C_vec

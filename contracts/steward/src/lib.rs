@@ -20,6 +20,18 @@ pub struct Steward;
 #[public]
 impl Steward {
     //
+    // Query methods (Guildmaster)
+    //
+
+    pub fn get_vault(&self, index_id: U128) -> Result<Address, Vec<u8>> {
+        let storage = Keep::storage();
+        storage.check_version()?;
+
+        let vault = storage.vaults.get(index_id);
+        Ok(vault.gate_to_vault.get())
+    }
+    
+    //
     // Query methods (Factor)
     //
 

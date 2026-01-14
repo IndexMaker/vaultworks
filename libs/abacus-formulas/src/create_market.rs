@@ -14,7 +14,7 @@ pub fn create_market(
     delta_long_id: u128,
     delta_short_id: u128,
     margin_id: u128,
-) -> Vec<u8> {
+) -> Result<Vec<u8>, Vec<u8>> {
     abacus! {
         // ====================================
         // * * * (TRY) COMPUTE NEW VALUES * * *
@@ -46,7 +46,7 @@ pub fn create_market(
         STR         _Margin                         // Stack [AN, Z]
 
         POPN        2                               // Stack []
-        
+
         // =============================
         // * * * COMMIT NEW VALUES * * *
         // =============================

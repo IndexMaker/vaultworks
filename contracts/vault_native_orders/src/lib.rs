@@ -25,9 +25,13 @@ use common_contracts::{
 };
 use stylus_sdk::{prelude::*, stylus_core};
 
+use crate::IERC20::Transfer;
+
 sol! {
     interface IERC20 {
         function transferFrom(address from, address to, uint256 value) external returns (bool);
+
+        event Transfer(address indexed from, address indexed to, uint256 value);
     }
 }
 
@@ -58,9 +62,23 @@ impl VaultNativeOrders {
         if collateral_amount.is_zero() {
             Err(b"Zero collateral amount")?;
         }
+        if trader.is_zero() {
+            Err(b"Trader cannot be zero")?;
+        }
+        if keeper.is_zero() {
+            Err(b"Keeper cannot be zero")?;
+        }
+        if trader == keeper {
+            Err(b"Trader and Keeper must differ")?;
+        }
+
         let mut vault = VaultStorage::storage();
         let mut requests = VaultNativeStorage::storage();
         let sender = self.attendee();
+
+        if !vault.is_custodian(keeper) {
+            Err(b"Keeper must be custodian")?;
+        }
 
         // Order can be placed by either trader or an operator elected by trader.
         // e.g. another smart-contract can act on behalf of trader.
@@ -133,30 +151,41 @@ impl VaultNativeOrders {
 
             vault.mint(trader, received.to())?;
 
-            let exec_report = Acquisition {
-                controller: trader,
-                index_id: vault.index_id.get().to(),
-                vendor_id: requests.vendor_id.get().to(),
-                remain: collateral_remain.to(),
-                spent: delivered.to(),
-                itp_minted: received.to(),
-            };
+            stylus_core::log(
+                self.vm(),
+                Transfer {
+                    from: Address::ZERO,
+                    to: trader,
+                    value: received.to(),
+                },
+            );
 
-            stylus_core::log(self.vm(), exec_report);
+            stylus_core::log(
+                self.vm(),
+                Acquisition {
+                    controller: trader,
+                    index_id: vault.index_id.get().to(),
+                    vendor_id: requests.vendor_id.get().to(),
+                    remain: collateral_remain.to(),
+                    spent: delivered.to(),
+                    itp_minted: received.to(),
+                },
+            );
         }
 
         if !collateral_remain.is_zero() {
             // Send an event, and it will be picked up by Keeper service
 
-            let request_event = BuyOrder {
-                keeper,
-                index_id: vault.index_id.get().to(),
-                vendor_id: requests.vendor_id.get().to(),
-                collateral_amount: collateral_remain.to(),
-                trader,
-            };
-
-            stylus_core::log(self.vm(), request_event);
+            stylus_core::log(
+                self.vm(),
+                BuyOrder {
+                    keeper,
+                    index_id: vault.index_id.get().to(),
+                    vendor_id: requests.vendor_id.get().to(),
+                    collateral_amount: collateral_remain.to(),
+                    trader,
+                },
+            );
         }
 
         Ok((received, delivered, collateral_remain))
@@ -187,10 +216,23 @@ impl VaultNativeOrders {
         if itp_amount.is_zero() {
             Err(b"Zero ITP amount")?;
         }
+        if trader.is_zero() {
+            Err(b"Trader cannot be zero")?;
+        }
+        if keeper.is_zero() {
+            Err(b"Keeper cannot be zero")?;
+        }
+        if trader == keeper {
+            Err(b"Trader and Keeper must differ")?;
+        }
 
         let mut vault = VaultStorage::storage();
         let mut requests = VaultNativeStorage::storage();
         let sender = self.attendee();
+
+        if !vault.is_custodian(keeper) {
+            Err(b"Keeper must be custodian")?;
+        }
 
         // Order can be placed by either trader or an operator elected by trader.
         // e.g. another smart-contract can act on behalf of trader.
@@ -252,6 +294,15 @@ impl VaultNativeOrders {
 
             vault.burn(trader, delivered.to())?;
 
+            stylus_core::log(
+                self.vm(),
+                Transfer {
+                    from: trader,
+                    to: Address::ZERO,
+                    value: delivered.to(),
+                },
+            );
+
             let exec_report = Disposal {
                 controller: trader,
                 index_id: vault.index_id.get().to(),
@@ -268,6 +319,15 @@ impl VaultNativeOrders {
             // Send an event, and it will be picked up by Keeper service.
 
             vault.transfer(trader, keeper, itp_remain.to())?;
+
+            stylus_core::log(
+                self.vm(),
+                Transfer {
+                    from: trader,
+                    to: keeper,
+                    value: itp_remain.to(),
+                },
+            );
 
             let request_event = SellOrder {
                 keeper,
@@ -288,9 +348,17 @@ impl VaultNativeOrders {
         &mut self,
         keeper: Address,
     ) -> Result<(U128, U128, U128), Vec<u8>> {
+        if keeper.is_zero() {
+            Err(b"Keeper cannot be zero")?;
+        }
+
         let mut vault = VaultStorage::storage();
         let mut requests = VaultNativeStorage::storage();
         let sender = self.attendee();
+
+        if !vault.is_custodian(keeper) {
+            Err(b"Keeper must be custodian")?;
+        }
 
         // Pending orders can be processed by either keeper or an operator
         // elected by keeper.
@@ -338,6 +406,15 @@ impl VaultNativeOrders {
 
             vault.mint(keeper, received.to())?;
 
+            stylus_core::log(
+                self.vm(),
+                Transfer {
+                    from: Address::ZERO,
+                    to: keeper,
+                    value: received.to(),
+                },
+            );
+
             let exec_report = Acquisition {
                 controller: keeper,
                 index_id: vault.index_id.get().to(),
@@ -358,9 +435,17 @@ impl VaultNativeOrders {
         &mut self,
         keeper: Address,
     ) -> Result<(U128, U128, U128), Vec<u8>> {
+        if keeper.is_zero() {
+            Err(b"Keeper cannot be zero")?;
+        }
+
         let mut vault = VaultStorage::storage();
         let mut requests = VaultNativeStorage::storage();
         let sender = self.attendee();
+
+        if !vault.is_custodian(keeper) {
+            Err(b"Keeper must be custodian")?;
+        }
 
         // Pending orders can be processed by either keeper or an operator
         // elected by keeper.
@@ -407,6 +492,15 @@ impl VaultNativeOrders {
             // Publish execution report if there was execution
 
             vault.burn(keeper, delivered.to())?;
+
+            stylus_core::log(
+                self.vm(),
+                Transfer {
+                    from: keeper,
+                    to: Address::ZERO,
+                    value: delivered.to(),
+                },
+            );
 
             let exec_report = Disposal {
                 controller: keeper,

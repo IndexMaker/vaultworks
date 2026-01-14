@@ -1,13 +1,13 @@
 use abacus_macros::abacus;
 
 /// Execute Transfer
-/// 
+///
 pub fn execute_transfer(
     sender_bid_id: u128,
     sender_ask_id: u128,
     receiver_bid_id: u128,
     amount: u128,
-) -> Vec<u8> {
+) -> Result<Vec<u8>, Vec<u8>> {
     abacus! {
         // ====================================
         // * * * (TRY) COMPUTE NEW VALUES * * *
@@ -17,7 +17,7 @@ pub fn execute_transfer(
         UNPK                    // [C_rem, C_spent, ITP_mint]
         LDV     sender_ask_id   // [C_rem, C_spent, ITP_mint, S_ask]
         UNPK                    // [C_rem, C_spent, ITP_mint, ITP_rem, ITP_burn, C_wd]
-        
+
         // Compute: ITP_mint_new = ITP_mint - ITP_amount
         //
         IMMS    amount          // [C_rem, C_spent, ITP_mint, ITP_rem, ITP_burn, C_wd, ITP_amount]
@@ -55,7 +55,7 @@ pub fn execute_transfer(
         STR     _ReceiverSpent  // [ITP_amount, C_amount, ITP_mint, rC_rem]
         STR     _ReceiverRemain // [ITP_amount, C_amount, ITP_mint]
         POPN    3               // []
- 
+
         // =============================
         // * * * COMMIT NEW VALUES * * *
         // =============================

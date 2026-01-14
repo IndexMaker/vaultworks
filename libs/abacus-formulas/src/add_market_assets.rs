@@ -21,7 +21,7 @@ pub fn add_market_assets(
     delta_long_id: u128,
     delta_short_id: u128,
     margin_id: u128,
-) -> Vec<u8> {
+) -> Result<Vec<u8>, Vec<u8>> {
     abacus! {
         // ====================================
         // * * * (TRY) COMPUTE NEW VALUES * * *

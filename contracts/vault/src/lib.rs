@@ -18,7 +18,7 @@ use common_contracts::{
         vault::VaultStorage,
     },
     interfaces::{
-        factor::IFactor, vault_native_claims::IVaultNativeClaims,
+        factor::IFactor, vault::IVault, vault_native_claims::IVaultNativeClaims,
         vault_native_orders::IVaultNativeOrders,
     },
 };
@@ -52,7 +52,7 @@ impl Vault {
     fn initialize(
         &mut self,
         owner: Address,
-        implementation: Address,
+        vault_implementation: Address,
         gate_to_castle: Address,
     ) -> Result<(), Vec<u8>> {
         Gate::only_delegated()?;
@@ -60,7 +60,7 @@ impl Vault {
         vault.only_owner(self.attendee())?;
         vault.set_version(VERSION_NUMBER)?;
         vault.set_owner(owner)?;
-        vault.set_implementation(implementation);
+        vault.set_vault_implementation(vault_implementation);
         vault.set_castle(gate_to_castle);
         Ok(())
     }
@@ -79,14 +79,42 @@ impl Vault {
         Ok(())
     }
 
+    pub fn clone_implementation(&mut self, to: Address, new_owner: Address) -> Result<(), Vec<u8>> {
+        let vault = VaultStorage::storage();
+
+        let orders_implementation = vault.orders_implementation.get();
+        if !orders_implementation.is_zero() {
+            self.external_call(
+                to,
+                IVault::installOrdersCall {
+                    orders_implementation,
+                },
+            )?;
+        }
+
+        let claims_implementation = vault.claims_implementation.get();
+        if !claims_implementation.is_zero() {
+            self.external_call(
+                to,
+                IVault::installClaimsCall {
+                    claims_implementation: vault.claims_implementation.get(),
+                },
+            )?;
+        }
+
+        self.external_call(to, IVault::transferOwnershipCall { new_owner })?;
+
+        Ok(())
+    }
+
     pub fn castle(&self) -> Address {
         let vault = VaultStorage::storage();
         vault.castle.get()
     }
 
-    pub fn implementation(&self) -> Address {
+    pub fn vault_implementation(&self) -> Address {
         let vault = VaultStorage::storage();
-        vault.implementation.get()
+        vault.vault_implementation.get()
     }
 
     pub fn orders_implementation(&self) -> Address {
@@ -191,17 +219,17 @@ impl Vault {
         let vault = VaultStorage::storage();
         vault.description.get_string()
     }
-    
+
     pub fn methodology(&self) -> String {
         let vault = VaultStorage::storage();
         vault.methodology.get_string()
     }
-    
+
     pub fn initial_price(&self) -> U128 {
         let vault = VaultStorage::storage();
         vault.initial_price.get()
     }
-    
+
     pub fn curator(&self) -> Address {
         let vault = VaultStorage::storage();
         vault.curator.get()
@@ -228,21 +256,22 @@ impl Vault {
         U8::from(18)
     }
 
-    pub fn total_supply(&self) -> Result<U256, Vec<u8>> {
+    pub fn total_supply(&self) -> U256 {
         let vault = VaultStorage::storage();
-
-        Ok(vault.get_total_supply())
+        vault.get_total_supply()
     }
 
-    pub fn balance_of(&self, account: Address) -> Result<U256, Vec<u8>> {
+    pub fn balance_of(&self, account: Address) -> U256 {
         let vault = VaultStorage::storage();
-
-        Ok(vault.balance_of(account))
+        vault.balance_of(account)
     }
 
-    pub fn transfer(&mut self, to: Address, value: U256) -> Result<(), Vec<u8>> {
+    pub fn transfer(&mut self, to: Address, value: U256) -> Result<bool, Vec<u8>> {
         let mut vault = VaultStorage::storage();
         let sender = self.attendee();
+        if self.is_custodian(to) {
+            Err(b"Cannot transfer to custodian")?;
+        }
 
         vault.transfer(sender, to, value)?;
 
@@ -268,7 +297,7 @@ impl Vault {
             },
         );
 
-        Ok(())
+        Ok(true)
     }
 
     pub fn allowance(&self, owner: Address, spender: Address) -> U256 {
@@ -310,6 +339,13 @@ impl Vault {
         if to.is_zero() {
             Err(b"Invalid Receiver")?;
         }
+        if self.is_custodian(from) {
+            Err(b"Cannot transfer from custodian")?;
+        }
+        if self.is_custodian(to) {
+            Err(b"Cannot transfer to custodian")?;
+        }
+
         let mut vault = VaultStorage::storage();
         let mut allowance = vault.allowances.setter(self.attendee());
         allowance.spend_allowance(from, value)?;
@@ -331,6 +367,70 @@ impl Vault {
         stylus_core::log(self.vm(), IERC20::Transfer { from, to, value });
 
         Ok(true)
+    }
+
+    // Custody
+
+    /// An account added as custodian is prohibited for life from making
+    /// transfers.
+    ///
+    /// Unlike ERC20 standard, where once you're an owner of an account you
+    /// fully control your token, here if you are set to be custodian, you
+    /// cannot make transfers.
+    ///
+    /// This is our custom extension to ERC20 to allow multiple sub-accounts for
+    /// operators, who act in the name of the users. Operators can perform only
+    /// internal trading operations, and cannot withdraw or fund those accounts.
+    ///
+    pub fn add_custodian(&mut self, account: Address) -> Result<(), Vec<u8>> {
+        let sender = self.attendee();
+        let mut vault = VaultStorage::storage();
+        if sender != account && !vault.is_owner(sender) {
+            Err(b"Only owner or account")?;
+        }
+        vault.set_custodian(account, true);
+
+        stylus_core::log(
+            self.vm(),
+            IVault::CustodianSet {
+                account,
+                is_custodian: false,
+            },
+        );
+
+        Ok(())
+    }
+
+    /// Remove account from being a custodian.
+    ///
+    /// Only administrator of this Vault is allowed to perform such dangerous
+    /// action as removal of custodian status from an account. One needs to be
+    /// meticuluously carrefuly as account may still hold tokens, and releasing
+    /// custoidian status would mean that owner of that account will be able to
+    /// move those tokens to another account.
+    ///
+    pub fn remove_custodian(&mut self, account: Address) -> Result<(), Vec<u8>> {
+        let sender = self.attendee();
+        let mut vault = VaultStorage::storage();
+        if !vault.is_owner(sender) {
+            Err(b"Only owner")?;
+        }
+        vault.set_custodian(account, false);
+
+        stylus_core::log(
+            self.vm(),
+            IVault::CustodianSet {
+                account,
+                is_custodian: false,
+            },
+        );
+
+        Ok(())
+    }
+
+    pub fn is_custodian(&self, account: Address) -> bool {
+        let vault = VaultStorage::storage();
+        vault.is_custodian(account)
     }
 
     #[payable]
@@ -355,7 +455,7 @@ impl Vault {
                 | &IVaultNativeClaims::claimDisposalCall::SELECTOR => {
                     vault.claims_implementation.get()
                 }
-                _ => vault.implementation.get(),
+                _ => vault.vault_implementation.get(),
             };
             if implementation.is_zero() {
                 Err(b"No implementation found")?;

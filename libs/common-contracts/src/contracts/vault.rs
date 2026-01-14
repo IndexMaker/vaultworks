@@ -4,7 +4,10 @@ use alloy_primitives::{uint, Address, U256, U32};
 use stylus_sdk::{
     keccak_const,
     prelude::*,
-    storage::{StorageAddress, StorageMap, StorageString, StorageU128, StorageU256, StorageU32},
+    storage::{
+        StorageAddress, StorageBool, StorageMap, StorageString, StorageU128, StorageU256,
+        StorageU32,
+    },
 };
 
 use crate::{
@@ -62,8 +65,9 @@ pub struct VaultStorage {
     pub total_supply: StorageU256,
     pub balances: StorageMap<Address, StorageU256>,
     pub allowances: StorageMap<Address, Allowance>,
+    pub custodians: StorageMap<Address, StorageBool>,
     // facets
-    pub implementation: StorageAddress,
+    pub vault_implementation: StorageAddress,
     pub orders_implementation: StorageAddress,
     pub claims_implementation: StorageAddress,
     // detail
@@ -81,12 +85,24 @@ impl VaultStorage {
         StorageSlot::get_slot::<VaultStorage>(VAULT_STORAGE_SLOT)
     }
 
+    pub fn is_owner(&self, sender: Address) -> bool {
+        self.owner.get() == sender
+    }
+
     pub fn only_owner(&self, sender: Address) -> Result<(), Vec<u8>> {
         let owner = self.owner.get();
         if !owner.is_zero() && owner != sender {
             Err(b"Only owner")?;
         }
         Ok(())
+    }
+    
+    pub fn is_custodian(&self, account: Address) -> bool {
+        self.custodians.get(account)
+    }
+    
+    pub fn set_custodian(&mut self, account: Address, is_custodian: bool) {
+        self.custodians.setter(account).set(is_custodian);
     }
 
     pub fn set_version(&mut self, version: U32) -> Result<(), Vec<u8>> {
@@ -102,8 +118,8 @@ impl VaultStorage {
         Ok(())
     }
 
-    pub fn set_implementation(&mut self, implementation: Address) {
-        self.implementation.set(implementation);
+    pub fn set_vault_implementation(&mut self, vault_implementation: Address) {
+        self.vault_implementation.set(vault_implementation);
     }
 
     pub fn set_orders_implementation(&mut self, orders_implementation: Address) {

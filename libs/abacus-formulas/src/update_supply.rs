@@ -1,7 +1,7 @@
 use abacus_macros::abacus;
 
 /// Update Market (Supply, Delta)
-/// 
+///
 pub fn update_supply(
     asset_names_id: u128,
     asset_quantities_short_id: u128,
@@ -13,7 +13,7 @@ pub fn update_supply(
     demand_short_id: u128,
     delta_long_id: u128,
     delta_short_id: u128,
-) -> Vec<u8> {
+) -> Result<Vec<u8>, Vec<u8>> {
     abacus! {
         // ====================================
         // * * * (TRY) COMPUTE NEW VALUES * * *
@@ -36,12 +36,12 @@ pub fn update_supply(
         JUPD        1   2   3                   // Stack [AN, MAN, AQL, SL_updated]
         STR         _SupplyLong                 // Stack [AN, MAN, AQS]
         POPN        1                           // Stack [AN, MAN]
-        
+
         // Update Delta
         //
         // (Delta Long - Delta Short) = (Supply Long + Demand Short) - (Supply Short + Demand Long)
         //
-        
+
         // Supply Long + Demand Short
         LDR         _SupplyLong
         LDV         demand_short_id
@@ -67,8 +67,8 @@ pub fn update_supply(
         SSB         1                           // Stack [AssetNames, MarketAssetNames, DeltaShort, RL = (DeltaLong s- DeltaShort)]
         STR         _DeltaLong                  // Stack [AssetNames, MarketAssetNames, DeltaShort]
         POPN        3                           // Stack []
-        
-        
+
+
         // =============================
         // * * * COMMIT NEW VALUES * * *
         // =============================

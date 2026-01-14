@@ -2,15 +2,17 @@ use alloy_sol_types::sol;
 
 sol!{
     interface IVault  {
-        function initialize(address owner, address implementation, address gate_to_castle) external;
+        function initialize(address owner, address vault_implementation, address gate_to_castle) external;
 
         function installOrders(address orders_implementation) external;
 
         function installClaims(address claims_implementation) external;
 
+        function cloneImplementation(address to, address new_owner) external;
+
         function castle() external view returns (address);
 
-        function implementation() external view returns (address);
+        function vaultImplementation() external view returns (address);
 
         function ordersImplementation() external view returns (address);
 
@@ -56,12 +58,20 @@ sol!{
 
         function balanceOf(address account) external view returns (uint256);
 
-        function transfer(address to, uint256 value) external;
+        function transfer(address to, uint256 value) external returns (bool);
 
         function allowance(address owner, address spender) external view returns (uint256);
 
         function approve(address spender, uint256 value) external returns (bool);
 
         function transferFrom(address from, address to, uint256 value) external returns (bool);
+
+        function addCustodian(address account) external;
+
+        function removeCustodian(address account) external;
+
+        function isCustodian(address account) external view returns (bool);
+        
+        event CustodianSet(address account, bool is_custodian);
     }
 }

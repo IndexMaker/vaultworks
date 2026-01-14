@@ -1,6 +1,6 @@
 use proc_macro::TokenStream;
 use proc_macro2::{Span, TokenStream as TokenStream2, TokenTree};
-use quote::{quote, ToTokens};
+use quote::quote;
 use std::collections::HashMap;
 use syn::{
     parse::{Parse, ParseStream},
@@ -221,28 +221,24 @@ pub fn abacus(input: TokenStream) -> TokenStream {
     let mut reg_map: HashMap<String, u128> = HashMap::new();
     let mut next_reg_index: u128 = 0;
 
-    // --- Phase 2: Allocation and Generation ---
     for instruction in instruction_list.instructions {
         let mnemonic_str = instruction.mnemonic.to_string().to_uppercase();
-        let expected_types = ARG_TYPES.get(mnemonic_str.as_str()).unwrap(); // Safe unwrap here
+        let expected_types = ARG_TYPES.get(mnemonic_str.as_str()).unwrap();
 
-        // 1. Generate Opcode (always u8)
         let op_code = format!("OP_{}", mnemonic_str);
         let op_code_ident = Ident::new(&op_code, Span::call_site());
 
-        // Convert Opcode to a single u8 byte and into a vector of length 1.
         final_tokens.extend(quote! {
             bytecode.push(common::abacus::instruction_set::#op_code_ident);
         });
 
-        // 2. Generate Arguments (size dependent on ArgType)
         for (i, arg) in instruction.args.into_iter().enumerate() {
             let expected_type = &expected_types[i];
 
-            // Resolve the argument token stream first
-            let arg_value = match arg {
+            // 1. Resolve the argument token stream
+            let arg_value = match &arg {
                 InstructionArg::Register(reg_name) => {
-                    let reg_index = *reg_map.entry(reg_name).or_insert_with(|| {
+                    let reg_index = *reg_map.entry(reg_name.clone()).or_insert_with(|| {
                         let index = next_reg_index;
                         next_reg_index += 1;
                         index
@@ -250,10 +246,8 @@ pub fn abacus(input: TokenStream) -> TokenStream {
                     quote! { #reg_index }
                 }
                 InstructionArg::Literal(expr) => {
-                    // Special handling for Amount literals
                     if mnemonic_str == "IMMS" || mnemonic_str == "VPUSH" {
-                        let literal_token = expr.to_token_stream();
-                        quote! { { amount_macros::amount!(#literal_token) }.to_u128_raw() }
+                        quote! { { amount_macros::amount!(#expr) }.to_u128_raw() }
                     } else {
                         quote! { #expr }
                     }
@@ -263,19 +257,29 @@ pub fn abacus(input: TokenStream) -> TokenStream {
                 }
             };
 
-            // Determine size and conversion method based on ArgType
+            // 2. Inject Validation Check for StorageId
+            if matches!(expected_type, ArgType::StorageId) {
+                let display_name = match &arg {
+                    InstructionArg::Constant(ident) => format_error_name(&ident.to_string()),
+                    _ => "Storage ID".to_string(),
+                };
+                let err_msg = format!("{} cannot be zero", display_name);
+                let err_bytes = syn::LitByteStr::new(err_msg.as_bytes(), Span::call_site());
+
+                final_tokens.extend(quote! {
+                    if #arg_value == 0 {
+                        return Err(#err_bytes.to_vec());
+                    }
+                });
+            }
+
+            // 3. Determine size and conversion
             let conversion_tokens = match expected_type {
                 ArgType::RegisterId | ArgType::StackPos | ArgType::Size => {
-                    // u8 types: Register ID, Stack Position, Size/Count
-                    quote! {
-                        bytecode.push(#arg_value as u8);
-                    }
+                    quote! { bytecode.push(#arg_value as u8); }
                 }
                 ArgType::StorageId | ArgType::Amount | ArgType::Label => {
-                    // u128 types: Storage ID, Immediate Amount, Label ID
-                    quote! {
-                        common::uint::write_u128(#arg_value, &mut bytecode);
-                    }
+                    quote! { common::uint::write_u128(#arg_value, &mut bytecode); }
                 }
             };
 
@@ -283,14 +287,30 @@ pub fn abacus(input: TokenStream) -> TokenStream {
         }
     }
 
-    // --- Final Output Wrapper ---
+    // --- Final Output Wrapper (Result return type) ---
     let output = quote! {
-        {
+        (|| -> Result<Vec<u8>, Vec<u8>> {
             let mut bytecode: Vec<u8> = Vec::new();
             #final_tokens;
-            bytecode
-        }
+            Ok(bytecode)
+        })()
     };
 
     output.into()
+}
+
+/// Helper to convert "asset_weights_id" -> "Asset Weights"
+fn format_error_name(input: &str) -> String {
+    input
+        .trim_end_matches("_id")
+        .split('_')
+        .map(|word| {
+            let mut chars = word.chars();
+            match chars.next() {
+                None => String::new(),
+                Some(f) => f.to_uppercase().collect::<String>() + chars.as_str(),
+            }
+        })
+        .collect::<Vec<_>>()
+        .join(" ")
 }

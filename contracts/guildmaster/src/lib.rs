@@ -9,12 +9,12 @@ use abacus_formulas::update_quote::update_quote;
 use alloc::{string::String, vec::Vec};
 
 use alloy_primitives::{Address, U128};
-use common::vector::Vector;
+use common::{labels::Labels, vector::Vector};
 use common_contracts::{
     contracts::{
         calls::InnerCall,
         clerk::ClerkStorage,
-        keep::{Keep, Vault},
+        keep::{Keep, Vault, VAULT_STATUS_APPROVED, VAULT_STATUS_NEW, VAULT_STATUS_REJECTED},
         keep_calls::KeepCalls,
     },
     interfaces::{guildmaster::IGuildmaster, vault::IVault},
@@ -58,9 +58,7 @@ impl Guildmaster {
     ///
     pub fn submit_index(
         &mut self,
-        index: U128,
-        asset_names: Bytes,
-        asset_weights: Bytes,
+        index_id: U128,
         name: String,
         symbol: String,
         description: String,
@@ -69,33 +67,28 @@ impl Guildmaster {
         curator: Address,
         custody: String,
     ) -> Result<(), Vec<u8>> {
+        if index_id.is_zero() {
+            Err(b"Index ID cannot be zero")?;
+        }
+
         let mut storage = Keep::storage();
         storage.check_version()?;
 
-        let mut vault = storage.vaults.setter(index);
-        if !vault.assets.get().is_zero() {
-            return Err(b"Vault already exists".into());
-        }
-
-        let mut clerk_storage = ClerkStorage::storage();
-        let asset_names_id = clerk_storage.next_vector();
-        let asset_weights_id = clerk_storage.next_vector();
-
-        clerk_storage.store_bytes(asset_names_id, asset_names);
-        clerk_storage.store_bytes(asset_weights_id, asset_weights);
-
-        vault.assets.set(asset_names_id);
-        vault.weights.set(asset_weights_id);
+        let mut vault = storage.vaults.setter(index_id);
+        vault.only_uninitialized()?;
 
         let worksman = storage.worksman.get();
-        let gate_to_vault = self.build_vault(worksman)?;
+        let gate_to_vault = self
+            .build_vault(worksman)
+            .map_err(|_| b"Failed to build vault")?;
 
         vault.gate_to_vault.set(gate_to_vault);
+        vault.status.set(VAULT_STATUS_NEW);
 
         self.external_call(
             gate_to_vault,
             IVault::configureVaultCall {
-                index_id: index.to(),
+                index_id: index_id.to(),
                 name: name.clone(),
                 symbol: symbol.clone(),
                 description,
@@ -109,7 +102,7 @@ impl Guildmaster {
         stylus_core::log(
             self.vm(),
             IGuildmaster::IndexCreated {
-                index: index.to(),
+                index_id: index_id.to(),
                 name,
                 symbol,
                 vault: gate_to_vault,
@@ -119,12 +112,17 @@ impl Guildmaster {
         Ok(())
     }
 
-    pub fn begin_edit_index(&mut self, index: U128) -> Result<(), Vec<u8>> {
+    pub fn begin_edit_index(&mut self, index_id: U128) -> Result<(), Vec<u8>> {
+        if index_id.is_zero() {
+            Err(b"Index ID cannot be zero")?;
+        }
+
         let mut storage = Keep::storage();
         let sender = self.attendee();
         storage.check_version()?;
 
-        let vault = storage.vaults.setter(index);
+        let vault = storage.vaults.setter(index_id);
+        vault.only_initialized()?;
 
         self.external_call(
             vault.gate_to_vault.get(),
@@ -134,7 +132,7 @@ impl Guildmaster {
         stylus_core::log(
             self.vm(),
             IGuildmaster::BeginEditIndex {
-                index: index.to(),
+                index_id: index_id.to(),
                 sender,
             },
         );
@@ -142,12 +140,18 @@ impl Guildmaster {
         Ok(())
     }
 
-    pub fn finish_edit_index(&mut self, index: U128) -> Result<(), Vec<u8>> {
+    pub fn finish_edit_index(&mut self, index_id: U128) -> Result<(), Vec<u8>> {
+        if index_id.is_zero() {
+            Err(b"Index ID cannot be zero")?;
+        }
+
         let mut storage = Keep::storage();
         let sender = self.attendee();
         storage.check_version()?;
 
-        let vault = storage.vaults.setter(index);
+        let vault = storage.vaults.setter(index_id);
+        vault.only_initialized()?;
+
         let IVault::ownerReturn { _0: owner } =
             self.static_call_ret(vault.gate_to_vault.get(), IVault::ownerCall {})?;
 
@@ -158,7 +162,57 @@ impl Guildmaster {
         stylus_core::log(
             self.vm(),
             IGuildmaster::FinishEditIndex {
-                index: index.to(),
+                index_id: index_id.to(),
+                sender,
+            },
+        );
+
+        Ok(())
+    }
+
+    pub fn submit_asset_weights(
+        &mut self,
+        index_id: U128,
+        asset_names: Bytes,
+        asset_weights: Bytes,
+    ) -> Result<(), Vec<u8>> {
+        if index_id.is_zero() {
+            Err(b"Index ID cannot be zero")?;
+        }
+        let num_assets =
+            Labels::len_from_vec(&asset_names).ok_or_else(|| b"Invalid Asset Names")?;
+
+        if num_assets
+            != Vector::len_from_vec(&asset_weights).ok_or_else(|| b"Invalid Asset Weights")?
+        {
+            Err(b"Asset Names and Asset Weights are not aligned")?;
+        }
+
+        let mut storage = Keep::storage();
+        let sender = self.attendee();
+        storage.check_version()?;
+
+        let mut vault = storage.vaults.setter(index_id);
+        vault.only_initialized()?;
+
+        if !vault.assets.get().is_zero() {
+            Err(b"Asset Weights already set")?;
+        }
+
+        let mut clerk_storage = ClerkStorage::storage();
+        let asset_names_id = clerk_storage.next_vector();
+        let asset_weights_id = clerk_storage.next_vector();
+
+        clerk_storage.store_bytes(asset_names_id, asset_names);
+        clerk_storage.store_bytes(asset_weights_id, asset_weights);
+
+        vault.assets.set(asset_names_id);
+        vault.weights.set(asset_weights_id);
+
+        stylus_core::log(
+            self.vm(),
+            IGuildmaster::IndexWeightsUpdated {
+                index_id: index_id.to(),
                 sender,
             },
         );
@@ -170,23 +224,34 @@ impl Guildmaster {
     ///
     /// Once enough votes, Vault contract is activated.
     ///
-    pub fn submit_vote(&mut self, index: U128, vote: Bytes) -> Result<(), Vec<u8>> {
+    pub fn submit_vote(&mut self, index_id: U128, vote: Bytes) -> Result<(), Vec<u8>> {
+        if index_id.is_zero() {
+            Err(b"Index ID cannot be zero")?;
+        }
+
         let mut storage = Keep::storage();
+        let sender = self.attendee();
         storage.check_version()?;
 
-        let vault = storage.vaults.setter(index);
-        if vault.assets.get().is_zero() {
-            Err(b"Vault not found")?;
-        }
+        let mut vault = storage.vaults.setter(index_id);
+        vault.only_unvoted()?;
 
         let scribe = storage.scribe.get();
         let verfication_result = self.verify_signature(scribe, vote.0)?;
 
-        if !verfication_result {
-            Err(b"Couldn't verify vote")?;
+        if verfication_result {
+            vault.status.set(VAULT_STATUS_APPROVED);
+        } else {
+            vault.status.set(VAULT_STATUS_REJECTED);
         }
 
-        //TODO: Send vote to Vault contract to activate
+        stylus_core::log(
+            self.vm(),
+            IGuildmaster::IndexVoteUpdated {
+                index_id: index_id.to(),
+                sender,
+            },
+        );
 
         Ok(())
     }
@@ -197,12 +262,22 @@ impl Guildmaster {
     /// compute capacity, price and slope for an Index.
     ///
     pub fn update_index_quote(&mut self, vendor_id: U128, index_id: U128) -> Result<(), Vec<u8>> {
+        if vendor_id.is_zero() {
+            Err(b"Vendor ID cannot be zero")?;
+        }
+        if index_id.is_zero() {
+            Err(b"Index ID cannot be zero")?;
+        }
+
         let mut storage = Keep::storage();
+        let sender = self.attendee();
         storage.check_version()?;
 
         let mut clerk_storage = ClerkStorage::storage();
 
         let mut vault = storage.vaults.setter(index_id);
+        vault.only_tradeable()?;
+
         let vendor_quote_id = _init_vendor_quote(&mut vault, &mut clerk_storage, vendor_id);
 
         let account = storage.accounts.get(vendor_id);
@@ -226,7 +301,16 @@ impl Guildmaster {
 
         let clerk = storage.clerk.get();
         let num_registry = 16;
-        self.update_records(clerk, update, num_registry)?;
+        self.update_records(clerk, update?, num_registry)?;
+
+        stylus_core::log(
+            self.vm(),
+            IGuildmaster::IndexQuoteUpdated {
+                index_id: index_id.to(),
+                sender,
+            },
+        );
+
         Ok(())
     }
 

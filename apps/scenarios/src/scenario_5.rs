@@ -7,7 +7,7 @@ use labels_macros::label_vec;
 use vector_macros::amount_vec;
 
 use common_ethers::{
-    contracts::{Banker, Factor, Guildmaster},
+    contracts::{Banker, Factor, Guildmaster, Steward},
     tx_sender::TxClient,
     ToBytes,
 };
@@ -26,11 +26,12 @@ pub async fn run_scenario(
     let banker = Banker::new(castle_address, client.client());
     let guildmaster = Guildmaster::new(castle_address, client.client());
     let factor = Factor::new(castle_address, client.client());
+    let steward = Steward::new(castle_address, client.client());
 
     let vendor_id = uint!(1u128);
     let index_id = 1001;
     let index_name = "Test 5 Assets";
-    let index_symbol = "T5A";
+    let index_symbol = "T5D";
     let description = "Test Index containing five assets";
     let methodology = "Testing";
     let initial_price = amount!(1000);
@@ -96,15 +97,10 @@ pub async fn run_scenario(
     {
         log_msg!("Submit Index");
 
-        let asset_names = label_vec!(102, 103, 104, 106, 107);
-        let asset_weights = amount_vec!(1.0, 0.5, 0.5, 0.5, 1.5);
-
         client
             .begin_tx()
             .add(guildmaster.submit_index(
                 index_id,
-                asset_names.to_bytes(),
-                asset_weights.to_bytes(),
                 index_name.to_string(),
                 index_symbol.to_string(),
                 description.to_string(),
@@ -112,6 +108,23 @@ pub async fn run_scenario(
                 initial_price.to_u128_raw(),
                 curator,
                 custody.to_string(),
+            ))
+            .send()
+            .await?;
+    }
+
+    {
+        log_msg!("Submit Asset Weights");
+
+        let asset_names = label_vec!(102, 103, 104, 106, 107);
+        let asset_weights = amount_vec!(1.0, 0.5, 0.5, 0.5, 1.5);
+
+        client
+            .begin_tx()
+            .add(guildmaster.submit_asset_weights(
+                index_id,
+                asset_names.to_bytes(),
+                asset_weights.to_bytes(),
             ))
             .send()
             .await?;
@@ -139,7 +152,7 @@ pub async fn run_scenario(
 
         client
             .begin_tx()
-            .add(factor.submit_market_data(
+            .add(banker.submit_market_data(
                 vendor_id,
                 asset_names.to_bytes(),
                 asset_liquidity.to_bytes(),
@@ -202,6 +215,11 @@ pub async fn run_scenario(
             .await?;
 
         log_msg!("Sell order placement result: {:?}", result);
+    }
+
+    {
+        let _vault_address = steward.get_vault(index_id).call().await?;
+        log_msg!("Index {}: Vault deployed at: {:#x}", index_id, _vault_address);
     }
 
     Ok(())

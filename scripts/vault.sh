@@ -12,7 +12,7 @@ fi
 
 # Configuration Defaults
 DEPLOYER_ADDRESS=$(deployer_address)
-VAULT_PROVIDER="vault_requests"
+VAULT_PROVIDER="vault_native"
 
 # --- Core Functions ---
 
@@ -38,15 +38,26 @@ deploy_gate() {
         die "deploy_gate requires <CASTLE_GATE> and <PROVIDER_ADDRESS>"
     fi
 
-    # UUPS Initialization for vault
     local init_data=$(calldata "initialize(address,address,address)" "$DEPLOYER_ADDRESS" "$provider_addr" "$castle_gate")
-    
-    # Having issues calling constructors
-    #local gate_addr=$(deploy_construct gate "constructor(address,bytes)" "$logic_addr" "$init_data" | tee /dev/stderr | parse_deployment_address)
     local gate_addr=$(deploy gate | tee /dev/stderr | parse_deployment_address)
-    contract_send $gate_addr "initialize(address,bytes)" "$logic_addr" "$init_data"
     [ -z "$gate_addr" ] && die "Failed to parse vault Gate address"
+    
+    contract_send "$gate_addr" "initialize(address,bytes)" "$logic_addr" "$init_data"
     echo "$gate_addr"
+}
+
+deploy_orders() {
+    local gate=$1
+    local orders=$(deploy vault_native_orders | tee /dev/stderr | parse_deployment_address)
+    contract_send "$gate" "installOrders(address)" "$orders"
+    echo "$orders"
+}
+
+deploy_claims() {
+    local gate=$1
+    local claims=$(deploy vault_native_claims | tee /dev/stderr | parse_deployment_address)
+    contract_send "$gate" "installClaims(address)" "$claims"
+    echo "$claims"
 }
 
 upgrade_gate() {
@@ -61,60 +72,53 @@ upgrade_gate() {
 # --- Command Router ---
 
 usage() {
-    echo "Usage: $0 {full | deploy-logic | upgrade} [--native]"
-    echo "  full <CASTLE_GATE>           : Deploys Provider, vault Logic, and Gate"
+    echo "Usage: $0 {full | deploy-logic | upgrade}"
+    echo "  full <CASTLE_GATE>           : Complete deployment and setup"
     echo "  deploy-logic                 : Deploys only Provider and vault logic"
     echo "  upgrade <PROXY> <LOGIC> [CD] : UUPS upgrade for existing vault Gate"
-    echo ""
-    echo "Options:"
-    echo "  --native                     : Use vault_native instead of vault_requests"
     exit 1
 }
-
-# Simple flag parsing
-ARGS=()
-while [[ $# -gt 0 ]]; do
-    case "$1" in
-        --native)
-            VAULT_PROVIDER="vault_native"
-            shift
-            ;;
-        *)
-            ARGS+=("$1")
-            shift
-            ;;
-    esac
-done
-
-set -- "${ARGS[@]}"
 
 case "$1" in
     "full")
         [ -z "$2" ] && usage
-        echo "--- Deploying $VAULT_PROVIDER ---"
-        provider_addr=$(deploy_vault_provider "$VAULT_PROVIDER")
-        echo "--- Deploying vault Logic ---"
-        LOGIC=$(deploy_logic)
-        echo "--- Deploying vault Gate ---"
-        GATE=$(deploy_gate "$LOGIC" "$2" "$provider_addr")
         
-        echo -e "\n=== VAULT DEPLOYMENT COMPLETE ==="
-        echo "Vault Provider ($VAULT_PROVIDER): $provider_addr"
-        echo "Vault Logic: $LOGIC"
-        echo "Vault Gate : $GATE"
-        echo "Vault Owner: $2"
-        echo "------------------------------------"
+        # 1. Base Infrastructure
+        provider_addr=$(deploy_vault_provider "$VAULT_PROVIDER")
+        LOGIC=$(deploy_logic)
+        GATE=$(deploy_gate "$LOGIC" "$2" "$provider_addr")
+
+        # 2. Extensions
+        ORDERS=$(deploy_orders $GATE)
+        CLAIMS=$(deploy_claims $GATE)
+        
+        echo "======================================================"
+        echo "                Deployment Complete                   "
+        echo "------------------------------------------------------"
+        echo "  * Vault Gate:           $GATE"
+        echo ""
+        echo "======================================================"
+        echo "               Diamond Configuration                  "
+        echo "------------------------------------------------------"
+        echo " Vault Implementation:    $LOGIC"
+        echo " Vault Native:            $provider_addr"
+        echo " Vault Native Orders:     $ORDERS"
+        echo " Vault Native Claims:     $CLAIMS"
+        echo "======================================================"
         ;;
+
     "deploy-logic")
         provider_addr=$(deploy_vault_provider "$VAULT_PROVIDER")
         LOGIC=$(deploy_logic)
-        echo "$VAULT_PROVIDER deployed at: $provider_addr"
-        echo "Logic deployed at: $LOGIC"
+        echo "$VAULT_PROVIDER: $provider_addr"
+        echo "Logic: $LOGIC"
         ;;
+
     "upgrade")
         [ -z "$3" ] && usage
         upgrade_gate "$2" "$3" "$4"
         ;;
+
     *)
         usage
         ;;

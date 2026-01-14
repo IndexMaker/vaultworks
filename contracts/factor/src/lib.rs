@@ -11,12 +11,12 @@ use abacus_formulas::{
     execute_buy_order::execute_buy_order, execute_sell_order::execute_sell_order,
     execute_transfer::execute_transfer, solve_quadratic_ask::solve_quadratic_ask,
     solve_quadratic_bid::solve_quadratic_bid, submit_buy_order::submit_buy_order,
-    submit_sell_order::submit_sell_order, update_market_data::update_market_data,
+    submit_sell_order::submit_sell_order,
 };
 use alloy_primitives::{Address, U128};
 use common::{amount::Amount, vector::Vector};
 use common_contracts::contracts::{
-    clerk::{ClerkStorage, SCRATCH_1, SCRATCH_2, SCRATCH_3, SCRATCH_4},
+    clerk::{ClerkStorage, SCRATCH_1, SCRATCH_2},
     formulas::{Order, ORDER_REMAIN_OFFSET},
     keep::{Keep, Vault},
     keep_calls::KeepCalls,
@@ -35,7 +35,7 @@ fn _init_solve_quadratic_bid(storage: &mut Keep, clerk_storage: &mut ClerkStorag
         if id.is_zero() {
             id = clerk_storage.next_vector();
             let code = solve_quadratic_bid();
-            clerk_storage.store_bytes(id.to(), code);
+            clerk_storage.store_bytes(id.to(), code.unwrap());
             storage.solve_quadratic_bid_id.set(id);
             id
         } else {
@@ -52,7 +52,7 @@ fn _init_solve_quadratic_ask(storage: &mut Keep, clerk_storage: &mut ClerkStorag
         if id.is_zero() {
             id = clerk_storage.next_vector();
             let code = solve_quadratic_ask();
-            clerk_storage.store_bytes(id.to(), code);
+            clerk_storage.store_bytes(id.to(), code.unwrap());
             storage.solve_quadratic_ask_id.set(id);
             id
         } else {
@@ -258,7 +258,7 @@ impl Factor {
         );
 
         let num_registry = 6;
-        self.update_records(clerk, update, num_registry)?;
+        self.update_records(clerk, update?, num_registry)?;
 
         // - Once we have transferred ITP from Trader to Operator, we can now
         //   carry over ITP Locked to Operator
@@ -286,7 +286,7 @@ impl Factor {
         vendor_id: U128,
         index_id: U128,
         trader_address: Address,
-        operator_address: Option<Address>,
+        operator_address: Address,
         collateral_added: u128,
         collateral_removed: u128,
         max_order_size: u128,
@@ -300,6 +300,7 @@ impl Factor {
         let solve_quadratic_id = _init_solve_quadratic_bid(&mut storage, &mut clerk_storage);
 
         let mut vault = storage.vaults.setter(index_id);
+        vault.only_tradeable()?;
 
         let vendor_quote_id = _get_vendor_quote_id(&mut vault, vendor_id)?;
 
@@ -347,9 +348,9 @@ impl Factor {
 
         let clerk = storage.clerk.get();
         let num_registry = 23;
-        self.update_records(clerk, update, num_registry)?;
+        self.update_records(clerk, update?, num_registry)?;
 
-        if let Some(operator_address) = operator_address {
+        if operator_address != trader_address {
             self._transfer_buy_to_operator(
                 &mut vault,
                 &mut clerk_storage,
@@ -382,7 +383,7 @@ impl Factor {
         vendor_id: U128,
         index_id: U128,
         trader_address: Address,
-        operator_address: Option<Address>,
+        operator_address: Address,
         collateral_added: u128,
         collateral_removed: u128,
         max_order_size: u128,
@@ -396,6 +397,7 @@ impl Factor {
         let solve_quadratic_id = _init_solve_quadratic_ask(&mut storage, &mut clerk_storage);
 
         let mut vault = storage.vaults.setter(index_id);
+        vault.only_tradeable()?;
 
         let vendor_quote_id = _get_vendor_quote_id(&mut vault, vendor_id)?;
 
@@ -458,9 +460,9 @@ impl Factor {
 
         let clerk = storage.clerk.get();
         let num_registry = 22;
-        self.update_records(clerk, update, num_registry)?;
+        self.update_records(clerk, update?, num_registry)?;
 
-        if let Some(operator_address) = operator_address {
+        if operator_address != trader_address {
             self._transfer_sell_to_operator(
                 &mut vault,
                 &mut clerk_storage,
@@ -493,65 +495,6 @@ impl Factor {
 
 #[public]
 impl Factor {
-    /// Submit Market Data
-    ///
-    /// Vendor submits Market Data using Price, Slope, Liquidity model, which is
-    /// a format optimised for on-chain computation.
-    ///
-    /// - Price     : Micro-Price
-    /// - Slope     : Price delta within N-levels (Bid + Ask)
-    /// - Liquidity : Total quantitiy on N-levels (Bid + Ask)
-    ///
-    /// Vendor is responsible for modeling these parameters in suitable way
-    /// using live Market Data.
-    ///
-    /// Note that it is the Vendor deciding what prices and exposure they are
-    /// willing to accept, i.e. they can adjust prices, slopes and liquidity to
-    /// take into account their risk factors.
-    ///
-    pub fn submit_market_data(
-        &mut self,
-        vendor_id: U128,
-        asset_names: Bytes,
-        asset_liquidity: Bytes,
-        asset_prices: Bytes,
-        asset_slopes: Bytes,
-    ) -> Result<(), Vec<u8>> {
-        let mut storage = Keep::storage();
-        storage.check_version()?;
-
-        let account = storage.accounts.setter(vendor_id);
-        account.only_owner(self.attendee())?;
-
-        let asset_names_id = SCRATCH_1;
-        let asset_liquidity_id = SCRATCH_2;
-        let asset_prices_id = SCRATCH_3;
-        let asset_slopes_id = SCRATCH_4;
-
-        let mut clerk_storage = ClerkStorage::storage();
-        clerk_storage.store_bytes(asset_names_id, asset_names);
-        clerk_storage.store_bytes(asset_liquidity_id, asset_liquidity);
-        clerk_storage.store_bytes(asset_prices_id, asset_prices);
-        clerk_storage.store_bytes(asset_slopes_id, asset_slopes);
-
-        // Compile VIL program, which we will send to DeVIL for execution.
-        let update = update_market_data(
-            asset_names_id.to(),
-            asset_prices_id.to(),
-            asset_slopes_id.to(),
-            asset_liquidity_id.to(),
-            account.assets.get().to(),
-            account.prices.get().to(),
-            account.slopes.get().to(),
-            account.liquidity.get().to(),
-        );
-
-        let clerk = storage.clerk.get();
-        let num_registry = 16;
-        self.update_records(clerk, update, num_registry)?;
-        Ok(())
-    }
-
     pub fn submit_buy_order(
         &mut self,
         vendor_id: U128,
@@ -560,12 +503,23 @@ impl Factor {
         collateral_added: u128,
         collateral_removed: u128,
     ) -> Result<(), Vec<u8>> {
+        if vendor_id.is_zero() {
+            Err(b"Vendor ID cannot be zero")?;
+        }
+        if index_id.is_zero() {
+            Err(b"Index ID cannot be zero")?;
+        }
+        if trader_address.is_zero() {
+            Err(b"Trader Address cannot be zero")?;
+        }
+
         let mut storage = Keep::storage();
         storage.check_version()?;
 
         let mut clerk_storage = ClerkStorage::storage();
 
         let mut vault = storage.vaults.setter(index_id);
+        vault.only_tradeable()?;
 
         // Allocate new Index order or get existing one
         let index_order_id = _init_trader_bid(&mut vault, &mut clerk_storage, trader_address);
@@ -582,7 +536,7 @@ impl Factor {
 
         let clerk = storage.clerk.get();
         let num_registry = 9;
-        self.update_records(clerk, update, num_registry)?;
+        self.update_records(clerk, update?, num_registry)?;
 
         Ok(())
     }
@@ -595,12 +549,23 @@ impl Factor {
         collateral_added: u128,
         collateral_removed: u128,
     ) -> Result<(), Vec<u8>> {
+        if vendor_id.is_zero() {
+            Err(b"Vendor ID cannot be zero")?;
+        }
+        if index_id.is_zero() {
+            Err(b"Index ID cannot be zero")?;
+        }
+        if trader_address.is_zero() {
+            Err(b"Trader Address cannot be zero")?;
+        }
+
         let mut storage = Keep::storage();
         storage.check_version()?;
 
         let mut clerk_storage = ClerkStorage::storage();
 
         let mut vault = storage.vaults.setter(index_id);
+        vault.only_tradeable()?;
 
         // Allocate new Index order or get existing one
         let index_order_id = _init_trader_ask(&mut vault, &mut clerk_storage, trader_address);
@@ -617,7 +582,7 @@ impl Factor {
 
         let clerk = storage.clerk.get();
         let num_registry = 9;
-        self.update_records(clerk, update, num_registry)?;
+        self.update_records(clerk, update?, num_registry)?;
 
         Ok(())
     }
@@ -629,12 +594,25 @@ impl Factor {
         trader_address: Address,
         max_order_size: u128,
     ) -> Result<Vec<Bytes>, Vec<u8>> {
+        if vendor_id.is_zero() {
+            Err(b"Vendor ID cannot be zero")?;
+        }
+        if index_id.is_zero() {
+            Err(b"Index ID cannot be zero")?;
+        }
+        if trader_address.is_zero() {
+            Err(b"Trader Address cannot be zero")?;
+        }
+        if max_order_size == 0 {
+            Err(b"MaxOrderSize cannot be zero")?;
+        }
+
         let (index_order, executed_index_quantities, executed_asset_quantities) = self
             ._execute_buy_order(
                 vendor_id,
                 index_id,
                 trader_address,
-                None,
+                trader_address,
                 0,
                 0,
                 max_order_size,
@@ -654,12 +632,25 @@ impl Factor {
         trader_address: Address,
         max_order_size: u128,
     ) -> Result<Vec<Bytes>, Vec<u8>> {
+        if vendor_id.is_zero() {
+            Err(b"Vendor ID cannot be zero")?;
+        }
+        if index_id.is_zero() {
+            Err(b"Index ID cannot be zero")?;
+        }
+        if trader_address.is_zero() {
+            Err(b"Trader Address cannot be zero")?;
+        }
+        if max_order_size == 0 {
+            Err(b"MaxOrderSize cannot be zero")?;
+        }
+
         let (index_order, executed_index_quantities, executed_asset_quantities) = self
             ._execute_sell_order(
                 vendor_id,
                 index_id,
                 trader_address,
-                None,
+                trader_address,
                 0,
                 0,
                 max_order_size,
@@ -672,7 +663,7 @@ impl Factor {
         ])
     }
 
-    /// Submit BUY Index order
+    /// Execute BUY Index order
     ///
     /// Add collateral amount to user's order, and match for immediate execution.
     ///
@@ -687,16 +678,28 @@ impl Factor {
         collateral_amount: u128,
         max_order_size: u128,
     ) -> Result<Vec<Bytes>, Vec<u8>> {
+        if vendor_id.is_zero() {
+            Err(b"Vendor ID cannot be zero")?;
+        }
+        if index_id.is_zero() {
+            Err(b"Index ID cannot be zero")?;
+        }
+        if trader_address.is_zero() {
+            Err(b"Trader Address cannot be zero")?;
+        }
+        if operator_address.is_zero() {
+            Err(b"Trader Address and Operator Address must differ")?;
+        }
+        if max_order_size == 0 {
+            Err(b"MaxOrderSize cannot be zero")?;
+        }
+
         let (index_order, executed_index_quantities, executed_asset_quantities) = self
             ._execute_buy_order(
                 vendor_id,
                 index_id,
                 trader_address,
-                if trader_address != operator_address {
-                    Some(operator_address)
-                } else {
-                    None
-                },
+                operator_address,
                 collateral_amount,
                 0,
                 max_order_size,
@@ -709,6 +712,12 @@ impl Factor {
         ])
     }
 
+    /// Execute SELL Index order
+    ///
+    /// Add ITP amount to user's order, and match for immediate execution.
+    ///
+    /// Any remaining ITP is transferred to operator for further execution.
+    ///
     pub fn execute_sell_order(
         &mut self,
         vendor_id: U128,
@@ -718,16 +727,28 @@ impl Factor {
         itp_amount: u128,
         max_order_size: u128,
     ) -> Result<Vec<Bytes>, Vec<u8>> {
+        if vendor_id.is_zero() {
+            Err(b"Vendor ID cannot be zero")?;
+        }
+        if index_id.is_zero() {
+            Err(b"Index ID cannot be zero")?;
+        }
+        if trader_address.is_zero() {
+            Err(b"Trader Address cannot be zero")?;
+        }
+        if operator_address.is_zero() {
+            Err(b"Trader Address and Operator Address must differ")?;
+        }
+        if max_order_size == 0 {
+            Err(b"MaxOrderSize cannot be zero")?;
+        }
+
         let (index_order, executed_index_quantities, executed_asset_quantities) = self
             ._execute_sell_order(
                 vendor_id,
                 index_id,
                 trader_address,
-                if trader_address != operator_address {
-                    Some(operator_address)
-                } else {
-                    None
-                },
+                operator_address,
                 itp_amount,
                 0,
                 max_order_size,
@@ -740,20 +761,10 @@ impl Factor {
         ])
     }
 
-    // pub fn submit_rebalance_order(
-    //     &mut self,
-    //     vendor_id: U128,
-    //     new_assets: Vec<u8>,
-    //     new_weigthts: Vec<u8>,
-    // ) -> Result<(), Vec<u8>> {
-    //     //
-    //     // This needs to:
-    //     //  - compute rebalance_weights_long = max(0, weights - new_weights) -- assets long in inventory (sell them)
-    //     //  - compute rebalance_weights_short = max(0, new_weights - weights) -- assets short in inventory (buy more)
-    //     //
-    //     Err(b"Not implemented yet".into())
-    // }
-
+    /// Execute Transfer from Sender to Receiver
+    ///
+    /// This transfers both ITP and proportionalcollateral cost.
+    ///
     pub fn execute_transfer(
         &mut self,
         index_id: U128,
@@ -761,11 +772,25 @@ impl Factor {
         receiver: Address,
         amount: u128,
     ) -> Result<(), Vec<u8>> {
+        if index_id.is_zero() {
+            Err(b"Index ID cannot be zero")?;
+        }
+        if sender.is_zero() {
+            Err(b"Sender cannot be zero")?;
+        }
+        if receiver.is_zero() {
+            Err(b"Receiver cannot be zero")?;
+        }
+        if amount == 0 {
+            return Ok(());
+        }
+
         let mut storage = Keep::storage();
         storage.check_version()?;
 
         let mut vault = storage.vaults.setter(index_id);
         let mut clerk_storage = ClerkStorage::storage();
+        vault.only_tradeable()?;
 
         // Transfers are initiated by Vaults on behalf of users and not
         // by users themselves. This way it is more efficient.
@@ -817,8 +842,22 @@ impl Factor {
 
         let clerk = storage.clerk.get();
         let num_registry = 6;
-        self.update_records(clerk, update, num_registry)?;
+        self.update_records(clerk, update?, num_registry)?;
 
         Ok(())
     }
+
+    // pub fn submit_rebalance_order(
+    //     &mut self,
+    //     vendor_id: U128,
+    //     new_assets: Vec<u8>,
+    //     new_weigthts: Vec<u8>,
+    // ) -> Result<(), Vec<u8>> {
+    //     //
+    //     // This needs to:
+    //     //  - compute rebalance_weights_long = max(0, weights - new_weights) -- assets long in inventory (sell them)
+    //     //  - compute rebalance_weights_short = max(0, new_weights - weights) -- assets short in inventory (buy more)
+    //     //
+    //     Err(b"Not implemented yet".into())
+    // }
 }

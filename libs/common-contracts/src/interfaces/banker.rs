@@ -7,5 +7,7 @@ sol! {
         function submitMargin(uint128 vendor_id, bytes calldata asset_names, bytes calldata asset_margin) external;
 
         function submitSupply(uint128 vendor_id, bytes calldata asset_names, bytes calldata asset_quantities_short, bytes calldata asset_quantities_long) external;
+
+        function submitMarketData(uint128 vendor_id, bytes calldata asset_names, bytes calldata asset_liquidity, bytes calldata asset_prices, bytes calldata asset_slopes) external;
     }
 }
