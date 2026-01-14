@@ -1,7 +1,7 @@
 use abacus_macros::abacus;
 
 /// Execute Buy Index Order
-/// 
+///
 pub fn execute_buy_order(
     order_id: u128,
     vendor_order_id: u128,
@@ -23,7 +23,7 @@ pub fn execute_buy_order(
     delta_short_id: u128,
     margin_id: u128,
     solve_quadratic_id: u128,
-) -> Vec<u8> {
+) -> Result<Vec<u8>, Vec<u8>> {
     abacus! {
         // ====================================
         // * * * (TRY) COMPUTE NEW VALUES * * *
@@ -34,7 +34,7 @@ pub fn execute_buy_order(
         STR         _Weights                    // Stack: []
 
         // Load Index Order
-        LDV         order_id                    // Stack: [Order = (Collateral, Spent, Minted)] 
+        LDV         order_id                    // Stack: [Order = (Collateral, Spent, Minted)]
         LDV         vendor_order_id             // Stack: [Order, Vendor]
         LDV         total_order_id              // Stack: [Order, Vendor, Total]
         T           3                           // Stack: [Collateral, Spent, Minted]
@@ -67,7 +67,7 @@ pub fn execute_buy_order(
         STR         _Capacity                   // Stack: [Slope, Price]
         STR         _Price                      // Stack: [Slope]
         STR         _Slope                      // Stack: []
-        
+
         // Solve Quadratic: S * Q^2 + P * Q - C = 0
         IMMS        max_order_size              // Stack: [MaxOrderSize]
         LDR         _Slope                      // Stack: [MaxOrderSize, Slope]
@@ -101,7 +101,7 @@ pub fn execute_buy_order(
         SWAP        2                           // Stack: [CL, MAN, AN]
         STR         _AssetNames                 // Stack: [CL, MAN]
         STR         _MarketAssetNames           // Stack: [CapacityLimit = CL]
-        
+
         // Cap Index Quantity with Capacity
         LDR         _IndexQuantity              // Stack: [CapacityLimit, IndexQuantity]
         MIN         1                           // Stack: [CapacityLimit, CIQ = MIN(Capacity, IndexQuantity)]
@@ -112,14 +112,14 @@ pub fn execute_buy_order(
         LDR         _CappedIndexQuantity        // Stack: [CIQ]
         LDM         _Weights                    // Stack: [CIQ, AssetWeights]
         MUL         1                           // Stack: [CIQ, AssetQuantities]
-        
+
         STR         _AssetQuantities            // Stack: [CIQ]
         POPN        1                           // Stack: []
 
         // Match Market: Update Demand and Delta
         LDM         _AssetNames                 // Stack [AssetNames]
         LDM         _MarketAssetNames           // Stack [AssetNames, MarketAssetNames]
-        
+
         // Compute Demand Short = MAX(Demand Short - Asset Quantities, 0)
         LDV         demand_short_id             // Stack [AssetNames, MarketAssetNames, DS_old]
         LDR         _AssetQuantities            // Stack [AssetNames, MarketAssetNames, DS_old, AQ]
@@ -141,12 +141,12 @@ pub fn execute_buy_order(
         POPN        2                           // Stack [AssetNames, MarketAssetNames, DS_new, DL_new]
         STR         _DemandLong                 // Stack [AssetNames, MarketAssetNames, DS_new]
         STR         _DemandShort                // Stack [AssetNames, MarketAssetNames]
-        
+
         // Update Delta
         //
         // (Delta Long - Delta Short) = (Supply Long + Demand Short) - (Supply Short + Demand Long)
         //
-        
+
         // Supply Long + Demand Short
         LDV         supply_long_id
         LDR         _DemandShort
@@ -193,12 +193,12 @@ pub fn execute_buy_order(
         LDM         _Price                          // Stack: [CIQ, SQ, Price]
         ADD         1                               // Stack: [CIQ, SQ, EP = (SQ + Price)]
         SWAP        1                               // Stack: [CIQ, EP, SQ]
-        POPN        1                               // Stack: [CIQ, EP] 
+        POPN        1                               // Stack: [CIQ, EP]
         MUL         1                               // Stack: [CIQ, CS = (CIQ * EP)]
         LDD         0                               // Stack: [CIQ, CS, CS]
         STR         _CollateralSpent                // Stack: [CIQ, CS]
-        
-        // Compute Order Remaining Collateral 
+
+        // Compute Order Remaining Collateral
         LDM         _Collateral                     // Stack: [CIQ, CS, C_order]
         LDM         _CollateralVendor               // Stack: [CIQ, CS, C_order, C_vendor]
         LDM         _CollateralTotal                // Stack: [CIQ, CS, C_order, C_vendor, C_total]
@@ -225,12 +225,12 @@ pub fn execute_buy_order(
         SWAP        1                               // Stack: [CR, CS_new, Minted_new, CIQ]
         POPN        1
 
-        // Store Updated Order 
+        // Store Updated Order
         T           3                               // Stack: [Order, Vendor, Total]
         STV         total_order_id                  // Stack: [Order, Vendor]
         STV         vendor_order_id                 // Stack: [Order]
         STV         order_id                        // Stack: []
-        
+
         // Store Executed Index Quantity and Remaining Quantity
         LDM         _CollateralSpent                // Stack: [CS]
         LDM         _CappedIndexQuantity            // Stack: [CS, CIQ]

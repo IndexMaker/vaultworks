@@ -23,7 +23,7 @@ pub fn execute_sell_order(
     delta_short_id: u128,
     margin_id: u128,
     solve_quadratic_id: u128,
-) -> Vec<u8> {
+) -> Result<Vec<u8>, Vec<u8>> {
     abacus! {
         // Load Weights
         LDV         asset_weights_id            // Stack: [AssetWeights]

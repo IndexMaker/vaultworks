@@ -301,7 +301,7 @@ impl Guildmaster {
 
         let clerk = storage.clerk.get();
         let num_registry = 16;
-        self.update_records(clerk, update, num_registry)?;
+        self.update_records(clerk, update?, num_registry)?;
 
         stylus_core::log(
             self.vm(),

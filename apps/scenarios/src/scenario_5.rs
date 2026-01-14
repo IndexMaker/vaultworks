@@ -152,7 +152,7 @@ pub async fn run_scenario(
 
         client
             .begin_tx()
-            .add(factor.submit_market_data(
+            .add(banker.submit_market_data(
                 vendor_id,
                 asset_names.to_bytes(),
                 asset_liquidity.to_bytes(),

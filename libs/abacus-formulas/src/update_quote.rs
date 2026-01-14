@@ -1,7 +1,7 @@
 use abacus_macros::abacus;
 
 /// Update Index Quote (Capacity, Price, Slope)
-/// 
+///
 pub fn update_quote(
     index_asset_names_id: u128,
     weights_id: u128,
@@ -10,7 +10,7 @@ pub fn update_quote(
     asset_prices_id: u128,
     asset_slopes_id: u128,
     asset_liquidity_id: u128,
-) -> Vec<u8> {
+) -> Result<Vec<u8>, Vec<u8>> {
     abacus! {
         // ====================================
         // * * * (TRY) COMPUTE NEW VALUES * * *
@@ -22,7 +22,7 @@ pub fn update_quote(
         // Load AssetNames & MarketAssetNames
         LDL         index_asset_names_id            //  [AssetNames]
         LDL         market_asset_names_id           //  [AssetNames, MarketAssetNames]
-        
+
         // Compute P = MarketAssetPrices * AssetWeights
         LDV         asset_prices_id                 //  [AssetNames, MarketAssetNames, MarketAssetPrices]
         JFLT        1   2                           //  [AssetNames, MarketAssetNames, Flt_MarketAssetPrices]
@@ -31,7 +31,7 @@ pub fn update_quote(
         MUL         1                               //  [AssetNames, MarketAssetNames, AssetWeights, P_vec = (AssetWeights * Flt_MarketAssetPrices)]
         VSUM                                        //  [AssetNames, MarketAssetNames, AssetWeights, P = SUM(P_vec[..])]
         STR         _Price                          //  [AssetNames, MarketAssetNames, AssetWeights]
-        
+
         // Compute S = MarketAssetSlopes * AssetWeights^2
         MUL         0                               //  [AssetNames, MarketAssetNames, AssetWeights^2]
         LDV         asset_slopes_id                 //  [AssetNames, MarketAssetNames, AssetWeights^2, MarketAssetSlopes]
@@ -41,7 +41,7 @@ pub fn update_quote(
         STR         _Slope                          //  [AssetNames, MarketAssetNames, AssetWeights^2]
         POPN        1                               //  [AssetNames, MarketAssetNames]
 
-        // Compute C = MIN(AssetLiquidity / AssetWeights) 
+        // Compute C = MIN(AssetLiquidity / AssetWeights)
         //
         // NOTE: We just put market liquidity based capacity, and then when we execute orders we cap with available margin.
         //

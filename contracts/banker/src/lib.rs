@@ -9,12 +9,13 @@ use alloc::vec::Vec;
 
 use abacus_formulas::{
     add_market_assets::add_market_assets, create_market::create_market,
-    update_margin::update_margin, update_supply::update_supply,
+    update_margin::update_margin, update_market_data::update_market_data,
+    update_supply::update_supply,
 };
 use alloy_primitives::U128;
 use common::{labels::Labels, vector::Vector};
 use common_contracts::contracts::{
-    clerk::{ClerkStorage, SCRATCH_1, SCRATCH_2, SCRATCH_3},
+    clerk::{ClerkStorage, SCRATCH_1, SCRATCH_2, SCRATCH_3, SCRATCH_4},
     keep::Keep,
     keep_calls::KeepCalls,
 };
@@ -46,7 +47,7 @@ impl Banker {
         if vendor_id.is_zero() {
             Err(b"Vendor ID cannot be zero")?;
         }
-        if Labels::is_valid_vec(&market_asset_names) {
+        if !Labels::is_valid_vec(&market_asset_names) {
             Err(b"Invalid Market Asset Names")?;
         }
 
@@ -85,7 +86,7 @@ impl Banker {
             );
             let clerk = storage.clerk.get();
             let num_registry = 16;
-            self.update_records(clerk, update, num_registry)?;
+            self.update_records(clerk, update?, num_registry)?;
         } else {
             account.set_owner(self.attendee())?;
 
@@ -123,7 +124,7 @@ impl Banker {
             );
             let clerk = storage.clerk.get();
             let num_registry = 16;
-            self.update_records(clerk, update, num_registry)?;
+            self.update_records(clerk, update?, num_registry)?;
         }
 
         Ok(())
@@ -182,7 +183,7 @@ impl Banker {
         );
         let clerk = storage.clerk.get();
         let num_registry = 16;
-        self.update_records(clerk, update, num_registry)?;
+        self.update_records(clerk, update?, num_registry)?;
         Ok(())
     }
 
@@ -262,7 +263,88 @@ impl Banker {
         );
         let clerk = storage.clerk.get();
         let num_registry = 16;
-        self.update_records(clerk, update, num_registry)?;
+        self.update_records(clerk, update?, num_registry)?;
+        Ok(())
+    }
+
+    /// Submit Market Data
+    ///
+    /// Vendor submits Market Data using Price, Slope, Liquidity model, which is
+    /// a format optimised for on-chain computation.
+    ///
+    /// - Price     : Micro-Price
+    /// - Slope     : Price delta within N-levels (Bid + Ask)
+    /// - Liquidity : Total quantitiy on N-levels (Bid + Ask)
+    ///
+    /// Vendor is responsible for modeling these parameters in suitable way
+    /// using live Market Data.
+    ///
+    /// Note that it is the Vendor deciding what prices and exposure they are
+    /// willing to accept, i.e. they can adjust prices, slopes and liquidity to
+    /// take into account their risk factors.
+    ///
+    pub fn submit_market_data(
+        &mut self,
+        vendor_id: U128,
+        asset_names: Bytes,
+        asset_liquidity: Bytes,
+        asset_prices: Bytes,
+        asset_slopes: Bytes,
+    ) -> Result<(), Vec<u8>> {
+        if vendor_id.is_zero() {
+            Err(b"Vendor ID cannot be zero")?;
+        }
+        let num_assets =
+            Labels::len_from_vec(&asset_names).ok_or_else(|| b"Invalid Asset Names")?;
+
+        if num_assets
+            != Vector::len_from_vec(&asset_liquidity).ok_or_else(|| b"Invalid Asset Liquidity")?
+        {
+            Err(b"Asset Names and Asset Liquidity are not aligned")?;
+        }
+        if num_assets
+            != Vector::len_from_vec(&asset_prices).ok_or_else(|| b"Invalid Asset Prices")?
+        {
+            Err(b"Asset Names and Asset Prices are not aligned")?;
+        }
+        if num_assets
+            != Vector::len_from_vec(&asset_slopes).ok_or_else(|| b"Invalid Asset Slopes")?
+        {
+            Err(b"Asset Names and Asset Slopes are not aligned")?;
+        }
+
+        let mut storage = Keep::storage();
+        storage.check_version()?;
+
+        let account = storage.accounts.setter(vendor_id);
+        account.only_owner(self.attendee())?;
+
+        let asset_names_id = SCRATCH_1;
+        let asset_liquidity_id = SCRATCH_2;
+        let asset_prices_id = SCRATCH_3;
+        let asset_slopes_id = SCRATCH_4;
+
+        let mut clerk_storage = ClerkStorage::storage();
+        clerk_storage.store_bytes(asset_names_id, asset_names);
+        clerk_storage.store_bytes(asset_liquidity_id, asset_liquidity);
+        clerk_storage.store_bytes(asset_prices_id, asset_prices);
+        clerk_storage.store_bytes(asset_slopes_id, asset_slopes);
+
+        // Compile VIL program, which we will send to DeVIL for execution.
+        let update = update_market_data(
+            asset_names_id.to(),
+            asset_prices_id.to(),
+            asset_slopes_id.to(),
+            asset_liquidity_id.to(),
+            account.assets.get().to(),
+            account.prices.get().to(),
+            account.slopes.get().to(),
+            account.liquidity.get().to(),
+        );
+
+        let clerk = storage.clerk.get();
+        let num_registry = 16;
+        self.update_records(clerk, update?, num_registry)?;
         Ok(())
     }
 }

@@ -46,26 +46,18 @@ deploy_gate() {
     echo "$gate_addr"
 }
 
-deploy_extensions() {
-    echo "--- Deploying Native Extensions ---"
-    ORDERS_ADDR=$(deploy vault_native_orders | tee /dev/stderr | parse_deployment_address)
-    CLAIMS_ADDR=$(deploy vault_native_claims | tee /dev/stderr | parse_deployment_address)
-    
-    [ -z "$ORDERS_ADDR" ] && die "Failed to deploy orders"
-    [ -z "$CLAIMS_ADDR" ] && die "Failed to deploy claims"
-    
-    # Exporting variables so 'full' can see them
-    echo "$ORDERS_ADDR $CLAIMS_ADDR"
+deploy_orders() {
+    local gate=$1
+    local orders=$(deploy vault_native_orders | tee /dev/stderr | parse_deployment_address)
+    contract_send "$gate" "installOrders(address)" "$orders"
+    echo "$orders"
 }
 
-install_extensions() {
+deploy_claims() {
     local gate=$1
-    local orders=$2
-    local claims=$3
-    
-    echo "--- Installing Extensions into Gate at $gate ---"
-    contract_send "$gate" "installOrders(address)" "$orders"
+    local claims=$(deploy vault_native_claims | tee /dev/stderr | parse_deployment_address)
     contract_send "$gate" "installClaims(address)" "$claims"
+    echo "$claims"
 }
 
 upgrade_gate() {
@@ -97,18 +89,22 @@ case "$1" in
         GATE=$(deploy_gate "$LOGIC" "$2" "$provider_addr")
 
         # 2. Extensions
-        EXT_ADDRS=$(deploy_extensions)
-        ORDERS=$(echo $EXT_ADDRS | cut -d' ' -f1)
-        CLAIMS=$(echo $EXT_ADDRS | cut -d' ' -f2)
-
-        # 3. Final Wiring
-        install_extensions "$GATE" "$ORDERS" "$CLAIMS"
+        ORDERS=$(deploy_orders $GATE)
+        CLAIMS=$(deploy_claims $GATE)
         
-        echo -e "\n=== VAULT DEPLOYMENT COMPLETE ==="
-        echo "Vault Gate : $GATE"
-        echo "Orders     : $ORDERS"
-        echo "Claims     : $CLAIMS"
-        echo "------------------------------------"
+        echo "======================================================"
+        echo "                Deployment Complete                   "
+        echo "------------------------------------------------------"
+        echo "  * Vault Gate:           $GATE"
+        echo ""
+        echo "======================================================"
+        echo "               Diamond Configuration                  "
+        echo "------------------------------------------------------"
+        echo " Vault Implementation:    $LOGIC"
+        echo " Vault Native:            $provider_addr"
+        echo " Vault Native Orders:     $ORDERS"
+        echo " Vault Native Claims:     $CLAIMS"
+        echo "======================================================"
         ;;
 
     "deploy-logic")

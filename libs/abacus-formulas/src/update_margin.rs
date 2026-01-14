@@ -7,7 +7,7 @@ pub fn update_margin(
     asset_margin_id: u128,
     market_asset_names_id: u128,
     margin_id: u128,
-) -> Vec<u8> {
+) -> Result<Vec<u8>, Vec<u8>> {
     abacus! {
         // ====================================
         // * * * (TRY) COMPUTE NEW VALUES * * *

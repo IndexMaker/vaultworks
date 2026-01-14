@@ -161,7 +161,7 @@ mod unit_tests {
         let mut stack = Stack::new(num_registers);
         let mut program = VectorVM::new(&mut vio);
 
-        if let Err(err) = program.execute_with_stack(code, &mut stack) {
+        if let Err(err) = program.execute_with_stack(code.unwrap(), &mut stack) {
             log_stack!(&stack);
             panic!("Failed to execute test: {:?}", err);
         }
@@ -275,7 +275,7 @@ mod test_scenarios {
         vio.store_vector(margin_id, amount_vec![0.2, 0.2, 0.2, 20.0, 0.2])
             .unwrap();
 
-        vio.store_code(solve_quadratic_bid_id, solve_quadratic_bid())
+        vio.store_code(solve_quadratic_bid_id, solve_quadratic_bid().unwrap())
             .unwrap();
 
         let code = execute_buy_order(
@@ -309,7 +309,7 @@ mod test_scenarios {
 
         let mut program = VectorVM::new(&mut vio);
         let mut stack = Stack::new(num_registers);
-        let result = program.execute_with_stack(code, &mut stack);
+        let result = program.execute_with_stack(code.unwrap(), &mut stack);
 
         if let Err(err) = result {
             log_stack!(&stack);
@@ -462,7 +462,7 @@ mod test_scenarios {
         vio.store_vector(margin_id, amount_vec![0.5, 0.5, 0.5, 100.0, 0.5])
             .unwrap();
 
-        vio.store_code(solve_quadratic_ask_id, solve_quadratic_ask())
+        vio.store_code(solve_quadratic_ask_id, solve_quadratic_ask().unwrap())
             .unwrap();
 
         let code = execute_sell_order(
@@ -496,7 +496,7 @@ mod test_scenarios {
 
         let mut program = VectorVM::new(&mut vio);
         let mut stack = Stack::new(num_registers);
-        let result = program.execute_with_stack(code, &mut stack);
+        let result = program.execute_with_stack(code.unwrap(), &mut stack);
 
         if let Err(err) = result {
             log_stack!(&stack);
@@ -581,7 +581,7 @@ mod test_scenarios {
 
         let mut program = VectorVM::new(&mut vio);
         let mut stack = Stack::new(num_registers);
-        let result = program.execute_with_stack(code, &mut stack);
+        let result = program.execute_with_stack(code.unwrap(), &mut stack);
 
         if let Err(err) = result {
             log_stack!(&stack);
@@ -638,7 +638,7 @@ mod test_scenarios {
                     delta_long_id,
                     delta_short_id,
                     margin_id,
-                ),
+                ).unwrap(),
             );
         }
         {
@@ -662,7 +662,7 @@ mod test_scenarios {
                     delta_long_id,
                     delta_short_id,
                     margin_id,
-                ),
+                ).unwrap(),
             );
         }
 
@@ -704,7 +704,7 @@ mod test_scenarios {
                 asset_margin_id,
                 market_asset_names_id,
                 margin_id,
-            ),
+            ).unwrap(),
         );
 
         program.execute(
@@ -718,7 +718,7 @@ mod test_scenarios {
                 market_asset_prices_id,
                 market_asset_slopes_id,
                 market_asset_liquidity_id,
-            ),
+            ).unwrap(),
         );
 
         program.execute(
@@ -734,7 +734,7 @@ mod test_scenarios {
                 demand_short_id,
                 delta_long_id,
                 delta_short_id,
-            ),
+            ).unwrap(),
         );
 
         program.execute(
@@ -747,7 +747,7 @@ mod test_scenarios {
                 market_asset_prices_id,
                 market_asset_slopes_id,
                 market_asset_liquidity_id,
-            ),
+            ).unwrap(),
         );
 
         let new_margin = vio.load_vector(margin_id).unwrap();

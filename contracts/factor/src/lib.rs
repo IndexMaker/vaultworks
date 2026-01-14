@@ -11,12 +11,12 @@ use abacus_formulas::{
     execute_buy_order::execute_buy_order, execute_sell_order::execute_sell_order,
     execute_transfer::execute_transfer, solve_quadratic_ask::solve_quadratic_ask,
     solve_quadratic_bid::solve_quadratic_bid, submit_buy_order::submit_buy_order,
-    submit_sell_order::submit_sell_order, update_market_data::update_market_data,
+    submit_sell_order::submit_sell_order,
 };
 use alloy_primitives::{Address, U128};
-use common::{amount::Amount, labels::Labels, vector::Vector};
+use common::{amount::Amount, vector::Vector};
 use common_contracts::contracts::{
-    clerk::{ClerkStorage, SCRATCH_1, SCRATCH_2, SCRATCH_3, SCRATCH_4},
+    clerk::{ClerkStorage, SCRATCH_1, SCRATCH_2},
     formulas::{Order, ORDER_REMAIN_OFFSET},
     keep::{Keep, Vault},
     keep_calls::KeepCalls,
@@ -35,7 +35,7 @@ fn _init_solve_quadratic_bid(storage: &mut Keep, clerk_storage: &mut ClerkStorag
         if id.is_zero() {
             id = clerk_storage.next_vector();
             let code = solve_quadratic_bid();
-            clerk_storage.store_bytes(id.to(), code);
+            clerk_storage.store_bytes(id.to(), code.unwrap());
             storage.solve_quadratic_bid_id.set(id);
             id
         } else {
@@ -52,7 +52,7 @@ fn _init_solve_quadratic_ask(storage: &mut Keep, clerk_storage: &mut ClerkStorag
         if id.is_zero() {
             id = clerk_storage.next_vector();
             let code = solve_quadratic_ask();
-            clerk_storage.store_bytes(id.to(), code);
+            clerk_storage.store_bytes(id.to(), code.unwrap());
             storage.solve_quadratic_ask_id.set(id);
             id
         } else {
@@ -258,7 +258,7 @@ impl Factor {
         );
 
         let num_registry = 6;
-        self.update_records(clerk, update, num_registry)?;
+        self.update_records(clerk, update?, num_registry)?;
 
         // - Once we have transferred ITP from Trader to Operator, we can now
         //   carry over ITP Locked to Operator
@@ -348,7 +348,7 @@ impl Factor {
 
         let clerk = storage.clerk.get();
         let num_registry = 23;
-        self.update_records(clerk, update, num_registry)?;
+        self.update_records(clerk, update?, num_registry)?;
 
         if operator_address != trader_address {
             self._transfer_buy_to_operator(
@@ -460,7 +460,7 @@ impl Factor {
 
         let clerk = storage.clerk.get();
         let num_registry = 22;
-        self.update_records(clerk, update, num_registry)?;
+        self.update_records(clerk, update?, num_registry)?;
 
         if operator_address != trader_address {
             self._transfer_sell_to_operator(
@@ -495,87 +495,6 @@ impl Factor {
 
 #[public]
 impl Factor {
-    /// Submit Market Data
-    ///
-    /// Vendor submits Market Data using Price, Slope, Liquidity model, which is
-    /// a format optimised for on-chain computation.
-    ///
-    /// - Price     : Micro-Price
-    /// - Slope     : Price delta within N-levels (Bid + Ask)
-    /// - Liquidity : Total quantitiy on N-levels (Bid + Ask)
-    ///
-    /// Vendor is responsible for modeling these parameters in suitable way
-    /// using live Market Data.
-    ///
-    /// Note that it is the Vendor deciding what prices and exposure they are
-    /// willing to accept, i.e. they can adjust prices, slopes and liquidity to
-    /// take into account their risk factors.
-    ///
-    pub fn submit_market_data(
-        &mut self,
-        vendor_id: U128,
-        asset_names: Bytes,
-        asset_liquidity: Bytes,
-        asset_prices: Bytes,
-        asset_slopes: Bytes,
-    ) -> Result<(), Vec<u8>> {
-        if vendor_id.is_zero() {
-            Err(b"Vendor ID cannot be zero")?;
-        }
-        let num_assets =
-            Labels::len_from_vec(&asset_names).ok_or_else(|| b"Invalid Asset Names")?;
-
-        if num_assets
-            != Vector::len_from_vec(&asset_liquidity).ok_or_else(|| b"Invalid Asset Liquidity")?
-        {
-            Err(b"Asset Names and Asset Liquidity are not aligned")?;
-        }
-        if num_assets
-            != Vector::len_from_vec(&asset_prices).ok_or_else(|| b"Invalid Asset Prices")?
-        {
-            Err(b"Asset Names and Asset Prices are not aligned")?;
-        }
-        if num_assets
-            != Vector::len_from_vec(&asset_slopes).ok_or_else(|| b"Invalid Asset Slopes")?
-        {
-            Err(b"Asset Names and Asset Slopes are not aligned")?;
-        }
-
-        let mut storage = Keep::storage();
-        storage.check_version()?;
-
-        let account = storage.accounts.setter(vendor_id);
-        account.only_owner(self.attendee())?;
-
-        let asset_names_id = SCRATCH_1;
-        let asset_liquidity_id = SCRATCH_2;
-        let asset_prices_id = SCRATCH_3;
-        let asset_slopes_id = SCRATCH_4;
-
-        let mut clerk_storage = ClerkStorage::storage();
-        clerk_storage.store_bytes(asset_names_id, asset_names);
-        clerk_storage.store_bytes(asset_liquidity_id, asset_liquidity);
-        clerk_storage.store_bytes(asset_prices_id, asset_prices);
-        clerk_storage.store_bytes(asset_slopes_id, asset_slopes);
-
-        // Compile VIL program, which we will send to DeVIL for execution.
-        let update = update_market_data(
-            asset_names_id.to(),
-            asset_prices_id.to(),
-            asset_slopes_id.to(),
-            asset_liquidity_id.to(),
-            account.assets.get().to(),
-            account.prices.get().to(),
-            account.slopes.get().to(),
-            account.liquidity.get().to(),
-        );
-
-        let clerk = storage.clerk.get();
-        let num_registry = 16;
-        self.update_records(clerk, update, num_registry)?;
-        Ok(())
-    }
-
     pub fn submit_buy_order(
         &mut self,
         vendor_id: U128,
@@ -617,7 +536,7 @@ impl Factor {
 
         let clerk = storage.clerk.get();
         let num_registry = 9;
-        self.update_records(clerk, update, num_registry)?;
+        self.update_records(clerk, update?, num_registry)?;
 
         Ok(())
     }
@@ -663,7 +582,7 @@ impl Factor {
 
         let clerk = storage.clerk.get();
         let num_registry = 9;
-        self.update_records(clerk, update, num_registry)?;
+        self.update_records(clerk, update?, num_registry)?;
 
         Ok(())
     }
@@ -923,7 +842,7 @@ impl Factor {
 
         let clerk = storage.clerk.get();
         let num_registry = 6;
-        self.update_records(clerk, update, num_registry)?;
+        self.update_records(clerk, update?, num_registry)?;
 
         Ok(())
     }

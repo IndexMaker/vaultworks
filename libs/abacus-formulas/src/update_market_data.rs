@@ -11,7 +11,7 @@ pub fn update_market_data(
     market_asset_prices_id: u128,
     market_asset_slopes_id: u128,
     market_asset_liquidity_id: u128,
-) -> Vec<u8> {
+) -> Result<Vec<u8>, Vec<u8>> {
     abacus! {
         // ====================================
         // * * * (TRY) COMPUTE NEW VALUES * * *
@@ -27,14 +27,14 @@ pub fn update_market_data(
         JUPD        1   2   3                   // Stack [AN, MAN, AP, MAP_updated = (MAP j= AP)]
         STR         _Prices                     // Stack [AN, MAN, AP]
         POPN        1                           // Stack [AN, MAN]
-        
+
         // Compute MarketAssetSlopes j= AssetSlopes
         LDV         asset_slopes_id             // Stack [AN, MAN, AS]
         LDV         market_asset_slopes_id      // Stack [AN, MAN, AS, MAS]
         JUPD        1   2   3                   // Stack [AN, MAN, AS, MAS_updated = (MAS j= AS)]
         STR         _Slopes                     // Stack [AN, MAN, AS]
         POPN        1                           // Stack [AN, MAN]
-        
+
         // Compute MarketAssetLiquidity j= AssetLiquidity
         LDV         asset_liquidity_id          // Stack [AN, MAN, AL]
         LDV         market_asset_liquidity_id   // Stack [AN, MAN, AL, MAL]

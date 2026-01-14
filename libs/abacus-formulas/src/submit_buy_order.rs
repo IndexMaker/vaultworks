@@ -8,7 +8,7 @@ pub fn submit_buy_order(
     total_order_id: u128,
     collateral_added: u128,
     collateral_removed: u128,
-) -> Vec<u8> {
+) -> Result<Vec<u8>, Vec<u8>> {
     abacus! {
         // Load Index Order
         LDV         order_id                    // Stack: [Order = (Collateral, Spent, Minted)]

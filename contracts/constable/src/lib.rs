@@ -244,6 +244,7 @@ impl Constable {
                 IBanker::submitAssetsCall::SELECTOR.into(),
                 IBanker::submitMarginCall::SELECTOR.into(),
                 IBanker::submitSupplyCall::SELECTOR.into(),
+                IBanker::submitMarketDataCall::SELECTOR.into(),
             ],
             CASTLE_VENDOR_ROLE.into(),
         )?;
@@ -267,12 +268,6 @@ impl Constable {
         //     ],
         //     CASTLE_ISSUER_ROLE.into(),
         // )?;
-
-        self._create_protected_functions(
-            factor,
-            vec![IFactor::submitMarketDataCall::SELECTOR.into()],
-            CASTLE_VENDOR_ROLE.into(),
-        )?;
 
         self._create_protected_functions(
             factor,
