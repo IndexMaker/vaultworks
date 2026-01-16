@@ -22,7 +22,7 @@ use common_contracts::{
 };
 use stylus_sdk::{prelude::*, stylus_core};
 
-use crate::IERC20::{Transfer, transferFromCall};
+use crate::IERC20::{transferFromCall, Transfer};
 
 sol! {
     interface IERC20 {
@@ -31,7 +31,6 @@ sol! {
         event Transfer(address indexed from, address indexed to, uint256 value);
     }
 }
-
 
 #[storage]
 #[entrypoint]
@@ -154,7 +153,7 @@ impl VaultNativeClaims {
             // Publish execution report if there was execution
 
             vault.transfer(keeper, trader, itp_claimed.to())?;
-            
+
             stylus_core::log(
                 self.vm(),
                 Transfer {
@@ -165,7 +164,8 @@ impl VaultNativeClaims {
             );
 
             let exec_report = AcquisitionClaim {
-                controller: keeper,
+                keeper,
+                trader,
                 index_id: vault.index_id.get().to(),
                 vendor_id: requests.vendor_id.get().to(),
                 remain: pending_amount.to(),
@@ -253,7 +253,8 @@ impl VaultNativeClaims {
             // Publish execution report if there was execution
 
             let exec_report = DisposalClaim {
-                controller: keeper,
+                keeper,
+                trader,
                 index_id: vault.index_id.get().to(),
                 vendor_id: requests.vendor_id.get().to(),
                 itp_remain: pending_amount.to(),
