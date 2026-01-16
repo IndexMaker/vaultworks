@@ -201,7 +201,7 @@ impl Amount {
     }
 }
 
-#[cfg(any(not(feature = "stylus"), feature = "debug"))]
+#[cfg(any(not(feature = "stylus"), feature = "debug", feature = "stylus-test"))]
 impl core::fmt::Display for Amount {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         #[cfg(feature = "stylus")]
@@ -241,7 +241,7 @@ impl core::fmt::Display for Amount {
     }
 }
 
-#[cfg(any(not(feature = "stylus"), feature = "debug"))]
+#[cfg(any(not(feature = "stylus"), feature = "debug", feature = "stylus-test"))]
 impl core::fmt::Debug for Amount {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         write!(f, "amount!({})", self)

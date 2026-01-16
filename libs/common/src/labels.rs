@@ -88,7 +88,7 @@ macro_rules! label {
     };
 }
 
-#[cfg(any(not(feature = "stylus"), feature = "debug"))]
+#[cfg(any(not(feature = "stylus"), feature = "debug", feature = "stylus-test"))]
 impl core::fmt::Display for Labels {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         let mut sepa = "";

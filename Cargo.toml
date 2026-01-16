@@ -23,11 +23,6 @@ members = [
     "libs/abacus-runtime",
     "libs/common",
     "libs/common-contracts",
-    "libs/common-ethers",
-
-    # Native Application Package
-    "apps/abacus-docs",
-    "apps/scenarios",
 
     "proc-macros/abacus-macros",
     "proc-macros/amount-macros",
@@ -59,7 +54,6 @@ chrono = "0.4.42"
 clap = "4.5"
 common = { path = "libs/common" }
 common-contracts= { path = "libs/common-contracts" }
-common-ethers = { path = "libs/common-ethers" }
 dotenv = "0.15.0"
 ethers = "2.0"
 eyre = "0.6.8"

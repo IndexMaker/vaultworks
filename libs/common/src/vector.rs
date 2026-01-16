@@ -83,7 +83,7 @@ impl Vector {
     }
 }
 
-#[cfg(any(not(feature = "stylus"), feature = "debug"))]
+#[cfg(any(not(feature = "stylus"), feature = "debug", feature = "stylus-test"))]
 impl core::fmt::Display for Vector {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         let max_scale_len = f.precision().unwrap_or(18).min(18);

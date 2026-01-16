@@ -60,6 +60,6 @@ The ecosystem is structured as a **Castle**—a high-integrity environment—whe
 
 ## 🏁 Developer Guide
 
-To **start building** with us and read **[more here](/apps/scenarios/README.md)**.
+To **start building** with us and read **[more here](DEVELOPER.md)**.
 
 Read [more here](/libs/abacus-runtime/README.md) to learn about *Vector Intermediate Language Virtual Machine (VIL VM)*.
