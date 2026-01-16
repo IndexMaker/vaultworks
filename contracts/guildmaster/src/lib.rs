@@ -18,7 +18,7 @@ use common_contracts::{
         keep_calls::KeepCalls,
     },
     interfaces::{
-        castle::ICastle, guildmaster::IGuildmaster, vault::IVault, vault_native::IVaultNative,
+        guildmaster::IGuildmaster, vault::IVault, vault_native::IVaultNative,
     },
 };
 use stylus_sdk::{abi::Bytes, prelude::*, stylus_core};

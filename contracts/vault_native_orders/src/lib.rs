@@ -294,6 +294,16 @@ impl VaultNativeOrders {
 
             vault.burn(trader, delivered.to())?;
 
+            // Tranfer gains from keeper to Trader
+            self.external_call(
+                requests.collateral_asset.get(),
+                IERC20::transferFromCall {
+                    from: requests.custody.get(),
+                    to: trader,
+                    value: received.to(),
+                },
+            )?;
+
             stylus_core::log(
                 self.vm(),
                 Transfer {

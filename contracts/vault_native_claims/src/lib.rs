@@ -22,8 +22,6 @@ use common_contracts::{
 };
 use stylus_sdk::{prelude::*, stylus_core};
 
-use crate::IERC20::{transferFromCall, Transfer};
-
 sol! {
     interface IERC20 {
         function transferFrom(address from, address to, uint256 value) external returns (bool);
@@ -156,7 +154,7 @@ impl VaultNativeClaims {
 
             stylus_core::log(
                 self.vm(),
-                Transfer {
+                IERC20::Transfer {
                     from: keeper,
                     to: trader,
                     value: itp_claimed.to(),
@@ -225,8 +223,8 @@ impl VaultNativeClaims {
         // Tranfer gains from keeper to Trader
         self.external_call(
             requests.collateral_asset.get(),
-            transferFromCall {
-                from: keeper,
+            IERC20::transferFromCall {
+                from: requests.custody.get(),
                 to: trader,
                 value: amount_claimed.to(),
             },
