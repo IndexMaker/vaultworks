@@ -103,7 +103,7 @@ from that prototype.
 - ***Vendor*** *is* responsible for supplying underlying assets.
 - ***Keeper*** *is* responsible for processing large *Index* orders.
 
-In development we can yse ***Conveyor***, which implements both roles plus ***Issuer*** role. The *Conveyor* a minimalist *Vendor-Keeper (+Issuer)*  application allowing us to test end-to-end workings of *VaultWorks* smart-contracts.
+In development we can use ***Conveyor***, which implements both roles plus ***Issuer*** role. The *Conveyor* a minimalist *Vendor-Keeper (+Issuer)*  application allowing us to test end-to-end workings of *VaultWorks* smart-contracts.
 
 For our exercise purposes we can use any address really, e.g.:
 ```bash
