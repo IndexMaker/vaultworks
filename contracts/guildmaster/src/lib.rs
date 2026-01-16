@@ -11,7 +11,11 @@ use alloy_primitives::{Address, U128};
 use common::{labels::Labels, vector::Vector};
 use common_contracts::{
     contracts::{
-        calls::InnerCall, castle::{CASTLE_KEEPER_ROLE, CASTLE_VAULT_ROLE}, clerk::ClerkStorage, keep::{Keep, VAULT_STATUS_APPROVED, VAULT_STATUS_NEW, VAULT_STATUS_REJECTED}, keep_calls::KeepCalls
+        calls::InnerCall,
+        castle::{CastleStorage, CASTLE_KEEPER_ROLE, CASTLE_VAULT_ROLE},
+        clerk::ClerkStorage,
+        keep::{Keep, VAULT_STATUS_APPROVED, VAULT_STATUS_NEW, VAULT_STATUS_REJECTED},
+        keep_calls::KeepCalls,
     },
     interfaces::{
         castle::ICastle, guildmaster::IGuildmaster, vault::IVault, vault_native::IVaultNative,
@@ -100,15 +104,14 @@ impl Guildmaster {
         )
         .map_err(|_| b"Failed to add operators")?;
 
-        self.top_level_call(ICastle::grantRoleCall {
-            role: CASTLE_KEEPER_ROLE.into(),
-            attendee: gate_to_vault,
-        })?;
+        let mut castle_storage = CastleStorage::storage();
+        let acl = castle_storage.get_acl_mut();
 
-        self.top_level_call(ICastle::grantRoleCall {
-            role: CASTLE_VAULT_ROLE.into(),
-            attendee: gate_to_vault,
-        })?;
+        acl.set_role(gate_to_vault, CASTLE_KEEPER_ROLE.into())
+            .map_err(|_| b"Failed to set vault role")?;
+
+        acl.set_role(gate_to_vault, CASTLE_VAULT_ROLE.into())
+            .map_err(|_| b"Failed to set vault role")?;
 
         stylus_core::log(
             self.vm(),

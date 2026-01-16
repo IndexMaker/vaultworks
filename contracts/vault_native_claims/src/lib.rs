@@ -104,7 +104,7 @@ impl VaultNativeClaims {
             Err(b"Keeper must be custodian")?;
         }
 
-        if sender != keeper && !requests.is_operator(keeper, sender) {
+        if sender != trader && !requests.is_operator(trader, sender) {
             Err(b"Unauthorised order processing")?;
         }
 
@@ -204,7 +204,7 @@ impl VaultNativeClaims {
             Err(b"Keeper must be custodian")?;
         }
 
-        if sender != keeper && !requests.is_operator(keeper, sender) {
+        if sender != trader && !requests.is_operator(trader, sender) {
             Err(b"Unauthorised order processing")?;
         }
 
