@@ -16,36 +16,39 @@ The ecosystem is structured as a **Castle**—a high-integrity environment—whe
 
 ### The Inhabitants of the Castle
 
+The system logic is managed by dedicated NPCs (Non-Player Characters), each serving as a specialized inhabitant of the Castle to maintain the integrity of the realm.
+
 | Role | Focus | Function |
 |---|---|---|
 | **Factor** | **Order Execution** | Orchestrates the lifecycle of buy and sell orders, managing the flow of collateral between traders and operators. |
-| **Banker** | **Market Equilibrium** | Ingests market data, asset margins, and liquidity slopes to synchronize precise quotes across multiple indices. |
-| **Guildmaster** | **Index Governance** | Presides over the creation and modification of indices, officiating asset weights and the democratic submission of votes. |
-| **Steward** | **State Observability** | **Oracle of Truth & State:** Serves as the protocol’s eyes and ears, distilling complex vectors of market supply, vendor deltas, and real-time index quotes. |
-| **Constable** | **System Authority** | Acts as the foundational architect, appointing sovereign roles and defining the permissions for Issuers, Vendors, and Keepers. |
-| **Scribe** | **Truth Verification** | Operates as the gatekeeper of authenticity by performing cryptographic verification of signatures for protocol data. |
-| **Worksman** | **Vault Fabrication** | Maintains the architectural prototypes and executes the deployment of sovereign Vault instances for the system. |
+| **Banker** | **Market Equilibrium** | Ingests vendor's supply, market data, asset margins, and liquidity slopes to synchronize precise quotes across multiple indices. |
 | **Clerk** | **Registry Maintenance** | Diligently manages the formal update of protocol records and the registry of system components. |
+| **Steward** | **State Observability** | Serves as the protocol’s eyes and ears, distilling complex vectors of market supply, vendor deltas, and real-time index quotes. |
+| **Guildmaster** | **Index Governance** | Presides over the creation and modification of indices, officiating asset weights and the democratic submission of votes. |
+| **Constable** | **System Authority** | Acts as the foundational architect, appointing sovereign roles and defining the permissions for Issuers, Vendors, and Keepers. |
+| **Worksman** | **Vault Fabrication** | Maintains the architectural prototypes and executes the deployment of sovereign Vault instances for the system. |
+| **Scribe** | **Truth Verification** | Operates as the gatekeeper of authenticity by performing cryptographic verification of signatures for protocol data. |
 
 ### The Sovereign Vault & Its Facets
 
 | Facet | Focus | Function |
 |---|---|---|
-| **Sovereign Vault** | **Identity & Governance** | Serves as the primary vessel for the Index, defining methodology and metadata while managing custody permissions and ownership. |
-| **Native Logic** | **Valuation & Operators** | Governs the fundamental economic math, calculating acquisition costs, asset values, and real-time quotes for ITP conversions. |
-| **Orders Facet** | **Lifecycle Management** | Orchestrates the placement and processing of buy and sell orders, enabling both instant fills and pending market acquisitions. |
-| **Claims Facet** | **Settlement & Minting** | Facilitates the final claim of acquisitions and disposals, ensuring the correct amount of Index Tokens are minted or burned upon settlement. |
+| **Vault** | **Identity & ERC-20** | The base vessel for the Index; implements the standard **ERC-20** interface for tokenized identity while managing custody and metadata. |
+| **Vault Native** | **Valuation Engine** | An implementation inspired by ERC-4626, but optimized for the protocol's high-dimensional vector math. Handles asset valuation and quote conversions.. |
+| **Vault Orders** | **Order Lifecycle** | Inspired by *ERC-7540*; manages the asynchronous placement and processing of buy/sell orders. |
+| **Vault Claims** | **Settlement** | Inspired by *ERC-7540*; manages the claimable state and final settlement of processed acquisitions and disposals. |
 
 ---
 
-## 📜 The Core: Clerk and Abacus
+## 📜 The Core: Clerk and Abacus Runtime
 
 **VaultWorks** separates computational execution from top-level business logic to ensure a disciplined financial state.
 
-* **The Vaults:** They implement ***ERC-20*** and ***ERC-7540 / ERC-4626***. High-security attachments that house ***Index definitions***, asset weights, and user orders. They are built by the Worksman on command of the Guildmaster.
-* **The Gate:** An implementation of the ***Proxy (ERC-1967)*** pattern providing secure, structured access points. The architecture utilizes a primary gate to the Castle, a dedicated Gate to the **Clerk**—the interface where the crew interacts to execute orders and access liquidity—and individual Gates for each **Vault** attachment.
-* **The Clerk:** An implementation of the ***UUPS (ERC-1822)*** pattern; the Clerk executes deterministic mathematical formulas on the Abacus and records the final state in stored vectors.
-* **The Abacus:** The computational engine that performs ***high-velocity, zero-copy mathematics***, bypassing the gas overhead of standard EVM implementations. Also known as the ***VIL VM: Decentralized Vector Intermediate Language Virtual Machine***.
+* **The Vaults:** They implement ***ERC-20*** and inspired by *ERC-7540 / ERC-4626*. High-security attachments that house ***Index definitions***, asset weights, and user orders. They are built by the Worksman on command of the Guildmaster.
+* **The Gate:** An implementation of the ***Proxy (ERC-1967)*** pattern providing secure, structured access points. The architecture utilizes individual Gates for each **Vault**.
+* **The Clerk:** The Clerk smart contract orchestrates the recording of the final state in stored vectors and triggers the execution of deterministic financial logic.
+* **Abacus-Runtime:** The foundational library powering the computational engine. It performs high-velocity, zero-copy mathematics, bypassing the gas overhead of standard EVM implementations. Also known as the ***VIL VM: Decentralized Vector Intermediate Language Virtual Machine***.
+* **Abacus-Formulas:** The dedicated library containing the *Vector Programs* and mathematical definitions used by the protocol to align market and index vectors.
 
 ---
 
