@@ -10,20 +10,31 @@ Powered by *Arbitrum Stylus (Rust)*, VaultWorks achieves ***near-native performa
 
 ---
 
-## 🏰 The Architecture of the Castle
+## 🏰 The Architecture of the Castle and Vaults
 
 The ecosystem is structured as a **Castle**—a high-integrity environment—where the protocol itself autonomously guards the ***Access Control List (ACL)*** and secures the perimeter against unauthorized execution.
 
 ### The Inhabitants of the Castle
 
-| **Role** | **Focus** | **Function** |
-| --- | --- | --- |
-| **Factor** | Trading Strategy | Manages pricing and facilitates asset trading for Index orders. |
-| **Banker** | Inventory Management | Oversees asset inventory and enforces operational limits. |
-| **Guildmaster** | Issuance & Governance | Manages Index creation and commands the Worksman to deploy Vaults. |
-| **Constable** | Functions & Security | Architects protocol functions and assigns sovereign roles to them. |
-| **Scribe** | Signature Verification | Verifies cryptographic signatures and tallies governance votes. |
-| **Worksman** | Vault Construction | Constructs and deploys sovereign Vaults. |
+| Role | Focus | Function |
+|---|---|---|
+| **Factor** | **Order Execution** | Orchestrates the lifecycle of buy and sell orders, managing the flow of collateral between traders and operators. |
+| **Banker** | **Market Equilibrium** | Ingests market data, asset margins, and liquidity slopes to synchronize precise quotes across multiple indices. |
+| **Guildmaster** | **Index Governance** | Presides over the creation and modification of indices, officiating asset weights and the democratic submission of votes. |
+| **Steward** | **State Observability** | **Oracle of Truth & State:** Serves as the protocol’s eyes and ears, distilling complex vectors of market supply, vendor deltas, and real-time index quotes. |
+| **Constable** | **System Authority** | Acts as the foundational architect, appointing sovereign roles and defining the permissions for Issuers, Vendors, and Keepers. |
+| **Scribe** | **Truth Verification** | Operates as the gatekeeper of authenticity by performing cryptographic verification of signatures for protocol data. |
+| **Worksman** | **Vault Fabrication** | Maintains the architectural prototypes and executes the deployment of sovereign Vault instances for the system. |
+| **Clerk** | **Registry Maintenance** | Diligently manages the formal update of protocol records and the registry of system components. |
+
+### The Sovereign Vault & Its Facets
+
+| Facet | Focus | Function |
+|---|---|---|
+| **Sovereign Vault** | **Identity & Governance** | Serves as the primary vessel for the Index, defining methodology and metadata while managing custody permissions and ownership. |
+| **Native Logic** | **Valuation & Operators** | Governs the fundamental economic math, calculating acquisition costs, asset values, and real-time quotes for ITP conversions. |
+| **Orders Facet** | **Lifecycle Management** | Orchestrates the placement and processing of buy and sell orders, enabling both instant fills and pending market acquisitions. |
+| **Claims Facet** | **Settlement & Minting** | Facilitates the final claim of acquisitions and disposals, ensuring the correct amount of Index Tokens are minted or burned upon settlement. |
 
 ---
 
