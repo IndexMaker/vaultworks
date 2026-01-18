@@ -47,7 +47,7 @@ The system logic is managed by dedicated NPCs (Non-Player Characters), each ser
 * **The Vaults:** They implement ***ERC-20*** and inspired by *ERC-7540 / ERC-4626*. High-security attachments that house ***Index definitions***, asset weights, and user orders. They are built by the Worksman on command of the Guildmaster.
 * **The Gate:** An implementation of the ***Proxy (ERC-1967)*** pattern providing secure, structured access points. The architecture utilizes individual Gates for each **Vault**.
 * **The Clerk:** The Clerk smart contract orchestrates the recording of the final state in stored vectors and triggers the execution of deterministic financial logic.
-* **Abacus-Runtime:** The foundational library powering the computational engine. It performs high-velocity, zero-copy mathematics, bypassing the gas overhead of standard EVM implementations. Also known as the ***VIL VM: Decentralized Vector Intermediate Language Virtual Machine***.
+* **Abacus-Runtime:** The foundational library powering the computational engine. It performs high-velocity, zero-copy high-dimensional vector math, bypassing the gas overhead of standard EVM implementations. Also known as the ***VIL VM: Decentralized Vector Intermediate Language Virtual Machine***.
 * **Abacus-Formulas:** The dedicated library containing the *Vector Programs* and mathematical definitions used by the protocol to align market and index vectors.
 
 ---
