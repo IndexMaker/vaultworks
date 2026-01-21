@@ -10,7 +10,7 @@
 \usepackage{xcolor}
 \usepackage{titlesec}
 
-% Font Setup (Matching your previous style)
+% Font Setup
 \setmainfont{Noto Sans}
 
 % Custom Operators for VIL
@@ -49,7 +49,7 @@ The VIL first computes the net active supply ($S_{total}$) by strictly netting t
 \begin{equation}
     S_{total} = M_{bid} - (C_{ask} + S_{ask})
 \end{equation}
-Where $M$ represents minted, $C$ represents committed and $S$ represents spent Index token \& corresponding underlying inventory.
+Where $M$ represents minted, $C$ represents committed, and $S$ represents spent Index tokens and the corresponding underlying inventory.
 
 \subsection{Weight Delta ($\Delta W$)}
 The protocol identifies the shift in weights between the old configuration ($W_{old}$) and the new configuration ($W_{new}$). Utilizing the VIL's \texttt{LUNION} (Label Union) and \texttt{JUPD} (Join Update) instructions, vectors are aligned to a superset domain $\mathcal{U}$.
@@ -99,14 +99,14 @@ Let $L_{iq}$ be the available market liquidity. The Capacity Limit vectors are d
 \end{itemize}
 
 \subsection{Execution Capping}
-The actual executed quantity ($E$) is determined by scaling the Capacity Limit by a governance factor ($K$) and clamping the target rebalance vector ($R$) to this safety ceiling.
+The actual executed quantity ($E$) is determined by scaling the Capacity Limit by a governance factor ($K$). The primary function of $K$ is to preserve a portion of the available margin for user orders, preventing the rebalance mechanism from monopolizing system liquidity. The factor $K$ is strictly constrained to the range $K \in (0, 1]$.
 
 \begin{align}
     E_{long} &= \min( R_{long}, K \cdot CL_{long} ) \\
     E_{short} &= \min( R_{short}, K \cdot CL_{short} )
 \end{align}
 
-This ensures that the protocol never attempts to move more assets than the market can absorb or the margin can collateralize in a single block.
+This ensures that the protocol never attempts to move more assets than the market can absorb while guaranteeing that user-initiated flow retains access to liquidity.
 
 \section{Stage 3: State Update \& Atomic Commit}
 Once the execution quantities ($E$) are determined, the VIL performs an atomic update of the Market Demand and Net Delta vectors.
