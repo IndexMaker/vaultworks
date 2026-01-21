@@ -28,7 +28,7 @@ pub fn update_rebalance(
         // Compute common Asset Names
         LDL     old_asset_names_id              // [AN_old]
         LDL     new_asset_names_id              // [AN_old, AN_new]
-        LDV     rebalance_asset_names_id        // [AN_old, AN_new, AN_re]
+        LDL     rebalance_asset_names_id        // [AN_old, AN_new, AN_re]
         LDD     0                               // [AN_old, AN_new, AN_re, AN_re]
         LUNION  2                               // [AN_old, AN_new, AN_re, AN_uni_1]
         LUNION  3                               // [AN_old, AN_new, AN_re, AN_uni]
@@ -67,13 +67,13 @@ pub fn update_rebalance(
         POPN    3                               // []
 
         // Compute: New Rebalance Weights = Rebalance Weights + (Total Supply * Weights Delta)
-        LDR     _TotalSupply                    // [T_supply]
-        LDR     _RebalanceWeightsLong           // [T_supply, W_re_long]
-        LDR     _DeltaWeightsLong               // [T_supply, W_re_long, dW_long]
+        LDM     _TotalSupply                    // [T_supply]
+        LDM     _RebalanceWeightsLong           // [T_supply, W_re_long]
+        LDM     _DeltaWeightsLong               // [T_supply, W_re_long, dW_long]
         MUL     2                               // [T_supply, W_re_long, (dW_long * T_supply)]
         ADD     1                               // [T_supply, W_re_long, W_re_long_new = (dW_long * T_supply + W_re_long)]
-        LDR     _RebalanceWeightsShort          // [T_supply, W_re_long, W_re_long_new, W_re_short]
-        LDR     _DeltaWeightsShort              // [T_supply, W_re_long, W_re_long_new, W_re_short, dW_short]
+        LDM     _RebalanceWeightsShort          // [T_supply, W_re_long, W_re_long_new, W_re_short]
+        LDM     _DeltaWeightsShort              // [T_supply, W_re_long, W_re_long_new, W_re_short, dW_short]
         MUL     4                               // [T_supply, W_re_long, W_re_long_new, W_re_short, (dW_short * T_supply)]
         ADD     1                               // [T_supply, W_re_long, W_re_long_new, W_re_short, W_re_short_new = (dW_short * T_supply + W_re_short)]
 
@@ -88,5 +88,9 @@ pub fn update_rebalance(
         // Store new rebalance weights
         STV     rebalance_weights_short_id
         STV     rebalance_weights_long_id
+
+        // Store new rebalance asset names
+        LDM     _RebalanceAssetNames
+        STL     rebalance_asset_names_id
     }
 }
