@@ -10,6 +10,8 @@ sol!{
 
         function appointGuildmaster(address guildmaster) external;
 
+        function appointAlchemist(address alchemist) external;
+
         function appointScribe(address scribe) external;
 
         function appointWorksman(address worksman) external;

@@ -8,8 +8,6 @@ sol! {
 
         function finishEditIndex(uint128 index_id) external;
 
-        function submitAssetWeights(uint128 index_id, bytes calldata asset_names, bytes calldata asset_weights) external;
-
         function submitVote(uint128 index_id, bytes calldata vote) external;
 
         event BeginEditIndex(uint128 index_id, address sender);

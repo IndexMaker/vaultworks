@@ -33,8 +33,9 @@ pub struct Vault {
     pub weights: StorageU128, // Vector  = [Amount; num_assets]
 
     // Rebalance vectors
-    pub rebalance_weights_long: StorageU128, // Vector = [Amount; num_assets]
-    pub rebalance_weights_short: StorageU128, // Vector = [Amount; num_assets]
+    pub rebalance_assets: StorageU128, // Lablels = [u128l num_rebalance_assets]
+    pub rebalance_weights_long: StorageU128, // Vector = [Amount; num_rebalance_assets]
+    pub rebalance_weights_short: StorageU128, // Vector = [Amount; num_rebalance_assets]
 
     // Index pricing (TBD: could be mapping per vendor)
     pub vendor_quotes: StorageMap<U128, StorageU128>, // Mapping = { Vendor ID => Vector  = [Capacity, Price, Slope] }

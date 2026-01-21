@@ -8,18 +8,14 @@ extern crate alloc;
 use alloc::{string::String, vec::Vec};
 
 use alloy_primitives::{Address, U128};
-use common::{labels::Labels, vector::Vector};
 use common_contracts::{
     contracts::{
         calls::InnerCall,
         castle::{CastleStorage, CASTLE_KEEPER_ROLE, CASTLE_VAULT_ROLE},
-        clerk::ClerkStorage,
         keep::{Keep, VAULT_STATUS_APPROVED, VAULT_STATUS_NEW, VAULT_STATUS_REJECTED},
         keep_calls::KeepCalls,
     },
-    interfaces::{
-        guildmaster::IGuildmaster, vault::IVault, vault_native::IVaultNative,
-    },
+    interfaces::{guildmaster::IGuildmaster, vault::IVault, vault_native::IVaultNative},
 };
 use stylus_sdk::{abi::Bytes, prelude::*, stylus_core};
 
@@ -176,56 +172,6 @@ impl Guildmaster {
         stylus_core::log(
             self.vm(),
             IGuildmaster::FinishEditIndex {
-                index_id: index_id.to(),
-                sender,
-            },
-        );
-
-        Ok(())
-    }
-
-    pub fn submit_asset_weights(
-        &mut self,
-        index_id: U128,
-        asset_names: Bytes,
-        asset_weights: Bytes,
-    ) -> Result<(), Vec<u8>> {
-        if index_id.is_zero() {
-            Err(b"Index ID cannot be zero")?;
-        }
-        let num_assets =
-            Labels::len_from_vec(&asset_names).ok_or_else(|| b"Invalid Asset Names")?;
-
-        if num_assets
-            != Vector::len_from_vec(&asset_weights).ok_or_else(|| b"Invalid Asset Weights")?
-        {
-            Err(b"Asset Names and Asset Weights are not aligned")?;
-        }
-
-        let mut storage = Keep::storage();
-        let sender = self.attendee();
-        storage.check_version()?;
-
-        let mut vault = storage.vaults.setter(index_id);
-        vault.only_initialized()?;
-
-        if !vault.assets.get().is_zero() {
-            Err(b"Asset Weights already set")?;
-        }
-
-        let mut clerk_storage = ClerkStorage::storage();
-        let asset_names_id = clerk_storage.next_vector();
-        let asset_weights_id = clerk_storage.next_vector();
-
-        clerk_storage.store_bytes(asset_names_id, asset_names);
-        clerk_storage.store_bytes(asset_weights_id, asset_weights);
-
-        vault.assets.set(asset_names_id);
-        vault.weights.set(asset_weights_id);
-
-        stylus_core::log(
-            self.vm(),
-            IGuildmaster::IndexWeightsUpdated {
                 index_id: index_id.to(),
                 sender,
             },

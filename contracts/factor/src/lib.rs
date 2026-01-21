@@ -846,18 +846,4 @@ impl Factor {
 
         Ok(())
     }
-
-    // pub fn submit_rebalance_order(
-    //     &mut self,
-    //     vendor_id: U128,
-    //     new_assets: Vec<u8>,
-    //     new_weigthts: Vec<u8>,
-    // ) -> Result<(), Vec<u8>> {
-    //     //
-    //     // This needs to:
-    //     //  - compute rebalance_weights_long = max(0, weights - new_weights) -- assets long in inventory (sell them)
-    //     //  - compute rebalance_weights_short = max(0, new_weights - weights) -- assets short in inventory (buy more)
-    //     //
-    //     Err(b"Not implemented yet".into())
-    // }
 }

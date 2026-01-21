@@ -2,6 +2,7 @@
 resolver = "2"
 members = [
     # Stylus Contract Packages
+    "contracts/alchemist",
     "contracts/banker",
     "contracts/castle",
     "contracts/clerk",
