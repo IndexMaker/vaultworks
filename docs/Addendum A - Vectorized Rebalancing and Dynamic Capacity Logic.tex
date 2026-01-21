@@ -1,0 +1,138 @@
+\documentclass[11pt, a4paper]{article}
+
+\usepackage[a4paper, top=2.5cm, bottom=2.5cm, left=2.2cm, right=2.2cm]{geometry}
+\usepackage{fontspec}
+\usepackage{amsmath}
+\usepackage{amsfonts}
+\usepackage{amssymb}
+\usepackage{algorithm}
+\usepackage{algpseudocode}
+\usepackage{xcolor}
+\usepackage{titlesec}
+
+% Font Setup
+\setmainfont{Noto Sans}
+
+% Custom Operators for VIL
+\newcommand{\VIL}[1]{\texttt{\textbf{#1}}}
+\newcommand{\joinupdate}{\mathop{\text{join\_update}}}
+\newcommand{\joinfilter}{\mathop{\text{join\_filter}}}
+\newcommand{\satsub}{\mathop{\ominus}} % Saturating Subtraction (SSB)
+\newcommand{\vecmin}{\mathop{\text{min}}}
+
+\title{\textbf{Addendum A: Vectorized Rebalancing \& Dynamic Capacity Logic}}
+\author{Sonia Kolasinska, IndexMaker Labs}
+\date{\today}
+
+\begin{document}
+
+\maketitle
+
+\begin{abstract}
+This addendum details the vector-based rebalancing mechanism of the Decentralised Index Maker (DeIndex) protocol. Unlike simple atomic swaps, the DeIndex rebalance routine utilizes a custom Vector Intermediate Language (VIL) to perform a deterministic, dual-sided auction entirely on-chain. We formalize the two-stage process: (1) The derivation of \textit{Target Drift} based on index weight changes, and (2) The \textit{Restoring Force Execution}, which dynamically clamps rebalancing actions against a Capacity Limit ($CL$) derived from real-time asset liquidity and system margin. This approach ensures that index adjustments mathematically guarantee system solvency via saturating arithmetic and atomic state transitions.
+\end{abstract}
+
+\section{Introduction}
+Rebalancing is the mechanism by which the Index aligns its composition with a new target weight distribution. In standard EVM implementations, this is often an iterative, gas-intensive process. In the DeIndex $VM^2$ environment, rebalancing is treated as a single atomic vector operation.
+
+The logic is split into two distinct VIL routines:
+\begin{enumerate}
+    \item \textbf{Target Derivation (\texttt{update\_rebalance}):} Calculates the net drift in asset quantities required to match the new weight distribution.
+    \item \textbf{Capacity \& Execution (\texttt{execute\_rebalance}):} Calculates the maximum safe execution quantity ($CL$) based on the "Restoring Force" principle and commits the new state.
+\end{enumerate}
+
+\section{Stage 1: Target Drift Derivation}
+The first phase calculates the \textit{Rebalance Vectors} ($R_{long}, R_{short}$), which represent the quantity of each asset that must be bought or sold to achieve the new portfolio structure.
+
+\subsection{Total Supply Calculation}
+The VIL first computes the net active supply ($S_{total}$) by strictly netting the Bid and Ask inventory states.
+\begin{equation}
+    S_{total} = M_{bid} - (C_{ask} + S_{ask})
+\end{equation}
+Where $M$ represents minted, $C$ represents committed, and $S$ represents spent Index tokens and the corresponding underlying inventory.
+
+\subsection{Weight Delta ($\Delta W$)}
+The protocol identifies the shift in weights between the old configuration ($W_{old}$) and the new configuration ($W_{new}$). Utilizing the VIL's \texttt{LUNION} (Label Union) and \texttt{JUPD} (Join Update) instructions, vectors are aligned to a superset domain $\mathcal{U}$.
+
+The weight drift is split into mutually exclusive Long and Short components using the VIL's Saturating Subtraction (\VIL{SSB}) instruction ($\satsub$), where $a \satsub b = \max(0, a - b)$:
+
+\begin{align}
+    \Delta W_{short} &= W_{old}^{\mathcal{U}} \satsub W_{new}^{\mathcal{U}} \\
+    \Delta W_{long} &= W_{new}^{\mathcal{U}} \satsub W_{old}^{\mathcal{U}}
+\end{align}
+
+\subsection{Rebalance Vector Accumulation}
+The system calculates the new target quantities by scaling the weight delta by the total supply and accumulating it into the existing rebalance vectors.
+
+\begin{align}
+    R_{long}' &= R_{long} + (S_{total} \cdot \Delta W_{long}) \\
+    R_{short}' &= R_{short} + (S_{total} \cdot \Delta W_{short})
+\end{align}
+
+Finally, the system normalizes the rebalance vectors to ensure that for any asset $i$, the protocol is not simultaneously buying and selling (netting internal crossings):
+
+\begin{align}
+    R_{long, final} &= R_{long}' \satsub R_{short}' \\
+    R_{short, final} &= R_{short}' \satsub R_{long}'
+\end{align}
+
+\section{Stage 2: The Restoring Force \& Capacity Limits}
+The execution phase (\texttt{execute\_rebalance}) is the system's risk engine. It does not blindly execute the target $R$; instead, it calculates a \textit{Capacity Limit} ($CL$) that ensures market stability.
+
+\subsection{The Capacity Limit ($CL$) Formula}
+The protocol employs a "Restoring Force" logic: exposure that reduces the system's Net Delta ($\Delta$) is allowed up to the full liquidity limit, while exposure that increases Delta is tightly constrained by the Margin ($M$).
+
+Let $L_{iq}$ be the available market liquidity. The Capacity Limit vectors are derived as:
+
+\begin{equation}
+    CL_{long} = \Delta_{long} + \min\left( (M \satsub \Delta_{short}), L_{iq} \right)
+\end{equation}
+
+\begin{equation}
+    CL_{short} = \Delta_{short} + \min\left( (M \satsub \Delta_{long}), L_{iq} \right)
+\end{equation}
+
+\textbf{Interpretation:} 
+\begin{itemize}
+    \item The term $\Delta_{long}$ implies that we can always "close" an existing long position.
+    \item The term $\min(M \satsub \Delta_{short}, L_{iq})$ represents the \textit{new} capacity we can open, bounded by either the remaining system margin or the physical market liquidity.
+\end{itemize}
+
+\subsection{Execution Capping}
+The actual executed quantity ($E$) is determined by scaling the Capacity Limit by a governance factor ($K$). The primary function of $K$ is to preserve a portion of the available margin for user orders, preventing the rebalance mechanism from monopolizing system liquidity. The factor $K$ is strictly constrained to the range $K \in (0, 1]$.
+
+\begin{align}
+    E_{long} &= \min( R_{long}, K \cdot CL_{long} ) \\
+    E_{short} &= \min( R_{short}, K \cdot CL_{short} )
+\end{align}
+
+This ensures that the protocol never attempts to move more assets than the market can absorb while guaranteeing that user-initiated flow retains access to liquidity.
+
+\section{Stage 3: State Update \& Atomic Commit}
+Once the execution quantities ($E$) are determined, the VIL performs an atomic update of the Market Demand and Net Delta vectors.
+
+\subsection{Demand Vector Update}
+The executed rebalance acts as a modifier to the existing market demand ($D$). 
+\begin{enumerate}
+    \item \textbf{Update Short Demand:} Executed assets satisfy existing Short Demand ($D_{short}$) first.
+    \begin{equation}
+        D_{short, new} = D_{short} \satsub E
+    \end{equation}
+    \item \textbf{Residuals to Long Demand:} Any execution quantity exceeding Short Demand flows into Long Demand ($D_{long}$).
+    \begin{equation}
+        D_{long, new} = D_{long} \oplus (E \satsub D_{short})
+    \end{equation}
+\end{enumerate}
+
+\subsection{Delta ($\Delta$) Finalization}
+The final Net Exposure (Delta) is recalculated from the new Total Supply ($T$) states. This step is critical for maintaining the invariant that $\Delta_{long}$ and $\Delta_{short}$ are mutually exclusive.
+
+\begin{align}
+    \Delta_{long} &= (S_{long} + D_{short, new}) \satsub (S_{short} + D_{long, new}) \\
+    \Delta_{short} &= (S_{short} + D_{long, new}) \satsub (S_{long} + D_{short, new})
+\end{align}
+
+\section{Conclusion}
+The VIL implementation of the rebalance logic demonstrates a novel approach to on-chain financial engineering. By replacing conditional control flow (if/else) with \textbf{Saturating Arithmetic} and \textbf{Vectorized Clamping}, the protocol achieves high-dimensional portfolio adjustments with $O(N_I + N_M)$ complexity. The mathematical formulation of the Capacity Limit ($CL$) guarantees that rebalancing operations act as a stabilizing force, strictly adhering to the system's solvency constraints.
+
+\end{document}

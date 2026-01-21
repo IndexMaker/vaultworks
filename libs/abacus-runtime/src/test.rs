@@ -104,10 +104,64 @@ mod test_utils {
             }
         }
     }
+
+    pub(super) fn project(data: &Vector, from_names: &Labels, to_names: &Labels) -> Vector {
+        let mut vio = test_utils::TestVectorIO::new();
+        let num_registers = 0;
+
+        let data_id = 1;
+        let from_names_id = 2;
+        let to_names_id = 3;
+
+        vio.store_vector(
+            data_id,
+            Vector {
+                data: data.data.clone(),
+            },
+        )
+        .unwrap();
+        vio.store_labels(
+            from_names_id,
+            Labels {
+                data: from_names.data.clone(),
+            },
+        )
+        .unwrap();
+        vio.store_labels(
+            to_names_id,
+            Labels {
+                data: to_names.data.clone(),
+            },
+        )
+        .unwrap();
+
+        let code = abacus!(
+            LDV     data_id         // D
+            LDL     from_names_id   // D, N_from
+            LDL     to_names_id     // D, N_from, N_to
+            LDD     0               // D, N_from, N_to, N_to
+            LUNION  2               // D, N_from, N_to, N_union
+            ZEROS   1               // D, N_from, N_to, N_union, Z_union
+            JUPD    4   1   3       // D, N_from, N_to, N_union, D_union
+            JFLT    1   2
+            STV     data_id
+        );
+
+        let mut stack = Stack::new(num_registers);
+        let mut program = VectorVM::new(&mut vio);
+
+        if let Err(err) = program.execute_with_stack(code.unwrap(), &mut stack) {
+            log_stack!(&stack);
+            panic!("Failed to project: {:?}", err);
+        }
+
+        vio.load_vector(data_id).unwrap()
+    }
 }
 
 mod unit_tests {
     use super::*;
+
     #[test]
     fn test_transpose() {
         let mut vio = test_utils::TestVectorIO::new();
@@ -176,12 +230,15 @@ mod unit_tests {
 mod test_scenarios {
     use abacus_formulas::{
         add_market_assets::add_market_assets, create_market::create_market,
-        execute_sell_order::execute_sell_order, execute_transfer::execute_transfer,
-        solve_quadratic_ask::solve_quadratic_ask, update_margin::update_margin,
-        update_market_data::update_market_data, update_quote::update_quote,
+        execute_rebalance::execute_rebalance, execute_sell_order::execute_sell_order,
+        execute_transfer::execute_transfer, solve_quadratic_ask::solve_quadratic_ask,
+        update_margin::update_margin, update_market_data::update_market_data,
+        update_quote::update_quote, update_rebalance::update_rebalance,
         update_supply::update_supply,
     };
     use amount_macros::amount;
+
+    use crate::test::test_utils::project;
 
     use super::*;
 
@@ -576,7 +633,7 @@ mod test_scenarios {
             receiver_bid_id,
             transfer_amount.to_u128_raw(),
         );
-        
+
         let num_registers = 6;
 
         let mut program = VectorVM::new(&mut vio);
@@ -638,7 +695,8 @@ mod test_scenarios {
                     delta_long_id,
                     delta_short_id,
                     margin_id,
-                ).unwrap(),
+                )
+                .unwrap(),
             );
         }
         {
@@ -662,7 +720,8 @@ mod test_scenarios {
                     delta_long_id,
                     delta_short_id,
                     margin_id,
-                ).unwrap(),
+                )
+                .unwrap(),
             );
         }
 
@@ -704,7 +763,8 @@ mod test_scenarios {
                 asset_margin_id,
                 market_asset_names_id,
                 margin_id,
-            ).unwrap(),
+            )
+            .unwrap(),
         );
 
         program.execute(
@@ -718,7 +778,8 @@ mod test_scenarios {
                 market_asset_prices_id,
                 market_asset_slopes_id,
                 market_asset_liquidity_id,
-            ).unwrap(),
+            )
+            .unwrap(),
         );
 
         program.execute(
@@ -734,7 +795,8 @@ mod test_scenarios {
                 demand_short_id,
                 delta_long_id,
                 delta_short_id,
-            ).unwrap(),
+            )
+            .unwrap(),
         );
 
         program.execute(
@@ -747,7 +809,8 @@ mod test_scenarios {
                 market_asset_prices_id,
                 market_asset_slopes_id,
                 market_asset_liquidity_id,
-            ).unwrap(),
+            )
+            .unwrap(),
         );
 
         let new_margin = vio.load_vector(margin_id).unwrap();
@@ -860,5 +923,361 @@ mod test_scenarios {
             new_quote.data,
             amount_vec![1.250000000, 12000.000000000, 1120.000000000].data
         )
+    }
+
+    #[test]
+    fn test_update_rebalance() {
+        let mut vio = test_utils::TestVectorIO::new();
+
+        let total_bid_id = 10003;
+        let total_ask_id = 10004;
+
+        let old_asset_names_id = 1001;
+        let old_weights_id = 1002;
+
+        let new_asset_names_id = 1003;
+        let new_weights_id = 1004;
+
+        let rebalance_asset_names_id = 120;
+        let rebalance_weights_long_id = 121;
+        let rebalance_weights_short_id = 122;
+
+        let old_asset_names = label_vec![51, 53, 54];
+        let new_asset_names = label_vec![52, 53, 55];
+        let rebalance_asset_names = label_vec![51, 52];
+
+        vio.store_vector(total_bid_id, amount_vec![0.0, 1000.0, 1.0])
+            .unwrap();
+
+        vio.store_vector(total_ask_id, amount_vec![0.3, 0.1, 200.0])
+            .unwrap();
+
+        vio.store_labels(
+            old_asset_names_id,
+            Labels {
+                data: old_asset_names.data.clone(),
+            },
+        )
+        .unwrap();
+
+        vio.store_vector(old_weights_id, amount_vec![0.1, 0.2, 1.0])
+            .unwrap();
+
+        vio.store_labels(
+            new_asset_names_id,
+            Labels {
+                data: new_asset_names.data.clone(),
+            },
+        )
+        .unwrap();
+
+        vio.store_vector(new_weights_id, amount_vec![0.2, 0.2, 0.8])
+            .unwrap();
+
+        vio.store_labels(
+            rebalance_asset_names_id,
+            Labels {
+                data: rebalance_asset_names.data.clone(),
+            },
+        )
+        .unwrap();
+
+        vio.store_vector(rebalance_weights_long_id, amount_vec![0.04, 0])
+            .unwrap();
+
+        vio.store_vector(rebalance_weights_short_id, amount_vec![0, 0.1])
+            .unwrap();
+
+        let code = update_rebalance(
+            total_bid_id,
+            total_ask_id,
+            old_asset_names_id,
+            old_weights_id,
+            new_asset_names_id,
+            new_weights_id,
+            rebalance_asset_names_id,
+            rebalance_weights_long_id,
+            rebalance_weights_short_id,
+        );
+
+        let total_bid = vio.load_vector(total_bid_id).unwrap();
+        let total_ask = vio.load_vector(total_ask_id).unwrap();
+        let old_weights = vio.load_vector(old_weights_id).unwrap();
+        let new_weights = vio.load_vector(new_weights_id).unwrap();
+        let rebalance_weights_long_before = vio.load_vector(rebalance_weights_long_id).unwrap();
+        let rebalance_weights_short_before = vio.load_vector(rebalance_weights_short_id).unwrap();
+
+        let num_registers = 6;
+        let mut program = VectorVM::new(&mut vio);
+        let mut stack = Stack::new(num_registers);
+        let result = program.execute_with_stack(code.unwrap(), &mut stack);
+
+        if let Err(err) = result {
+            log_stack!(&stack);
+            panic!("Failed to execute test: {:?}", err);
+        }
+
+        let rebalance_weights_long_after = vio.load_vector(rebalance_weights_long_id).unwrap();
+        let rebalance_weights_short_after = vio.load_vector(rebalance_weights_short_id).unwrap();
+        let rebalance_asset_names_after = vio.load_labels(rebalance_asset_names_id).unwrap();
+
+        let all_asset_names = label_vec![51, 52, 53, 54, 55];
+        let old_weights = project(&old_weights, &old_asset_names, &all_asset_names);
+        let new_weights = project(&new_weights, &new_asset_names, &all_asset_names);
+        let rebalance_weights_long_before = project(
+            &rebalance_weights_long_before,
+            &rebalance_asset_names,
+            &all_asset_names,
+        );
+        let rebalance_weights_short_before = project(
+            &rebalance_weights_short_before,
+            &rebalance_asset_names,
+            &all_asset_names,
+        );
+        let rebalance_weights_long_after = project(
+            &rebalance_weights_long_after,
+            &rebalance_asset_names_after,
+            &all_asset_names,
+        );
+        let rebalance_weights_short_after = project(
+            &rebalance_weights_short_after,
+            &rebalance_asset_names_after,
+            &all_asset_names,
+        );
+
+        log_msg!("\n-= Program complete =-");
+
+        log_msg!("\n[in] Total Bid = {:0.9}", total_bid);
+        log_msg!("[in] Total Ask = {:0.9}", total_ask);
+
+        log_msg!("\n[in] Old Asset Names = {}", old_asset_names);
+        log_msg!("[in] Old Weights = {:0.9}", old_weights);
+
+        log_msg!("\n[in] New Asset Names = {}", new_asset_names);
+        log_msg!("[in] New Weights = {:0.9}", new_weights);
+
+        log_msg!("\n[in] Rebalance Asset Names = {}", rebalance_asset_names);
+        log_msg!(
+            "[in] Rebalance Weights Long = {:0.9}",
+            rebalance_weights_long_before
+        );
+        log_msg!(
+            "[in] Rebalance Weights Short = {:0.9}",
+            rebalance_weights_short_before
+        );
+
+        log_msg!(
+            "\n[out] Rebalance Asset Names = {}",
+            rebalance_asset_names_after
+        );
+        log_msg!(
+            "[out] Rebalance Weights Long = {:0.9}",
+            rebalance_weights_long_after
+        );
+        log_msg!(
+            "[out] Rebalance Weights Short = {:0.9}",
+            rebalance_weights_short_after
+        );
+
+        assert_eq!(
+            rebalance_asset_names_after.data,
+            label_vec![51, 52, 53, 54, 55].data
+        );
+
+        assert_eq!(
+            rebalance_weights_long_after.data,
+            amount_vec![0, 0.02, 0, 0, 0.48].data
+        );
+
+        assert_eq!(
+            rebalance_weights_short_after.data,
+            amount_vec![0.02, 0, 0, 0.6, 0].data
+        )
+    }
+
+    #[test]
+    fn test_execute_rebalance() {
+        let mut vio = test_utils::TestVectorIO::new();
+
+        let market_asset_names_id = 101;
+
+        let supply_long_id = 102;
+        let supply_short_id = 103;
+        let demand_long_id = 104;
+        let demand_short_id = 105;
+        let delta_long_id = 106;
+        let delta_short_id = 107;
+
+        let margin_id = 108;
+        let asset_liquidity_id = 109;
+
+        let executed_assets_long_id = 1;
+        let executed_assets_short_id = 2;
+
+        let rebalance_asset_names_id = 120;
+        let rebalance_weights_long_id = 121;
+        let rebalance_weights_short_id = 122;
+
+        let rebalance_asset_names = label_vec![51, 53, 54];
+        let market_asset_names = label_vec![51, 52, 53, 54, 55];
+
+        let capacity_factor = amount!(0.50);
+
+        vio.store_labels(
+            rebalance_asset_names_id,
+            Labels {
+                data: rebalance_asset_names.data.clone(),
+            },
+        )
+        .unwrap();
+
+        vio.store_labels(
+            market_asset_names_id,
+            Labels {
+                data: market_asset_names.data.clone(),
+            },
+        )
+        .unwrap();
+
+        vio.store_vector(rebalance_weights_long_id, amount_vec![0.1, 0, 0.05])
+            .unwrap();
+
+        vio.store_vector(rebalance_weights_short_id, amount_vec![0, 0.04, 0])
+            .unwrap();
+
+        vio.store_vector(supply_long_id, amount_vec![0.1, 0.2, 0.1, 0.2, 0])
+            .unwrap();
+
+        vio.store_vector(supply_short_id, amount_vec![0, 0, 0, 0, 0.1])
+            .unwrap();
+
+        vio.store_vector(demand_long_id, amount_vec![0.1, 0.2, 0, 0.4, 0])
+            .unwrap();
+
+        vio.store_vector(demand_short_id, amount_vec![0, 0, 0.5, 0, 0])
+            .unwrap();
+
+        vio.store_vector(delta_long_id, amount_vec![0, 0, 0, 0, 0])
+            .unwrap();
+
+        vio.store_vector(delta_short_id, amount_vec![0, 0, 0, 0, 0])
+            .unwrap();
+
+        vio.store_vector(margin_id, amount_vec![0.1, 1, 1, 1, 1])
+            .unwrap();
+
+        vio.store_vector(asset_liquidity_id, amount_vec![1, 1, 1, 0.02, 1])
+            .unwrap();
+
+        let margin = vio.load_vector(margin_id).unwrap();
+        let liquidity = vio.load_vector(asset_liquidity_id).unwrap();
+
+        let demand_short_before = vio.load_vector(demand_short_id).unwrap();
+        let demand_long_before = vio.load_vector(demand_long_id).unwrap();
+
+        let rebalance_weights_long_before = vio.load_vector(rebalance_weights_long_id).unwrap();
+        let rebalance_weights_short_before = vio.load_vector(rebalance_weights_short_id).unwrap();
+
+        let code = execute_rebalance(
+            capacity_factor.to_u128_raw(),
+            executed_assets_long_id,
+            executed_assets_short_id,
+            rebalance_asset_names_id,
+            rebalance_weights_long_id,
+            rebalance_weights_short_id,
+            market_asset_names_id,
+            supply_long_id,
+            supply_short_id,
+            demand_long_id,
+            demand_short_id,
+            delta_long_id,
+            delta_short_id,
+            margin_id,
+            asset_liquidity_id,
+        );
+
+        let num_registers = 10;
+        let mut program = VectorVM::new(&mut vio);
+        let mut stack = Stack::new(num_registers);
+        let result = program.execute_with_stack(code.unwrap(), &mut stack);
+
+        if let Err(err) = result {
+            log_stack!(&stack);
+            panic!("Failed to execute test: {:?}", err);
+        }
+
+        let rebalance_weights_long_after = vio.load_vector(rebalance_weights_long_id).unwrap();
+        let rebalance_weights_short_after = vio.load_vector(rebalance_weights_short_id).unwrap();
+
+        let demand_short_after = vio.load_vector(demand_short_id).unwrap();
+        let demand_long_after = vio.load_vector(demand_long_id).unwrap();
+
+        let delta_short = vio.load_vector(delta_short_id).unwrap();
+        let delta_long = vio.load_vector(delta_long_id).unwrap();
+
+        let executed_asset_long = vio.load_vector(executed_assets_long_id).unwrap();
+        let executed_asset_short = vio.load_vector(executed_assets_short_id).unwrap();
+
+        log_msg!("\n-= Program complete =-");
+
+        log_msg!("\n[in] Margin    = {:0.9}", margin);
+        log_msg!("[in] Liquidity = {:0.9}", liquidity);
+
+        log_msg!("\n[in] Capacity Factor = {:0.9}", capacity_factor);
+
+        log_msg!(
+            "\n[in] Rebalance Asset Names = {:0.9}",
+            rebalance_asset_names
+        );
+
+        log_msg!(
+            "\n[in] Rebalance Weights Long  = {:0.9}",
+            rebalance_weights_long_before
+        );
+        log_msg!(
+            "[in] Rebalance Weights Short = {:0.9}",
+            rebalance_weights_short_before
+        );
+
+        log_msg!("\n[in] Demand Long = {:0.9}", demand_long_before);
+        log_msg!("[in] Demand Short= {:0.9}", demand_short_before);
+
+        log_msg!("\n[out] Demand Long  = {:0.9}", demand_long_after);
+        log_msg!("[out] Demand Short = {:0.9}", demand_short_after);
+
+        log_msg!("\n[out] Delta Long  = {:0.9}", delta_long);
+        log_msg!("[out] Delta Short = {:0.9}", delta_short);
+
+        log_msg!("\n[out] Executed Long  = {:0.9}", executed_asset_long);
+        log_msg!("[out] Executed Short = {:0.9}", executed_asset_short);
+
+        log_msg!(
+            "\n[out] Rebalance Weights Long  = {:0.9}",
+            rebalance_weights_long_after
+        );
+        log_msg!(
+            "[out] Rebalance Weights Short = {:0.9}",
+            rebalance_weights_short_after
+        );
+
+        assert_eq!(executed_asset_long.data, amount_vec![0.05, 0, 0.01].data);
+
+        assert_eq!(executed_asset_short.data, amount_vec![0, 0.04, 0].data);
+
+        assert_eq!(
+            rebalance_weights_long_after.data,
+            amount_vec![0.05, 0, 0.04].data
+        );
+        assert_eq!(
+            rebalance_weights_short_after.data,
+            amount_vec![0, 0, 0].data
+        );
+
+        assert_eq!(
+            demand_long_after.data,
+            amount_vec![0.15, 0, 0, 0.41, 0].data
+        );
+
+        assert_eq!(demand_short_after.data, amount_vec![0, 0, 0.54, 0, 0].data);
     }
 }

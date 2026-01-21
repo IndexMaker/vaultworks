@@ -603,8 +603,7 @@ impl Stack {
             // If both vectors use same labels, then it's just normal vector add
             return self.add(1);
         }
-        if pos_labels_a < 2 || pos_labels_b < 2 {
-            // [TOS - 1, TOS] are reserved for values
+        if pos_labels_a == 0 || pos_labels_b == 0 {
             Err(ErrorCode::InvalidOperand)?;
         }
         let stack_index_v2 = self.get_stack_index(pos_vector_b)?;
@@ -629,10 +628,10 @@ impl Stack {
                 Operand::Labels(labels_b),
             ) => {
                 if v1.data.len() != labels_a.data.len() {
-                    Err(ErrorCode::InvalidOperand)?;
+                    Err(ErrorCode::NotAligned)?;
                 }
                 if v2.data.len() != labels_b.data.len() {
-                    Err(ErrorCode::InvalidOperand)?;
+                    Err(ErrorCode::NotAligned)?;
                 }
                 let mut i = 0;
                 for j in 0..labels_b.data.len() {
@@ -646,7 +645,6 @@ impl Stack {
                         i += 1;
                     }
                 }
-                // }
             }
             _ => Err(ErrorCode::InvalidOperand)?,
         }
@@ -664,8 +662,7 @@ impl Stack {
             // If both vectors use same labels, then it's just normal vector add
             return self.add(1);
         }
-        if pos_labels_a < 2 || pos_labels_b < 2 {
-            // [TOS - 1, TOS] are reserved for values
+        if pos_labels_a == 0 || pos_labels_b == 0 {
             Err(ErrorCode::InvalidOperand)?;
         }
         let stack_index_v2 = self.get_stack_index(pos_vector_b)?;
@@ -690,10 +687,10 @@ impl Stack {
                 Operand::Labels(labels_b),
             ) => {
                 if v1.data.len() != labels_a.data.len() {
-                    Err(ErrorCode::InvalidOperand)?;
+                    Err(ErrorCode::NotAligned)?;
                 }
                 if v2.data.len() != labels_b.data.len() {
-                    Err(ErrorCode::InvalidOperand)?;
+                    Err(ErrorCode::NotAligned)?;
                 }
                 let mut i = 0;
                 for j in 0..labels_b.data.len() {
@@ -722,8 +719,7 @@ impl Stack {
             // If both vectors use same labels, then no work needed
             return Ok(());
         }
-        if pos_labels_a < 1 || pos_labels_b < 1 {
-            // [TOS - 1, TOS] are reserved for values
+        if pos_labels_a == 0 || pos_labels_b == 0 {
             Err(ErrorCode::InvalidOperand)?;
         }
         let stack_index_labels_a = self.get_stack_index(pos_labels_a)?;
@@ -739,7 +735,7 @@ impl Stack {
         match (v1, labels_a, labels_b) {
             (Operand::Vector(v1), Operand::Labels(labels_a), Operand::Labels(labels_b)) => {
                 if v1.data.len() != labels_a.data.len() {
-                    Err(ErrorCode::InvalidOperand)?;
+                    Err(ErrorCode::NotAligned)?;
                 }
                 let mut result = Vec::with_capacity(labels_b.data.len());
                 let mut i = 0;

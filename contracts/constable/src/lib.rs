@@ -21,8 +21,15 @@ use common_contracts::{
         keep::{Keep, KEEP_VERSION_NUMBER},
     },
     interfaces::{
-        banker::IBanker, castle::ICastle, constable::IConstable, factor::IFactor,
-        guildmaster::IGuildmaster, scribe::IScribe, steward::ISteward, worksman::IWorksman,
+        alchemist::{self, IAlchemist},
+        banker::IBanker,
+        castle::ICastle,
+        constable::IConstable,
+        factor::IFactor,
+        guildmaster::IGuildmaster,
+        scribe::IScribe,
+        steward::ISteward,
+        worksman::IWorksman,
     },
 };
 use stylus_sdk::{prelude::*, stylus_core};
@@ -340,7 +347,6 @@ impl Constable {
             guildmaster,
             vec![
                 IGuildmaster::submitIndexCall::SELECTOR.into(),
-                IGuildmaster::submitAssetWeightsCall::SELECTOR.into(),
                 IGuildmaster::submitVoteCall::SELECTOR.into(),
             ],
             CASTLE_ISSUER_ROLE.into(),
@@ -353,6 +359,27 @@ impl Constable {
                 IGuildmaster::finishEditIndexCall::SELECTOR.into(),
             ],
             CASTLE_ADMIN_ROLE.into(),
+        )?;
+
+        Ok(())
+    }
+
+    pub fn appoint_alchemist(&mut self, alchemist: Address) -> Result<(), Vec<u8>> {
+        if alchemist.is_zero() {
+            Err(b"Address cannot be zero")?;
+        }
+        let storage = Keep::storage();
+        storage.check_version()?;
+
+        log_msg!("Appointing alchemist {}", alchemist);
+
+        self._create_protected_functions(
+            alchemist,
+            vec![
+                IAlchemist::submitAssetWeightsCall::SELECTOR.into(),
+                IAlchemist::processPendingRebalanceCall::SELECTOR.into(),
+            ],
+            CASTLE_ISSUER_ROLE.into(),
         )?;
 
         Ok(())

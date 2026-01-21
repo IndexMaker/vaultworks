@@ -1,8 +1,8 @@
 [package]
-name = "guildmaster"
+name = "alchemist"
 version = "0.1.0"
 edition = "2021"
-description = "IndexMaker Guildmaster (Summons vaults: Deploys Vault contracts and facilitates voting)"
+description = "IndexMaker Alchemist (Rebalances Indexes)"
 
 [dependencies]
 abacus-formulas = { workspace = true }
@@ -33,7 +33,7 @@ test-debug = ["stylus-sdk/debug", "common/debug", "common/stylus-test"]
 mini-alloc = ["stylus-sdk/mini-alloc"]
 
 [[bin]]
-name = "guildmaster"
+name = "alchemist"
 path = "src/main.rs"
 
 [lib]
