@@ -1,9 +1,9 @@
 pub mod add_market_assets;
 pub mod create_market;
 pub mod execute_buy_order;
+pub mod execute_rebalance;
 pub mod execute_sell_order;
 pub mod execute_transfer;
-pub mod update_rebalance;
 pub mod solve_quadratic_ask;
 pub mod solve_quadratic_bid;
 pub mod submit_buy_order;
@@ -11,4 +11,5 @@ pub mod submit_sell_order;
 pub mod update_margin;
 pub mod update_market_data;
 pub mod update_quote;
+pub mod update_rebalance;
 pub mod update_supply;
