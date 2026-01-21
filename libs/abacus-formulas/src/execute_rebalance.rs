@@ -79,18 +79,18 @@ pub fn execute_rebalance(
         JFLT        1   2                       // Stack: [AN, MAN, fDL]
         LDV         demand_short_id             // Stack: [AN, MAN, fDL, DS]
         JFLT        2   3                       // Stack: [AN, MAN, fDL, fDS]
-        LDM         _RebalanceDeltaLong         // Stack: [AN, MAN, fDL, fDS, RDL]
-        LDM         _RebalanceDeltaShort        // Stack: [AN, MAN, fDL, fDS, RDL, RDS]
+        LDR         _RebalanceDeltaLong         // Stack: [AN, MAN, fDL, fDS, RDL]
+        LDR         _RebalanceDeltaShort        // Stack: [AN, MAN, fDL, fDS, RDL, RDS]
         ADD         2                           // Stack: [AN, MAN, fDL, fDS, RDL, (RDS + fDS)]
         SWAP        1                           // Stack: [AN, MAN, fDL, fDS, (RDS + fDS), RDL]
         ADD         3                           // Stack: [AN, MAN, fDL, fDS, RS = (RDS + fDS), RL = (RDL + fDL)]
-        LDD         1                           // Stack: [AN, MAN, fDL, fDS, RS, RL, RL]
+        LDD         0                           // Stack: [AN, MAN, fDL, fDS, RS, RL, RL]
         SSB         2                           // Stack: [AN, MAN, fDL, fDS, RS, RL, DL_new = (RL s-  RS)]
         SWAP        2                           // Stack: [AN, MAN, fDL, fDS, DL_new, RL, RS]
         SSB         1                           // Stack: [AN, MAN, fDL, fDS, DL_new, RL, DS_new = (RS s- RL)]
         STR         _DemandShort                // Stack: [AN, MAN, fDL, fDS, DL_new, RL]
         SWAP        1                           // Stack: [AN, MAN, fDL, fDS, RL, DL_new]
-        STR         _DeltaLong                  // Stack: [AN, MAN, fDL, fDS, RL]
+        STR         _DemandLong                 // Stack: [AN, MAN, fDL, fDS, RL]
         POPN        3                           // Stack: [AN, MAN]
 
         // Update Delta
@@ -102,17 +102,17 @@ pub fn execute_rebalance(
         LDV         supply_long_id              // Stack [AN, MAN, SL]
         JFLT        1   2                       // Stack [AN, MAN, fSL]
         LDR         _DemandShort                // Stack [AN, MAN, fSL, DS]
-        ADD         1                           // Stack [AssetNames, MarketAssetNames, SupplyLong, DeltaLong]
-        SWAP        1
-        POPN        1                           // Stack [AssetNames, MarketAssetNames, DeltaLong]
+        ADD         1                           // Stack [AN, MAN, fSL, DeltaLong]
+        SWAP        1                           // Stack [AN, MAN, DeltaLong, fSL]
+        POPN        1                           // Stack [AN, MAN, DeltaLong]
 
         // Delta Short = Supply Short + Demand Long
-        LDV         supply_short_id             // Stack [AN, MAN, SS]
-        JFLT        1   2                       // Stack [AN, MAN, fSS]
-        LDR         _DemandLong                 // Stack [AN, MAN, fSD, DL]
-        ADD         1                           // Stack [AssetNames, MarketAssetNames, DeltaLong, SupplyShort, DeltaShort]
-        SWAP        1
-        POPN        1                           // Stack [AssetNames, MarketAssetNames, DeltaLong, DeltaShort]
+        LDV         supply_short_id             // Stack [AN, MAN, DeltaLong, SS]
+        JFLT        2   3                       // Stack [AN, MAN, DeltaLong, fSS]
+        LDR         _DemandLong                 // Stack [AN, MAN, DeltaLong, fSD, DL]
+        ADD         1                           // Stack [AN, MAN, DeltaLong, fSD, DeltaShort]
+        SWAP        1                           // Stack [AN, MAN, DeltaLong, DeltaShort, fSD]
+        POPN        1                           // Stack [AN, MAN, DeltaLong, DeltaShort]
 
         // Normalize Delta(Long|Short) = Delta Long - Delta Short
         LDD         0                           // Stack [AssetNames, MarketAssetNames, DeltaLong, DeltaShort, DeltaShort]
@@ -132,25 +132,35 @@ pub fn execute_rebalance(
         LDM         _DemandLong             // Stack [AN, MAN, fDL]
         ZEROS       1                       // Stack [AN, MAN, fDL, Z]
         JUPD        1   2   3               // Stack [AN, MAN, fDL, DL]
-        STV         demand_long_id
+        STV         demand_long_id          // Stack [AN, MAN, fDL]
+        POPN        1                       // Stack [AN, MAN]
 
         LDM         _DemandShort            // Stack [AN, MAN, fDS]
         ZEROS       1                       // Stack [AN, MAN, fDS, Z]
         JUPD        1   2   3               // Stack [AN, MAN, fDS, DS]
-        STV         demand_short_id
+        STV         demand_short_id         // Stack [AN, MAN, fDS]
+        POPN        1                       // Stack [AN, MAN]
 
         // Expand & Store Delta
         LDM         _DeltaLong
         ZEROS       1
         JUPD        1   2   3
         STV         delta_short_id
+        POPN        1
         
         LDM         _DeltaShort
         ZEROS       1
         JUPD        1   2   3
         STV         delta_long_id
+        POPN        3
 
-        // Storte executed assets quantities (Buy|Sell)
+        // Store updated rebalance assets weights (Buy|Sell)
+        LDM         _RebalanceWeightsLong
+        LDM         _RebalanceWeightsShort
+        STV         rebalance_weights_short_id
+        STV         rebalance_weights_long_id
+
+        // Store executed assets quantities (Buy|Sell)
         LDM         _RebalanceDeltaLong
         LDM         _RebalanceDeltaShort
         STV         executed_assets_short_id

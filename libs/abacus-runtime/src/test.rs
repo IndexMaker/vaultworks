@@ -1118,7 +1118,65 @@ mod test_scenarios {
         let rebalance_weights_long_id = 121;
         let rebalance_weights_short_id = 122;
 
+        let rebalance_asset_names = label_vec![51, 53, 54];
+        let market_asset_names = label_vec![51, 52, 53, 54, 55];
+
         let capacity_factor = amount!(0.50);
+
+        vio.store_labels(
+            rebalance_asset_names_id,
+            Labels {
+                data: rebalance_asset_names.data.clone(),
+            },
+        )
+        .unwrap();
+
+        vio.store_labels(
+            market_asset_names_id,
+            Labels {
+                data: market_asset_names.data.clone(),
+            },
+        )
+        .unwrap();
+
+        vio.store_vector(rebalance_weights_long_id, amount_vec![0.1, 0, 0.05])
+            .unwrap();
+
+        vio.store_vector(rebalance_weights_short_id, amount_vec![0, 0.04, 0])
+            .unwrap();
+
+        vio.store_vector(supply_long_id, amount_vec![0.1, 0.2, 0.1, 0.2, 0])
+            .unwrap();
+
+        vio.store_vector(supply_short_id, amount_vec![0, 0, 0, 0, 0.1])
+            .unwrap();
+
+        vio.store_vector(demand_long_id, amount_vec![0.1, 0.2, 0, 0.4, 0])
+            .unwrap();
+
+        vio.store_vector(demand_short_id, amount_vec![0, 0, 0.5, 0, 0])
+            .unwrap();
+
+        vio.store_vector(delta_long_id, amount_vec![0, 0, 0, 0, 0])
+            .unwrap();
+
+        vio.store_vector(delta_short_id, amount_vec![0, 0, 0, 0, 0])
+            .unwrap();
+
+        vio.store_vector(margin_id, amount_vec![0.1, 1, 1, 1, 1])
+            .unwrap();
+
+        vio.store_vector(asset_liquidity_id, amount_vec![1, 1, 1, 0.02, 1])
+            .unwrap();
+
+        let margin = vio.load_vector(margin_id).unwrap();
+        let liquidity = vio.load_vector(asset_liquidity_id).unwrap();
+
+        let demand_short_before = vio.load_vector(demand_short_id).unwrap();
+        let demand_long_before = vio.load_vector(demand_long_id).unwrap();
+
+        let rebalance_weights_long_before = vio.load_vector(rebalance_weights_long_id).unwrap();
+        let rebalance_weights_short_before = vio.load_vector(rebalance_weights_short_id).unwrap();
 
         let code = execute_rebalance(
             capacity_factor.to_u128_raw(),
@@ -1147,5 +1205,79 @@ mod test_scenarios {
             log_stack!(&stack);
             panic!("Failed to execute test: {:?}", err);
         }
+
+        let rebalance_weights_long_after = vio.load_vector(rebalance_weights_long_id).unwrap();
+        let rebalance_weights_short_after = vio.load_vector(rebalance_weights_short_id).unwrap();
+
+        let demand_short_after = vio.load_vector(demand_short_id).unwrap();
+        let demand_long_after = vio.load_vector(demand_long_id).unwrap();
+
+        let delta_short = vio.load_vector(delta_short_id).unwrap();
+        let delta_long = vio.load_vector(delta_long_id).unwrap();
+
+        let executed_asset_long = vio.load_vector(executed_assets_long_id).unwrap();
+        let executed_asset_short = vio.load_vector(executed_assets_short_id).unwrap();
+
+        log_msg!("\n-= Program complete =-");
+
+        log_msg!("\n[in] Margin    = {:0.9}", margin);
+        log_msg!("[in] Liquidity = {:0.9}", liquidity);
+
+        log_msg!("\n[in] Capacity Factor = {:0.9}", capacity_factor);
+
+        log_msg!(
+            "\n[in] Rebalance Asset Names = {:0.9}",
+            rebalance_asset_names
+        );
+
+        log_msg!(
+            "\n[in] Rebalance Weights Long  = {:0.9}",
+            rebalance_weights_long_before
+        );
+        log_msg!(
+            "[in] Rebalance Weights Short = {:0.9}",
+            rebalance_weights_short_before
+        );
+
+        log_msg!("\n[in] Demand Long = {:0.9}", demand_long_before);
+        log_msg!("[in] Demand Short= {:0.9}", demand_short_before);
+
+        log_msg!("\n[out] Demand Long  = {:0.9}", demand_long_after);
+        log_msg!("[out] Demand Short = {:0.9}", demand_short_after);
+
+        log_msg!("\n[out] Delta Long  = {:0.9}", delta_long);
+        log_msg!("[out] Delta Short = {:0.9}", delta_short);
+
+        log_msg!("\n[out] Executed Long  = {:0.9}", executed_asset_long);
+        log_msg!("[out] Executed Short = {:0.9}", executed_asset_short);
+
+        log_msg!(
+            "\n[out] Rebalance Weights Long  = {:0.9}",
+            rebalance_weights_long_after
+        );
+        log_msg!(
+            "[out] Rebalance Weights Short = {:0.9}",
+            rebalance_weights_short_after
+        );
+
+        assert_eq!(executed_asset_long.data, amount_vec![0.05, 0, 0.01].data);
+
+        assert_eq!(executed_asset_short.data, amount_vec![0, 0.04, 0].data);
+
+        assert_eq!(
+            rebalance_weights_long_after.data,
+            amount_vec![0.05, 0, 0.04].data
+        );
+        assert_eq!(
+            rebalance_weights_short_after.data,
+            amount_vec![0, 0, 0].data
+        );
+
+        assert_eq!(
+            demand_long_after.data,
+            amount_vec![0.15, 0, 0, 0.41, 0].data
+        );
+
+        assert_eq!(demand_short_after.data, amount_vec![0, 0, 0.54, 0, 0].data);
     }
 }
