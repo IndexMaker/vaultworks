@@ -16,8 +16,6 @@ sol! {
 
         event IndexCreated(uint128 index_id, string name, string symbol, address vault);
         
-        event IndexWeightsUpdated(uint128 index_id, address sender);
-        
         event IndexVoteUpdated(uint128 index_id, address sender);
     }
 }

@@ -14,6 +14,7 @@ pub mod contracts {
     pub mod gate;
     pub mod keep;
     pub mod keep_calls;
+    pub mod clerk_util;
     pub mod storage;
     pub mod vault;
     pub mod vault_native;

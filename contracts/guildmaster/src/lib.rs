@@ -11,7 +11,7 @@ use alloy_primitives::{Address, U128};
 use common_contracts::{
     contracts::{
         calls::InnerCall,
-        castle::{CastleStorage, CASTLE_KEEPER_ROLE, CASTLE_VAULT_ROLE},
+        castle::{CastleStorage, CASTLE_VAULT_ROLE},
         keep::{Keep, VAULT_STATUS_APPROVED, VAULT_STATUS_NEW, VAULT_STATUS_REJECTED},
         keep_calls::KeepCalls,
     },
@@ -102,9 +102,6 @@ impl Guildmaster {
 
         let mut castle_storage = CastleStorage::storage();
         let acl = castle_storage.get_acl_mut();
-
-        acl.set_role(gate_to_vault, CASTLE_KEEPER_ROLE.into())
-            .map_err(|_| b"Failed to set vault role")?;
 
         acl.set_role(gate_to_vault, CASTLE_VAULT_ROLE.into())
             .map_err(|_| b"Failed to set vault role")?;

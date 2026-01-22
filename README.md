@@ -22,9 +22,10 @@ The system logic is managed by dedicated NPCs (Non-Player Characters), each ser
 |---|---|---|
 | **Factor** | **Order Execution** | Orchestrates the lifecycle of buy and sell orders, managing the flow of collateral between traders and operators. |
 | **Banker** | **Market Equilibrium** | Ingests vendor's supply, market data, asset margins, and liquidity slopes to synchronize precise quotes across multiple indices. |
+| **Alchemist** | **Asset Weights & Inventory Rebalance** | Sets the targets and executes the progressive movement of assets. |
 | **Clerk** | **Registry Maintenance** | Diligently manages the formal update of protocol records and the registry of system components. |
 | **Steward** | **State Observability** | Serves as the protocol’s eyes and ears, distilling complex vectors of market supply, vendor deltas, and real-time index quotes. |
-| **Guildmaster** | **Index Governance** | Presides over the creation and modification of indices, officiating asset weights and the democratic submission of votes. |
+| **Guildmaster** | **Index Governance** | Creates indices and officiates votes, which the Alchemist then realizes. |
 | **Constable** | **System Authority** | Acts as the foundational architect, appointing sovereign roles and defining the permissions for Issuers, Vendors, and Keepers. |
 | **Worksman** | **Vault Fabrication** | Maintains the architectural prototypes and executes the deployment of sovereign Vault instances for the system. |
 | **Scribe** | **Truth Verification** | Operates as the gatekeeper of authenticity by performing cryptographic verification of signatures for protocol data. |
