@@ -20,6 +20,7 @@ show_help() {
     echo ""
     echo "Officer Appointment Toggles (Skip specific officers):"
     echo "  --no-constable                *STOPS FLOW* after Gate/Castle setup"
+    echo "  --no-alchemist                Skip Alchemist appointment"
     echo "  --no-banker                   Skip Banker appointment"
     echo "  --no-factor                   Skip Factor appointment"
     echo "  --no-steward                  Skip Steward appointment"
@@ -40,6 +41,7 @@ NO_CASTLE=false
 CASTLE_TARGET_ADDR=""
 
 DO_CONSTABLE=true
+DO_ALCHEMIST=true
 DO_BANKER=true
 DO_FACTOR=true
 DO_STEWARD=true
@@ -54,6 +56,7 @@ while [[ "$#" -gt 0 ]]; do
         --no-gates)      USE_GATES=false ;;
         --no-clerk)      DO_CLERK=false;;
         --no-constable)  DO_CONSTABLE=false ;;
+        --no-alchemist)  DO_ALCHEMIST=false ;;
         --no-banker)     DO_BANKER=false ;;
         --no-factor)     DO_FACTOR=false ;;
         --no-steward)    DO_STEWARD=false ;;
@@ -121,9 +124,10 @@ appoint_officer() {
 }
 
 [ "$DO_CONSTABLE" = true ]   && appoint_officer "constable"   "$TARGET_ADDRESS" "appointConstable(address)"
+[ "$DO_ALCHEMIST" = true ]   && appoint_officer "alchemist"   "$TARGET_ADDRESS" "appointAlchemist(address)"
 [ "$DO_BANKER" = true ]      && appoint_officer "banker"      "$TARGET_ADDRESS" "appointBanker(address)"
 [ "$DO_FACTOR" = true ]      && appoint_officer "factor"      "$TARGET_ADDRESS" "appointFactor(address)"
-[ "$DO_STEWARD" = true ]      && appoint_officer "steward"    "$TARGET_ADDRESS" "appointSteward(address)"
+[ "$DO_STEWARD" = true ]     && appoint_officer "steward"     "$TARGET_ADDRESS" "appointSteward(address)"
 [ "$DO_GUILDMASTER" = true ] && appoint_officer "guildmaster" "$TARGET_ADDRESS" "appointGuildmaster(address)"
 [ "$DO_CLERK" = true ]       && appoint_officer "clerk"       "$TARGET_ADDRESS" "appointClerk(address)"
 [ "$DO_SCRIBE" = true ]      && appoint_officer "scribe"      "$TARGET_ADDRESS" "appointScribe(address)"

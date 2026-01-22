@@ -183,6 +183,7 @@ impl Constable {
         self._create_protected_functions(
             constable,
             vec![
+                IConstable::appointAlchemistCall::SELECTOR.into(),
                 IConstable::appointBankerCall::SELECTOR.into(),
                 IConstable::appointFactorCall::SELECTOR.into(),
                 IConstable::appointGuildmasterCall::SELECTOR.into(),
