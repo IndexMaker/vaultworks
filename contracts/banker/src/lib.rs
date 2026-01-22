@@ -8,42 +8,22 @@ extern crate alloc;
 use alloc::vec::Vec;
 
 use abacus_formulas::{
-    add_market_assets::add_market_assets, create_market::create_market, update_margin::update_margin, update_market_data::update_market_data, update_quote::update_quote, update_supply::update_supply
+    add_market_assets::add_market_assets, create_market::create_market,
+    update_margin::update_margin, update_market_data::update_market_data,
+    update_quote::update_quote, update_supply::update_supply,
 };
 use alloy_primitives::U128;
 use common::{labels::Labels, vector::Vector};
-use common_contracts::{contracts::{
-    clerk::{ClerkStorage, SCRATCH_1, SCRATCH_2, SCRATCH_3, SCRATCH_4},
-    keep::{Keep, Vault},
-    keep_calls::KeepCalls,
-}, interfaces::banker::IBanker};
+use common_contracts::{
+    contracts::{
+        clerk::{ClerkStorage, SCRATCH_1, SCRATCH_2, SCRATCH_3, SCRATCH_4},
+        clerk_util::lazy_init_vendor_quote,
+        keep::Keep,
+        keep_calls::KeepCalls,
+    },
+    interfaces::banker::IBanker,
+};
 use stylus_sdk::{abi::Bytes, prelude::*, stylus_core};
-use vector_macros::amount_vec;
-
-fn _init_vendor_quote(
-    vault: &mut Vault,
-    clerk_storage: &mut ClerkStorage,
-    vendor_id: U128,
-) -> U128 {
-    let mut set_quote_id = vault.vendor_quotes.setter(vendor_id);
-
-    let quote_id = set_quote_id.get();
-    if !quote_id.is_zero() {
-        return quote_id;
-    }
-
-    let quote_id = clerk_storage.next_vector();
-    set_quote_id.set(quote_id);
-
-    clerk_storage.store_vector(quote_id.to(), amount_vec![0, 0, 0]);
-
-    if vault.vendors_bids.get(vendor_id).is_zero() && vault.vendors_asks.get(vendor_id).is_zero() {
-        vault.vendors.push(vendor_id);
-    }
-
-    quote_id
-}
-
 
 #[storage]
 #[entrypoint]
@@ -371,7 +351,7 @@ impl Banker {
         self.update_records(clerk, update?, num_registry)?;
         Ok(())
     }
-    
+
     /// Update Index Quote
     ///
     /// Scan inventory assets, supply, delta, prices and liquidity and
@@ -394,7 +374,7 @@ impl Banker {
         let mut vault = storage.vaults.setter(index_id);
         vault.only_tradeable()?;
 
-        let vendor_quote_id = _init_vendor_quote(&mut vault, &mut clerk_storage, vendor_id);
+        let vendor_quote_id = lazy_init_vendor_quote(&mut vault, &mut clerk_storage, vendor_id);
 
         let account = storage.accounts.get(vendor_id);
 

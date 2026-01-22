@@ -14,19 +14,18 @@ use abacus_formulas::{
     submit_sell_order::submit_sell_order,
 };
 use alloy_primitives::{Address, U128};
-use common::{amount::Amount, vector::Vector};
+use common::amount::Amount;
 use common_contracts::contracts::{
     clerk::{ClerkStorage, SCRATCH_1, SCRATCH_2},
+    clerk_util::{
+        get_vendor_quote_id, lazy_init_trader_ask, lazy_init_trader_bid, lazy_init_vendor_ask,
+        lazy_init_vendor_bid,
+    },
     formulas::{Order, ORDER_REMAIN_OFFSET},
     keep::{Keep, Vault},
     keep_calls::KeepCalls,
 };
 use stylus_sdk::{abi::Bytes, prelude::*};
-use vector_macros::amount_vec;
-
-#[storage]
-#[entrypoint]
-pub struct Factor;
 
 fn _init_solve_quadratic_bid(storage: &mut Keep, clerk_storage: &mut ClerkStorage) -> U128 {
     // Q_buy = (sqrt(P^2 + 4 * S * C_buy) - P) / 2 * S
@@ -62,130 +61,9 @@ fn _init_solve_quadratic_ask(storage: &mut Keep, clerk_storage: &mut ClerkStorag
     solve_quadratic_id
 }
 
-fn _init_trader_bid(
-    vault: &mut Vault,
-    clerk_storage: &mut ClerkStorage,
-    trader_address: Address,
-) -> U128 {
-    let mut set_bid_id = vault.traders_bids.setter(trader_address);
-
-    let bid_id = set_bid_id.get();
-    if !bid_id.is_zero() {
-        return bid_id;
-    }
-
-    let bid_id = clerk_storage.next_vector();
-    set_bid_id.set(bid_id);
-
-    clerk_storage.store_vector(bid_id.to(), amount_vec![0, 0, 0]);
-
-    if vault.traders_asks.get(trader_address).is_zero() {
-        vault.traders.push(trader_address);
-    }
-
-    bid_id
-}
-
-fn _init_trader_ask(
-    vault: &mut Vault,
-    clerk_storage: &mut ClerkStorage,
-    trader_address: Address,
-) -> U128 {
-    let mut set_ask_id = vault.traders_asks.setter(trader_address);
-
-    let ask_id = set_ask_id.get();
-    if !ask_id.is_zero() {
-        return ask_id;
-    }
-
-    let ask_id = clerk_storage.next_vector();
-    set_ask_id.set(ask_id);
-
-    clerk_storage.store_vector(ask_id.to(), amount_vec![0, 0, 0]);
-
-    if vault.traders_bids.get(trader_address).is_zero() {
-        vault.traders.push(trader_address);
-    }
-
-    ask_id
-}
-
-fn _get_vendor_quote_id(vault: &mut Vault, vendor_id: U128) -> Result<U128, Vec<u8>> {
-    let quote_id = vault.vendor_quotes.get(vendor_id);
-    if quote_id.is_zero() {
-        Err(b"Quote not set")?;
-    }
-
-    return Ok(quote_id);
-}
-
-fn _init_vendor_bid(vault: &mut Vault, clerk_storage: &mut ClerkStorage, vendor_id: U128) -> U128 {
-    let mut set_bid_id = vault.vendors_bids.setter(vendor_id);
-
-    let bid_id = set_bid_id.get();
-    if !bid_id.is_zero() {
-        return bid_id;
-    }
-
-    let bid_id = clerk_storage.next_vector();
-    set_bid_id.set(bid_id);
-
-    clerk_storage.store_vector(bid_id.to(), amount_vec![0, 0, 0]);
-
-    if vault.vendor_quotes.get(vendor_id).is_zero() && vault.vendors_asks.get(vendor_id).is_zero() {
-        vault.vendors.push(vendor_id);
-    }
-
-    bid_id
-}
-
-fn _init_vendor_ask(vault: &mut Vault, clerk_storage: &mut ClerkStorage, vendor_id: U128) -> U128 {
-    let mut set_ask_id = vault.vendors_asks.setter(vendor_id);
-
-    let ask_id = set_ask_id.get();
-    if !ask_id.is_zero() {
-        return ask_id;
-    }
-
-    let ask_id = clerk_storage.next_vector();
-    set_ask_id.set(ask_id);
-
-    clerk_storage.store_vector(ask_id.to(), amount_vec![0, 0, 0]);
-
-    if vault.vendor_quotes.get(vendor_id).is_zero() && vault.vendors_bids.get(vendor_id).is_zero() {
-        vault.vendors.push(vendor_id);
-    }
-
-    ask_id
-}
-
-fn _init_total_bid(vault: &mut Vault, clerk_storage: &mut ClerkStorage) -> U128 {
-    let bid_id = vault.total_bid.get();
-    if !bid_id.is_zero() {
-        return bid_id;
-    }
-
-    let bid_id = clerk_storage.next_vector();
-    vault.total_bid.set(bid_id);
-
-    clerk_storage.store_vector(bid_id.to(), amount_vec![0, 0, 0]);
-
-    bid_id
-}
-
-fn _init_total_ask(vault: &mut Vault, clerk_storage: &mut ClerkStorage) -> U128 {
-    let ask_id = vault.total_ask.get();
-    if !ask_id.is_zero() {
-        return ask_id;
-    }
-
-    let ask_id = clerk_storage.next_vector();
-    vault.total_ask.set(ask_id);
-
-    clerk_storage.store_vector(ask_id.to(), amount_vec![0, 0, 0]);
-
-    ask_id
-}
+#[storage]
+#[entrypoint]
+pub struct Factor;
 
 impl Factor {
     fn _transfer_buy_to_operator(
@@ -195,7 +73,7 @@ impl Factor {
         operator_address: Address,
         index_order_id: U128,
     ) -> Result<(), Vec<u8>> {
-        let operator_order_id = _init_trader_bid(vault, clerk_storage, operator_address);
+        let operator_order_id = lazy_init_trader_bid(vault, clerk_storage, operator_address);
 
         let mut operator_order = clerk_storage
             .fetch_vector(operator_order_id)
@@ -245,8 +123,8 @@ impl Factor {
 
         clerk_storage.store_vector(sender_ask_id, trader_ask);
 
-        let operator_bid_id = _init_trader_bid(vault, clerk_storage, operator_address);
-        let operator_ask_id = _init_trader_ask(vault, clerk_storage, operator_address);
+        let operator_bid_id = lazy_init_trader_bid(vault, clerk_storage, operator_address);
+        let operator_ask_id = lazy_init_trader_ask(vault, clerk_storage, operator_address);
 
         // - Before we carry over ITP Locked to Operator, we must first
         //   transfer that amount of ITP from Trader to Operator, and then (...)
@@ -302,12 +180,11 @@ impl Factor {
         let mut vault = storage.vaults.setter(index_id);
         vault.only_tradeable()?;
 
-        let vendor_quote_id = _get_vendor_quote_id(&mut vault, vendor_id)?;
+        let vendor_quote_id = get_vendor_quote_id(&mut vault, vendor_id)?;
 
         // Allocate new Index order or get existing one
-        let index_order_id = _init_trader_bid(&mut vault, &mut clerk_storage, trader_address);
-        let vendor_order_id = _init_vendor_bid(&mut vault, &mut clerk_storage, vendor_id);
-        let total_order_id = _init_total_bid(&mut vault, &mut clerk_storage);
+        let index_order_id = lazy_init_trader_bid(&mut vault, &mut clerk_storage, trader_address);
+        let vendor_order_id = lazy_init_vendor_bid(&mut vault, &mut clerk_storage, vendor_id);
 
         let account = storage.accounts.get(vendor_id);
 
@@ -326,7 +203,7 @@ impl Factor {
         let update = execute_buy_order(
             index_order_id.to(), // single trader orders aggregated per vault (we don't store individual orders)
             vendor_order_id.to(),
-            total_order_id.to(),
+            vault.total_bid.get().to(),
             collateral_added,
             collateral_removed,
             max_order_size,
@@ -399,13 +276,12 @@ impl Factor {
         let mut vault = storage.vaults.setter(index_id);
         vault.only_tradeable()?;
 
-        let vendor_quote_id = _get_vendor_quote_id(&mut vault, vendor_id)?;
+        let vendor_quote_id = get_vendor_quote_id(&mut vault, vendor_id)?;
 
         // Allocate new Index order or get existing one
-        let sender_bid_id = _init_trader_bid(&mut vault, &mut clerk_storage, trader_address);
-        let sender_ask_id = _init_trader_ask(&mut vault, &mut clerk_storage, trader_address);
-        let vendor_order_id = _init_vendor_ask(&mut vault, &mut clerk_storage, vendor_id);
-        let total_order_id = _init_total_ask(&mut vault, &mut clerk_storage);
+        let sender_bid_id = lazy_init_trader_bid(&mut vault, &mut clerk_storage, trader_address);
+        let sender_ask_id = lazy_init_trader_ask(&mut vault, &mut clerk_storage, trader_address);
+        let vendor_order_id = lazy_init_vendor_ask(&mut vault, &mut clerk_storage, vendor_id);
 
         let sender_bid_bytes = clerk_storage
             .fetch_bytes(sender_bid_id)
@@ -438,7 +314,7 @@ impl Factor {
         let update = execute_sell_order(
             sender_ask_id.to(), // single trader orders aggregated per vault (we don't store individual orders)
             vendor_order_id.to(),
-            total_order_id.to(),
+            vault.total_ask.get().to(),
             collateral_added,
             collateral_removed,
             max_order_size,
@@ -522,14 +398,13 @@ impl Factor {
         vault.only_tradeable()?;
 
         // Allocate new Index order or get existing one
-        let index_order_id = _init_trader_bid(&mut vault, &mut clerk_storage, trader_address);
-        let vendor_order_id = _init_vendor_bid(&mut vault, &mut clerk_storage, vendor_id);
-        let total_order_id = _init_total_bid(&mut vault, &mut clerk_storage);
+        let index_order_id = lazy_init_trader_bid(&mut vault, &mut clerk_storage, trader_address);
+        let vendor_order_id = lazy_init_vendor_bid(&mut vault, &mut clerk_storage, vendor_id);
 
         let update = submit_buy_order(
             index_order_id.to(),
             vendor_order_id.to(),
-            total_order_id.to(),
+            vault.total_bid.get().to(),
             collateral_added,
             collateral_removed,
         );
@@ -568,14 +443,13 @@ impl Factor {
         vault.only_tradeable()?;
 
         // Allocate new Index order or get existing one
-        let index_order_id = _init_trader_ask(&mut vault, &mut clerk_storage, trader_address);
-        let vendor_order_id = _init_vendor_ask(&mut vault, &mut clerk_storage, vendor_id);
-        let total_order_id = _init_total_ask(&mut vault, &mut clerk_storage);
+        let index_order_id = lazy_init_trader_ask(&mut vault, &mut clerk_storage, trader_address);
+        let vendor_order_id = lazy_init_vendor_ask(&mut vault, &mut clerk_storage, vendor_id);
 
         let update = submit_sell_order(
             index_order_id.to(),
             vendor_order_id.to(),
-            total_order_id.to(),
+            vault.total_ask.get().to(),
             collateral_added,
             collateral_removed,
         );
@@ -806,9 +680,9 @@ impl Factor {
         // column together with Spent column reflecting ITP they redeemed (burned)
         // of their Ask vector. Transfer performs rebalancing by splitting cost basis
         // together with moving minted ITP amount.
-        let sender_bid_id = _init_trader_bid(&mut vault, &mut clerk_storage, sender);
-        let sender_ask_id = _init_trader_ask(&mut vault, &mut clerk_storage, sender);
-        let receiver_bid_id = _init_trader_bid(&mut vault, &mut clerk_storage, receiver);
+        let sender_bid_id = lazy_init_trader_bid(&mut vault, &mut clerk_storage, sender);
+        let sender_ask_id = lazy_init_trader_ask(&mut vault, &mut clerk_storage, sender);
+        let receiver_bid_id = lazy_init_trader_bid(&mut vault, &mut clerk_storage, receiver);
 
         // Optional check: We don't need to check balance here as VIL program
         // will fail if balance is insufficient, however we want to produce

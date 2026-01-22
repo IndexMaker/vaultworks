@@ -21,14 +21,8 @@ use common_contracts::{
         keep::{Keep, KEEP_VERSION_NUMBER},
     },
     interfaces::{
-        alchemist::{self, IAlchemist},
-        banker::IBanker,
-        castle::ICastle,
-        constable::IConstable,
-        factor::IFactor,
-        guildmaster::IGuildmaster,
-        scribe::IScribe,
-        steward::ISteward,
+        alchemist::IAlchemist, banker::IBanker, castle::ICastle, constable::IConstable,
+        factor::IFactor, guildmaster::IGuildmaster, scribe::IScribe, steward::ISteward,
         worksman::IWorksman,
     },
 };
@@ -189,6 +183,7 @@ impl Constable {
         self._create_protected_functions(
             constable,
             vec![
+                IConstable::appointAlchemistCall::SELECTOR.into(),
                 IConstable::appointBankerCall::SELECTOR.into(),
                 IConstable::appointFactorCall::SELECTOR.into(),
                 IConstable::appointGuildmasterCall::SELECTOR.into(),
@@ -260,28 +255,13 @@ impl Constable {
 
         log_msg!("Appointing factor {}", factor);
 
-        // self._create_protected_functions(
-        //     factor,
-        //     vec![
-        //         IFactor::submitRebalanceOrderCall::SELECTOR.into(),
-        //     ],
-        //     CASTLE_ISSUER_ROLE.into(),
-        // )?;
-
-        self._create_protected_functions(
-            factor,
-            vec![
-                IFactor::processPendingBuyOrderCall::SELECTOR.into(),
-                IFactor::processPendingSellOrderCall::SELECTOR.into(),
-            ],
-            CASTLE_KEEPER_ROLE.into(),
-        )?;
-
         self._create_protected_functions(
             factor,
             vec![
                 IFactor::submitBuyOrderCall::SELECTOR.into(),
                 IFactor::submitSellOrderCall::SELECTOR.into(),
+                IFactor::processPendingBuyOrderCall::SELECTOR.into(),
+                IFactor::processPendingSellOrderCall::SELECTOR.into(),
                 IFactor::executeBuyOrderCall::SELECTOR.into(),
                 IFactor::executeSellOrderCall::SELECTOR.into(),
                 IFactor::executeTransferCall::SELECTOR.into(),
@@ -375,13 +355,15 @@ impl Constable {
 
         self._create_protected_functions(
             alchemist,
-            vec![
-                IAlchemist::submitAssetWeightsCall::SELECTOR.into(),
-                IAlchemist::processPendingRebalanceCall::SELECTOR.into(),
-            ],
+            vec![IAlchemist::submitAssetWeightsCall::SELECTOR.into()],
             CASTLE_ISSUER_ROLE.into(),
         )?;
 
+        self._create_protected_functions(
+            alchemist,
+            vec![IAlchemist::processPendingRebalanceCall::SELECTOR.into()],
+            CASTLE_KEEPER_ROLE.into(),
+        )?;
         Ok(())
     }
 
