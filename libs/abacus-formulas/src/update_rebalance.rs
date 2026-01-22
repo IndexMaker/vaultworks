@@ -5,8 +5,8 @@ use abacus_macros::abacus;
 pub fn update_rebalance(
     total_bid_id: u128,
     total_ask_id: u128,
-    old_asset_names_id: u128,
-    old_asset_weights_id: u128,
+    asset_names_id: u128,
+    asset_weights_id: u128,
     new_asset_names_id: u128,
     new_asset_weights_id: u128,
     rebalance_asset_names_id: u128,
@@ -26,8 +26,10 @@ pub fn update_rebalance(
         POPN    5                               // []
 
         // Compute common Asset Names
-        LDL     old_asset_names_id              // [AN_old]
+        LDL     asset_names_id                  // [AN_old]
         LDL     new_asset_names_id              // [AN_old, AN_new]
+        LDD     0
+        STR     _AssetNames
         LDL     rebalance_asset_names_id        // [AN_old, AN_new, AN_re]
         LDD     0                               // [AN_old, AN_new, AN_re, AN_re]
         LUNION  2                               // [AN_old, AN_new, AN_re, AN_uni_1]
@@ -35,10 +37,12 @@ pub fn update_rebalance(
         ZEROS   0                               // [AN_old, AN_new, AN_re, AN_uni, Z_uni]
 
         // Expand Weights vectors to common Asset Names
-        LDV     old_asset_weights_id            // [AN_old, AN_new, AN_re, AN_uni, Z_uni, W_old]
+        LDV     asset_weights_id                // [AN_old, AN_new, AN_re, AN_uni, Z_uni, W_old]
         LDD     1                               // [AN_old, AN_new, AN_re, AN_uni, Z_uni, W_old, Z_uni]
         JUPD    1   3   6                       // [AN_old, AN_new, AN_re, AN_uni, Z_uni, W_old, W_old_uni]
         LDV     new_asset_weights_id            // [AN_old, AN_new, AN_re, AN_uni, Z_uni, W_old, W_old_uni, W_new]
+        LDD     0
+        STR     _AssetWeights
         SWAP    3                               // [AN_old, AN_new, AN_re, AN_uni, W_new, W_old, W_old_uni, Z_uni]
         JUPD    3   4   6                       // [AN_old, AN_new, AN_re, AN_uni, W_new, W_old, W_old_uni, W_new_uni]
         
@@ -92,5 +96,13 @@ pub fn update_rebalance(
         // Store new rebalance asset names
         LDM     _RebalanceAssetNames
         STL     rebalance_asset_names_id
+
+        // Store new names into index
+        LDM     _AssetNames
+        STL     asset_names_id
+
+        // Store new weights into index
+        LDM     _AssetWeights
+        STV     asset_weights_id
     }
 }

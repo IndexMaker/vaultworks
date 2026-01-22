@@ -30,7 +30,7 @@ impl Steward {
         let vault = storage.vaults.get(index_id);
         Ok(vault.gate_to_vault.get())
     }
-    
+
     //
     // Query methods (Factor)
     //
@@ -95,6 +95,28 @@ impl Steward {
             .ok_or_else(|| b"Weights not set")?;
 
         Ok(data.into())
+    }
+
+    pub fn get_index_rebalance_weights(&self, index_id: U128) -> Result<Vec<Bytes>, Vec<u8>> {
+        let storage = Keep::storage();
+        storage.check_version()?;
+
+        let clerk_storage = ClerkStorage::storage();
+        let vault = storage.vaults.get(index_id);
+
+        let assets = clerk_storage
+            .fetch_bytes(vault.rebalance_assets.get())
+            .ok_or_else(|| b"Rebalance assets not set")?;
+
+        let data_long = clerk_storage
+            .fetch_bytes(vault.rebalance_weights_long.get())
+            .ok_or_else(|| b"Rebalance weights (long) not set")?;
+
+        let data_short = clerk_storage
+            .fetch_bytes(vault.rebalance_weights_short.get())
+            .ok_or_else(|| b"Rebalance weights (short) not set")?;
+
+        Ok(vec![assets.into(), data_long.into(), data_short.into()])
     }
 
     pub fn get_index_quote(&self, index_id: U128, vendor_id: U128) -> Result<Bytes, Vec<u8>> {

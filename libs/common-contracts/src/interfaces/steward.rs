@@ -12,6 +12,8 @@ sol! {
 
         function getIndexWeights(uint128 index_id) external view returns (bytes memory);
 
+        function getIndexRebalanceWeights(uint128 index_id) external view returns (bytes[] memory);
+
         function getIndexQuote(uint128 index_id, uint128 vendor_id) external view returns (bytes memory);
 
         function getTraderOrder(uint128 index_id, address trader) external view returns (bytes memory);

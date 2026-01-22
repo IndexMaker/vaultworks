@@ -163,6 +163,71 @@ mod unit_tests {
     use super::*;
 
     #[test]
+    fn test_joins() {
+        let mut vio = test_utils::TestVectorIO::new();
+
+        let names_1 = label_vec![];
+        let names_2 = label_vec![1, 3];
+        let names_3 = label_vec![2, 3, 5];
+
+        let data_1 = amount_vec![];
+        let data_2 = amount_vec![1.5, 2.5];
+        let data_3 = amount_vec![5.5, 6.5, 7.5];
+
+        vio.store_labels(1, names_1).unwrap();
+        vio.store_labels(2, names_2).unwrap();
+        vio.store_labels(3, names_3).unwrap();
+
+        vio.store_vector(4, data_1).unwrap();
+        vio.store_vector(5, data_2).unwrap();
+        vio.store_vector(6, data_3).unwrap();
+
+        let code = abacus! {
+            LDL     1           //  [1]
+            LDL     2           //  [1, 2]
+            LDL     3           //  [1, 2, 3]
+            LDD     0
+            STR     _L3
+            LUNION  1           //  [1, 2, (2 u 3)]
+            LUNION  2           //  [1, 2, U = (1 u (2 u 3))]
+            LDD     0
+            STL     10
+
+            LDV     4
+            LDV     5
+            LDV     6           // [1, 2, U, 4, 5, 6]
+
+            ZEROS   3           // [1, 2, U, 4, 5, 6, Z]
+            JUPD    3   4   6   // [1, 2, U, 4, 5, 6, A = Z <- 4]
+            JUPD    2   4   5   // [1, 2, U, 4, 5, 6, A <- 5]
+            STV     11
+
+            LDM     _L3         // [1, 2, U, 4, 5, 6, 3]
+            ZEROS   4           // [1, 2, U, 4, 5, 6, 3, Z]
+            JUPD    2   5   1
+            STV     12
+        };
+
+        let num_registry = 1;
+        let mut stack = Stack::new(num_registry);
+        let mut program = VectorVM::new(&mut vio);
+
+        if let Err(err) = program.execute_with_stack(code.unwrap(), &mut stack) {
+            log_stack!(&stack);
+            panic!("Failed to execute test: {:?}", err);
+        }
+
+        let result10 = vio.load_labels(10).unwrap();
+        assert_eq!(result10.data, label_vec![1, 2, 3, 5].data);
+
+        let result11 = vio.load_vector(11).unwrap();
+        assert_eq!(result11.data, amount_vec![1.5, 0, 2.5, 0].data);
+        
+        let result12 = vio.load_vector(12).unwrap();
+        assert_eq!(result12.data, amount_vec![0, 5.5, 6.5, 7.5].data);
+    }
+
+    #[test]
     fn test_transpose() {
         let mut vio = test_utils::TestVectorIO::new();
         let num_registers = 8;
@@ -932,8 +997,8 @@ mod test_scenarios {
         let total_bid_id = 10003;
         let total_ask_id = 10004;
 
-        let old_asset_names_id = 1001;
-        let old_weights_id = 1002;
+        let asset_names_id = 1001;
+        let asset_weights_id = 1002;
 
         let new_asset_names_id = 1003;
         let new_weights_id = 1004;
@@ -953,14 +1018,14 @@ mod test_scenarios {
             .unwrap();
 
         vio.store_labels(
-            old_asset_names_id,
+            asset_names_id,
             Labels {
                 data: old_asset_names.data.clone(),
             },
         )
         .unwrap();
 
-        vio.store_vector(old_weights_id, amount_vec![0.1, 0.2, 1.0])
+        vio.store_vector(asset_weights_id, amount_vec![0.1, 0.2, 1.0])
             .unwrap();
 
         vio.store_labels(
@@ -991,8 +1056,8 @@ mod test_scenarios {
         let code = update_rebalance(
             total_bid_id,
             total_ask_id,
-            old_asset_names_id,
-            old_weights_id,
+            asset_names_id,
+            asset_weights_id,
             new_asset_names_id,
             new_weights_id,
             rebalance_asset_names_id,
@@ -1002,12 +1067,11 @@ mod test_scenarios {
 
         let total_bid = vio.load_vector(total_bid_id).unwrap();
         let total_ask = vio.load_vector(total_ask_id).unwrap();
-        let old_weights = vio.load_vector(old_weights_id).unwrap();
-        let new_weights = vio.load_vector(new_weights_id).unwrap();
+        let old_weights = vio.load_vector(asset_weights_id).unwrap();
         let rebalance_weights_long_before = vio.load_vector(rebalance_weights_long_id).unwrap();
         let rebalance_weights_short_before = vio.load_vector(rebalance_weights_short_id).unwrap();
 
-        let num_registers = 6;
+        let num_registers = 8;
         let mut program = VectorVM::new(&mut vio);
         let mut stack = Stack::new(num_registers);
         let result = program.execute_with_stack(code.unwrap(), &mut stack);
@@ -1020,6 +1084,11 @@ mod test_scenarios {
         let rebalance_weights_long_after = vio.load_vector(rebalance_weights_long_id).unwrap();
         let rebalance_weights_short_after = vio.load_vector(rebalance_weights_short_id).unwrap();
         let rebalance_asset_names_after = vio.load_labels(rebalance_asset_names_id).unwrap();
+
+        let new_names = vio.load_labels(asset_names_id).unwrap();
+        let new_weights = vio.load_vector(asset_weights_id).unwrap();
+
+        assert_eq!(new_names.data, new_asset_names.data);
 
         let all_asset_names = label_vec![51, 52, 53, 54, 55];
         let old_weights = project(&old_weights, &old_asset_names, &all_asset_names);
