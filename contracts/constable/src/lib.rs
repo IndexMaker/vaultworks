@@ -289,6 +289,7 @@ impl Constable {
                 ISteward::getIndexAssetsCountCall::SELECTOR.into(),
                 ISteward::getIndexAssetsCall::SELECTOR.into(),
                 ISteward::getIndexWeightsCall::SELECTOR.into(),
+                ISteward::getIndexRebalanceWeightsCall::SELECTOR.into(),
                 ISteward::getIndexQuoteCall::SELECTOR.into(),
                 ISteward::getTraderOrderCall::SELECTOR.into(),
                 ISteward::getTraderCountCall::SELECTOR.into(),

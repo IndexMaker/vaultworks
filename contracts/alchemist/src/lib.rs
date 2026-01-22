@@ -13,11 +13,11 @@ use common::{amount::Amount, labels::Labels, vector::Vector};
 use common_contracts::{
     contracts::{
         clerk::{ClerkStorage, SCRATCH_1, SCRATCH_2},
-        clerk_util::{new_labels_empty, new_vector_3z, new_vector_bytes, new_vector_empty},
+        clerk_util::{new_labels, new_labels_empty, new_vector, new_vector_3z, new_vector_bytes, new_vector_empty},
         keep::Keep,
         keep_calls::KeepCalls,
     },
-    interfaces::{alchemist::IAlchemist, guildmaster::IGuildmaster},
+    interfaces::alchemist::IAlchemist,
 };
 use stylus_sdk::{abi::Bytes, prelude::*, stylus_core};
 
@@ -96,7 +96,7 @@ impl Alchemist {
             );
 
             let clerk = storage.clerk.get();
-            let num_registry = 6;
+            let num_registry = 8;
             self.update_records(clerk, update?, num_registry)?;
         }
 
