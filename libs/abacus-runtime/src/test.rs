@@ -1196,7 +1196,7 @@ mod test_scenarios {
             asset_liquidity_id,
         );
 
-        let num_registers = 10;
+        let num_registers = 12;
         let mut program = VectorVM::new(&mut vio);
         let mut stack = Stack::new(num_registers);
         let result = program.execute_with_stack(code.unwrap(), &mut stack);
@@ -1275,7 +1275,7 @@ mod test_scenarios {
 
         assert_eq!(
             demand_long_after.data,
-            amount_vec![0.15, 0, 0, 0.41, 0].data
+            amount_vec![0.15, 0.2, 0, 0.41, 0].data
         );
 
         assert_eq!(demand_short_after.data, amount_vec![0, 0, 0.54, 0, 0].data);
