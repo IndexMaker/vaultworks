@@ -76,8 +76,12 @@ pub fn execute_rebalance(
         POPN        1                           // Stack: [AN, MAN]
 
         LDV         demand_long_id              // Stack: [AN, MAN, DL]
+        LDD         0
+        STR         _DemandLongOrig
         JFLT        1   2                       // Stack: [AN, MAN, fDL]
         LDV         demand_short_id             // Stack: [AN, MAN, fDL, DS]
+        LDD         0
+        STR         _DemandShortOrig
         JFLT        2   3                       // Stack: [AN, MAN, fDL, fDS]
         LDR         _RebalanceDeltaLong         // Stack: [AN, MAN, fDL, fDS, RDL]
         LDR         _RebalanceDeltaShort        // Stack: [AN, MAN, fDL, fDS, RDL, RDS]
@@ -130,28 +134,28 @@ pub fn execute_rebalance(
 
         // Expand & Store Demand
         LDM         _DemandLong             // Stack [AN, MAN, fDL]
-        ZEROS       1                       // Stack [AN, MAN, fDL, Z]
+        LDM         _DemandLongOrig         // Stack [AN, MAN, fDL, DL_orig]
         JUPD        1   2   3               // Stack [AN, MAN, fDL, DL]
         STV         demand_long_id          // Stack [AN, MAN, fDL]
         POPN        1                       // Stack [AN, MAN]
 
         LDM         _DemandShort            // Stack [AN, MAN, fDS]
-        ZEROS       1                       // Stack [AN, MAN, fDS, Z]
+        LDM         _DemandShortOrig        // Stack [AN, MAN, fDS, DS_orig]
         JUPD        1   2   3               // Stack [AN, MAN, fDS, DS]
         STV         demand_short_id         // Stack [AN, MAN, fDS]
         POPN        1                       // Stack [AN, MAN]
 
         // Expand & Store Delta
         LDM         _DeltaLong
-        ZEROS       1
+        LDV         delta_long_id
         JUPD        1   2   3
-        STV         delta_short_id
+        STV         delta_long_id
         POPN        1
         
         LDM         _DeltaShort
-        ZEROS       1
+        LDV         delta_short_id
         JUPD        1   2   3
-        STV         delta_long_id
+        STV         delta_short_id
         POPN        3
 
         // Store updated rebalance assets weights (Buy|Sell)
