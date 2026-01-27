@@ -1,56 +1,61 @@
-use ff_zeroize::Field;
-use pairing_plus::{
-    bls12_381::{Bls12, Fq12, G1},
-    hash_to_curve::HashToCurve,
-    hash_to_field::ExpandMsgXmd,
-    CurveAffine, CurveProjective, Engine,
-};
-
 #[cfg(not(feature = "stylus"))]
-use crate::affine::SigningKey;
+use bls12_381::G1Projective;
+use bls12_381::{
+    hash_to_curve::{ExpandMsgXmd, HashToCurve},
+    Bls12, G2Projective, Gt,
+};
+use pairing::{group::Curve, MultiMillerLoop};
 
 use crate::{
     affine::{PublicKey, Signature},
     keccak_hash::Keccak256Hash,
 };
 
-pub fn hash_to_curve(message: &[u8]) -> G1 {
+#[cfg(not(feature = "stylus"))]
+use crate::affine::SigningKey;
+
+pub fn hash_to_curve(message: &[u8]) -> G2Projective {
     let cs = b"BLS_SIG_BLS12381G1_XMD:KECCAK-256_SSWU_RO_";
-    let point = <G1 as HashToCurve<ExpandMsgXmd<Keccak256Hash>>>::hash_to_curve(message, cs);
+
+    let point =
+        <G2Projective as HashToCurve<ExpandMsgXmd<Keccak256Hash>>>::hash_to_curve(message, cs);
     point
 }
 
 #[cfg(not(feature = "stylus"))]
 pub fn sign_message(message: &[u8], signing_key: SigningKey) -> Signature {
-    let mut signature = hash_to_curve(message);
-    signature.mul_assign(signing_key);
-    signature.into_affine()
+    let mut proj = hash_to_curve(message);
+    proj *= signing_key;
+    proj.to_affine()
 }
 
 pub fn verify_signature(message: &[u8], public_key: &PublicKey, signature: &Signature) -> bool {
-    let mut h = hash_to_curve(message);
-    let generator = PublicKey::one();
-    let product = <pairing_plus::bls12_381::Bls12 as Engine>::pairing_product(
-        h.into_affine(),
-        *public_key,
-        *signature,
-        generator,
-    );
-    product == Fq12::one()
+    let h = hash_to_curve(message);
+    let h_prepared = h.to_affine().into();
+    let signature_prepared = (*signature).into();
+    let gen_neg = -PublicKey::generator();
+
+    let mut product = Bls12::multi_miller_loop(&[(public_key, &h_prepared)]);
+
+    product += Bls12::multi_miller_loop(&[(&gen_neg, &signature_prepared)]);
+
+    product.final_exponentiation() == Gt::identity()
 }
 
+#[cfg(not(feature = "stylus"))]
 pub fn aggregate_public_keys(keys: Vec<PublicKey>) -> PublicKey {
-    let mut agg = keys[0].into_projective();
-    for i in 1..keys.len() {
-        agg.add_assign(&keys[i].into_projective());
+    let mut agg = G1Projective::identity();
+    for key in keys {
+        agg += key;
     }
-    agg.into_affine()
+    agg.to_affine()
 }
 
-pub fn aggregate_signatures(sigs: Vec<Signature>) -> Signature {
-    let mut agg = sigs[0].into_projective();
-    for i in 1..sigs.len() {
-        agg.add_assign(&sigs[i].into_projective());
+#[cfg(not(feature = "stylus"))]
+pub fn aggregate_signatures(signatures: Vec<Signature>) -> Signature {
+    let mut agg = G2Projective::identity();
+    for signature in signatures {
+        agg += signature;
     }
-    agg.into_affine()
+    agg.to_affine()
 }

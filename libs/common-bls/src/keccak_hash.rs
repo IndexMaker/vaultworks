@@ -4,6 +4,8 @@ use alloy_primitives::keccak256;
 use alloy_primitives::{Keccak256, B256};
 
 use digest::generic_array::typenum::U64;
+#[cfg(feature = "stylus")]
+use digest::Output;
 
 #[cfg(not(feature = "stylus"))]
 pub struct Keccak256Hash(Option<Keccak256>);
@@ -15,6 +17,7 @@ impl digest::BlockInput for Keccak256Hash {
     type BlockSize = U64;
 }
 
+// TODO: Fixme
 #[cfg(not(feature = "stylus"))]
 impl digest::Digest for Keccak256Hash {
     type OutputSize = U64;
@@ -82,31 +85,26 @@ impl digest::Digest for Keccak256Hash {
         Self(Keccak256::default())
     }
 
-    fn chain<B: AsRef<[u8]>>(mut self, data: B) -> Self
+    fn output_size() -> usize {
+        B256::len_bytes()
+    }
+
+    fn chain(mut self, data: impl AsRef<[u8]>) -> Self
     where
         Self: Sized,
     {
         self.0.update(data);
         self
     }
+    fn update(&mut self, data: impl AsRef<[u8]>) {
+        self.0.update(data);
+    }
 
-    fn result(self) -> digest::generic_array::GenericArray<u8, Self::OutputSize> {
+    fn finalize(self) -> Output<Self> {
         let res = self.0.finalize();
         let mut arr = digest::generic_array::GenericArray::default();
         arr.copy_from_slice(&res.0);
         arr
-    }
-
-    fn output_size() -> usize {
-        B256::len_bytes()
-    }
-
-    fn input<B: AsRef<[u8]>>(&mut self, _data: B) {
-        unimplemented!()
-    }
-
-    fn result_reset(&mut self) -> digest::generic_array::GenericArray<u8, Self::OutputSize> {
-        unimplemented!()
     }
 
     fn reset(&mut self) {
@@ -114,6 +112,10 @@ impl digest::Digest for Keccak256Hash {
     }
 
     fn digest(_data: &[u8]) -> digest::generic_array::GenericArray<u8, Self::OutputSize> {
+        unimplemented!()
+    }
+
+    fn finalize_reset(&mut self) -> Output<Self> {
         unimplemented!()
     }
 }

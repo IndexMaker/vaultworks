@@ -22,7 +22,8 @@ pub trait KeepCalls {
     fn verify_signature(
         &mut self,
         scribe: Address,
-        data: impl Into<Bytes>,
+        public_key: impl Into<Bytes>,
+        signature: impl Into<Bytes>,
     ) -> Result<bool, Vec<u8>>;
 }
 
@@ -57,11 +58,18 @@ where
     fn verify_signature(
         &mut self,
         scribe: Address,
-        data: impl Into<Bytes>,
+        public_key: impl Into<Bytes>,
+        signature: impl Into<Bytes>,
     ) -> Result<bool, Vec<u8>> {
         let IScribe::verifySignatureReturn {
             _0: verfication_result,
-        } = self.inner_call_ret(scribe, IScribe::verifySignatureCall { data: data.into() })?;
+        } = self.inner_call_ret(
+            scribe,
+            IScribe::verifySignatureCall {
+                public_key: public_key.into(),
+                signature: signature.into(),
+            },
+        )?;
         Ok(verfication_result)
     }
 }

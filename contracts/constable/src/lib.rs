@@ -336,6 +336,7 @@ impl Constable {
         self._create_protected_functions(
             guildmaster,
             vec![
+                IGuildmaster::submitAggregatePublicKeyCall::SELECTOR.into(),
                 IGuildmaster::beginEditIndexCall::SELECTOR.into(),
                 IGuildmaster::finishEditIndexCall::SELECTOR.into(),
             ],

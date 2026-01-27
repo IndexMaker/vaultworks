@@ -23,6 +23,8 @@ pub const VAULT_STATUS_NEW: U8 = uint!(1_U8);
 pub const VAULT_STATUS_APPROVED: U8 = uint!(2_U8);
 pub const VAULT_STATUS_REJECTED: U8 = uint!(3_U8);
 
+pub const AGGREGATED_PUBLIC_KEY_LEN: usize = 48;
+
 #[storage]
 pub struct Vault {
     pub status: StorageU8,
@@ -167,6 +169,9 @@ pub struct Keep {
     // Stored Procedures
     pub solve_quadratic_bid_id: StorageU128,
     pub solve_quadratic_ask_id: StorageU128,
+
+    // Quorum Key
+    pub aggregate_public_key: StorageBytes,
     
     // NPCs
     pub clerk: StorageAddress,

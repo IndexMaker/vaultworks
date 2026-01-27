@@ -52,14 +52,14 @@ abacus-runtime = { path = "./libs/abacus-runtime" }
 alloy-sol-macro = "=0.8.20"
 alloy-sol-types = "=0.8.20"
 amount-macros = { path = "./proc-macros/amount-macros" }
-bls12_381 = "0.8.0"
+bls12_381 = { version = "0.8.0", features = ["experimental"] }
 chrono = "0.4.42"
 clap = "4.5"
 common = { path = "libs/common" }
 common-bls = { path = "libs/common-bls" }
 common-contracts = { path = "libs/common-contracts" }
 dotenv = "0.15.0"
-digest = "0.8"
+digest = "0.9"
 ethers = "2.0"
 eyre = "0.6.8"
 futures = "0.3"

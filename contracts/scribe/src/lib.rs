@@ -7,14 +7,12 @@ extern crate alloc;
 
 use alloc::vec::Vec;
 
-use alloy_primitives::{keccak256, Keccak256, B256};
 use common_contracts::contracts::keep::Keep;
 use stylus_sdk::{abi::Bytes, prelude::*};
 
 use common_bls::{
     affine::{public_key_from_data, signature_from_data},
     bls::verify_signature,
-    keccak_hash::Keccak256Hash,
 };
 
 #[storage]
