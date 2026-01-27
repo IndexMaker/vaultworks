@@ -4,7 +4,7 @@ use alloy_primitives::{uint, Address, U128, U256, U32, U8};
 use stylus_sdk::{
     keccak_const,
     prelude::*,
-    storage::{StorageAddress, StorageMap, StorageU128, StorageU32, StorageU8, StorageVec},
+    storage::{StorageAddress, StorageBytes, StorageMap, StorageU8, StorageU32, StorageU128, StorageVec},
 };
 
 use crate::contracts::storage::StorageSlot;
@@ -167,7 +167,7 @@ pub struct Keep {
     // Stored Procedures
     pub solve_quadratic_bid_id: StorageU128,
     pub solve_quadratic_ask_id: StorageU128,
-
+    
     // NPCs
     pub clerk: StorageAddress,
     pub scribe: StorageAddress,

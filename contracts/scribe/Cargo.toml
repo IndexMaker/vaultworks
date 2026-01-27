@@ -8,9 +8,10 @@ description = "IndexMaker Scribe (Verifies documents: Verifies signatures)"
 alloy-primitives = { workspace = true }
 alloy-sol-types = { workspace = true }
 common = { workspace = true, features = ["stylus"] }
+common-bls = { workspace = true, features = ["stylus"] }
 common-contracts = { workspace = true, features = ["stylus"] }
 hex = { workspace = true }
-stylus-sdk = { workspace = true, features = ["reentrant"]}
+stylus-sdk = { workspace = true, features = ["reentrant"] }
 
 [dev-dependencies]
 alloy-primitives = { workspace = true, features = ["sha3-keccak"] }
@@ -23,7 +24,11 @@ tokio = { workspace = true, features = ["full"] }
 
 [features]
 default = ["mini-alloc"]
-export-abi = ["stylus-sdk/export-abi", "common-contracts/stylus-export-abi"]
+export-abi = [
+    "stylus-sdk/export-abi",
+    "common-bls/stylus-export-abi",
+    "common-contracts/stylus-export-abi",
+]
 test-debug = ["stylus-sdk/debug", "common/debug", "common/stylus-test"]
 mini-alloc = ["stylus-sdk/mini-alloc"]
 

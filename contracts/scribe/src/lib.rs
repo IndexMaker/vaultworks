@@ -7,8 +7,15 @@ extern crate alloc;
 
 use alloc::vec::Vec;
 
+use alloy_primitives::{keccak256, Keccak256, B256};
 use common_contracts::contracts::keep::Keep;
 use stylus_sdk::{abi::Bytes, prelude::*};
+
+use common_bls::{
+    affine::{public_key_from_data, signature_from_data},
+    bls::verify_signature,
+    keccak_hash::Keccak256Hash,
+};
 
 #[storage]
 #[entrypoint]
@@ -16,13 +23,20 @@ pub struct Scribe;
 
 #[public]
 impl Scribe {
-    pub fn verify_signature(&mut self, data: Bytes) -> Result<bool, Vec<u8>> {
+    pub fn verify_signature(
+        &mut self,
+        public_key: Bytes,
+        signature: Bytes,
+    ) -> Result<bool, Vec<u8>> {
         let keep = Keep::storage();
         if keep.scribe.get().is_zero() {
             Err(b"Scribe not appointed")?;
         }
-        // TODO: Implement actual signature verification
-        let _ = data;
-        Ok(true)
+
+        let public_key = public_key_from_data(&public_key)?;
+        let signature = signature_from_data(&signature)?;
+
+        let res = verify_signature(b"message", &public_key, &signature);
+        Ok(res)
     }
 }
