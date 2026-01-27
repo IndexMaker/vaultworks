@@ -1,42 +1,12 @@
 use bls12_381::{G1Affine, G2Affine};
 
-#[cfg(not(feature = "stylus"))]
-use bls12_381::{G1Projective, Scalar};
-
-#[cfg(not(feature = "stylus"))]
-use pairing::group::Curve;
-
-#[cfg(not(feature = "stylus"))]
-pub type SigningKey = Scalar;
-
 pub type Signature = G2Affine;
 pub type PublicKey = G1Affine;
 
-pub const SIGNING_KEY_LEN: usize = 32;
 pub const SIGNATURE_COMPRESSED_LEN: usize = 96;
 pub const SIGNATURE_UNCOMPRESSED_LEN: usize = 192;
 pub const PUBLIC_KEY_COMPRESSED_LEN: usize = 48;
 pub const PUBLIC_KEY_UNCOMPRESSED_LEN: usize = 96;
-
-#[cfg(not(feature = "stylus"))]
-pub fn signing_key_from_data(data: &[u8]) -> Result<SigningKey, Vec<u8>> {
-    if data.len() != SIGNING_KEY_LEN {
-        Err(b"Invalid signing key length")?;
-    }
-    let mut bytes = [0u8; SIGNING_KEY_LEN];
-    bytes.copy_from_slice(data);
-    let res = SigningKey::from_bytes(&bytes)
-        .into_option()
-        .ok_or_else(|| b"Failed to deserialize signing key")?;
-    Ok(res)
-}
-
-#[cfg(not(feature = "stylus"))]
-pub fn public_key_from_signing_key(signing_key: &SigningKey) -> PublicKey {
-    let mut g = G1Projective::generator();
-    g *= signing_key;
-    g.to_affine()
-}
 
 #[cfg(feature = "stylus-export-abi")]
 pub fn public_key_from_data(data: &[u8]) -> Result<PublicKey, Vec<u8>> {
