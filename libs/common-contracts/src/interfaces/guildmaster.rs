@@ -8,7 +8,9 @@ sol! {
 
         function finishEditIndex(uint128 index_id) external;
 
-        function submitVote(uint128 index_id, bytes calldata vote) external;
+        function submitAggregatePublicKey(bytes calldata public_key) external;
+
+        function submitVote(uint128 index_id, bytes calldata signature) external;
 
         event BeginEditIndex(uint128 index_id, address sender);
 
@@ -16,6 +18,8 @@ sol! {
 
         event IndexCreated(uint128 index_id, string name, string symbol, address vault);
         
+        event AggregateKeyUpdated(address sender);
+
         event IndexVoteUpdated(uint128 index_id, address sender);
     }
 }

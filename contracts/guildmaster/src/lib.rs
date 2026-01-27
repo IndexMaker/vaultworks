@@ -12,7 +12,7 @@ use common_contracts::{
     contracts::{
         calls::InnerCall,
         castle::{CASTLE_KEEPER_ROLE, CASTLE_VAULT_ROLE, CastleStorage},
-        keep::{Keep, VAULT_STATUS_APPROVED, VAULT_STATUS_NEW, VAULT_STATUS_REJECTED},
+        keep::{AGGREGATED_PUBLIC_KEY_LEN, Keep, VAULT_STATUS_APPROVED, VAULT_STATUS_NEW, VAULT_STATUS_REJECTED},
         keep_calls::KeepCalls,
     },
     interfaces::{guildmaster::IGuildmaster, vault::IVault, vault_native::IVaultNative},
@@ -182,11 +182,26 @@ impl Guildmaster {
         Ok(())
     }
 
+    pub fn submit_aggregate_public_key(&mut self, public_key: Bytes) -> Result<(), Vec<u8>> {
+        if public_key.len() != AGGREGATED_PUBLIC_KEY_LEN {
+            Err(b"Invalid key length")?;
+        }
+
+        let mut storage = Keep::storage();
+        let sender = self.attendee();
+        storage.check_version()?;
+
+        storage.aggregate_public_key.set_bytes(public_key);
+
+        stylus_core::log(self.vm(), IGuildmaster::AggregateKeyUpdated { sender });
+        Ok(())
+    }
+
     /// Submit a vote for an Index
     ///
     /// Once enough votes, Vault contract is activated.
     ///
-    pub fn submit_vote(&mut self, index_id: U128, vote: Bytes) -> Result<(), Vec<u8>> {
+    pub fn submit_vote(&mut self, index_id: U128, signature: Bytes) -> Result<(), Vec<u8>> {
         if index_id.is_zero() {
             Err(b"Index ID cannot be zero")?;
         }
@@ -199,7 +214,8 @@ impl Guildmaster {
         vault.only_unvoted()?;
 
         let scribe = storage.scribe.get();
-        let verfication_result = self.verify_signature(scribe, vote.0)?;
+        let public_key = storage.aggregate_public_key.get_bytes();
+        let verfication_result = self.verify_signature(scribe, public_key, signature.0)?;
 
         if verfication_result {
             vault.status.set(VAULT_STATUS_APPROVED);

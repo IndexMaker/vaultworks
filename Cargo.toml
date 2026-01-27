@@ -23,6 +23,8 @@ members = [
     "libs/abacus-formulas",
     "libs/abacus-runtime",
     "libs/common",
+    "libs/common-bls",
+    "libs/common-bls-signing",
     "libs/common-contracts",
 
     "proc-macros/abacus-macros",
@@ -51,19 +53,26 @@ abacus-runtime = { path = "./libs/abacus-runtime" }
 alloy-sol-macro = "=0.8.20"
 alloy-sol-types = "=0.8.20"
 amount-macros = { path = "./proc-macros/amount-macros" }
+bls12_381 = { version = "0.8.0", features = ["experimental"] }
 chrono = "0.4.42"
 clap = "4.5"
 common = { path = "libs/common" }
-common-contracts= { path = "libs/common-contracts" }
+common-bls = { path = "libs/common-bls" }
+common-contracts = { path = "libs/common-contracts" }
 dotenv = "0.15.0"
+digest = "0.9"
 ethers = "2.0"
 eyre = "0.6.8"
 futures = "0.3"
+ff = "0.13.1"
+ff-zeroize = "0.6.3"
 hex = { version = "0.4", default-features = false }
 itertools = { version = "0.14" }
 labels-macros = { path = "./proc-macros/labels-macros" }
 openzeppelin-stylus = { version = "0.3.0" }
 openzeppelin-stylus-proc = { version = "0.3.0" }
+pairing = "0.23.0"
+rand_core = "=0.6.4"
 regex = "1.12"
 reqwest = { version = "0.12", default-features = false }
 ruint = "^1.12.3"

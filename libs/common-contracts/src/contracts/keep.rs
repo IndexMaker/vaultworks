@@ -4,7 +4,7 @@ use alloy_primitives::{uint, Address, U128, U256, U32, U8};
 use stylus_sdk::{
     keccak_const,
     prelude::*,
-    storage::{StorageAddress, StorageMap, StorageU128, StorageU32, StorageU8, StorageVec},
+    storage::{StorageAddress, StorageBytes, StorageMap, StorageU8, StorageU32, StorageU128, StorageVec},
 };
 
 use crate::contracts::storage::StorageSlot;
@@ -22,6 +22,8 @@ pub const VAULT_STATUS_UNINITIALIZED: U8 = uint!(0_U8);
 pub const VAULT_STATUS_NEW: U8 = uint!(1_U8);
 pub const VAULT_STATUS_APPROVED: U8 = uint!(2_U8);
 pub const VAULT_STATUS_REJECTED: U8 = uint!(3_U8);
+
+pub const AGGREGATED_PUBLIC_KEY_LEN: usize = 48;
 
 #[storage]
 pub struct Vault {
@@ -168,6 +170,9 @@ pub struct Keep {
     pub solve_quadratic_bid_id: StorageU128,
     pub solve_quadratic_ask_id: StorageU128,
 
+    // Quorum Key
+    pub aggregate_public_key: StorageBytes,
+    
     // NPCs
     pub clerk: StorageAddress,
     pub scribe: StorageAddress,

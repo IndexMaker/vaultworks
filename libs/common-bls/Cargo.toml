@@ -1,0 +1,35 @@
+[package]
+name = "common-bls"
+version = "0.1.0"
+edition = "2021"
+description = "IndexMaker Common BLS (signatures)"
+
+[lib]
+crate-type = ["lib"]
+
+[dependencies]
+alloy-primitives = { workspace = true }
+bls12_381 = { workspace = true }
+digest = { workspace = true }
+ff-zeroize = { workspace = true }
+pairing = { workspace = true }
+stylus-sdk = { workspace = true, optional = true }
+
+[dev-dependencies]
+stylus-sdk = { workspace = true, features = ["stylus-test"] }
+
+[features]
+default = []
+debug = []
+
+# if we're compiling smart-contracts
+stylus = ["stylus-sdk", "stylus-sdk/mini-alloc", "stylus-sdk/reentrant"]
+
+# if we're compiling smart-contracts with debug enabled
+stylus-debug = ["stylus", "stylus-sdk/debug", "debug"]
+
+# if we're compiling smart-contracts tests
+stylus-test = ["stylus-sdk", "stylus-sdk/stylus-test"]
+
+# if we're exporting Solidity ABI for contracts
+stylus-export-abi = ["stylus-sdk/export-abi"]

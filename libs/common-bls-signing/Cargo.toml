@@ -1,0 +1,22 @@
+[package]
+name = "common-bls-signing"
+version = "0.1.0"
+edition = "2021"
+description = "IndexMaker Common BLS (Signing)"
+
+[lib]
+crate-type = ["lib"]
+
+[dependencies]
+alloy-primitives = { workspace = true }
+bls12_381 = { workspace = true }
+common-bls = { workspace = true }
+digest = { workspace = true }
+ff = { workspace = true }
+ff-zeroize = { workspace = true }
+pairing = { workspace = true }
+rand_core = { workspace = true }
+
+[features]
+default = []
+debug = []
