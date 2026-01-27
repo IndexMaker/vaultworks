@@ -4,6 +4,37 @@ use ff::Field;
 use pairing::group::Curve;
 use rand_core::RngCore;
 
+/// BLS system with M-threshold signatures uses randomly
+/// generated polynomial f(x) of M-1 degree, the coefficients of which
+/// are burned immediatelly after the process of producing:
+///
+/// - f(0)        is a Master Private Key
+/// - f(i)        is a Participant's Secret Share (Private Key)
+/// 
+/// And then we can derive following:
+/// 
+/// - G * f(0)    is a Master Public Key
+/// - G * f(i)    is a Participant's Public Key
+/// 
+/// We can find Master Public Key from M-participants Public Keys by using
+/// Lagrange interpolation, as polynomial will cross y-axis at that exact
+/// point of Master Public Key.
+/// 
+/// We can combine participant's Signatures into a single signature
+/// also by using Lagrange interpolation, since:
+///
+/// - H(m) * f(i) is a Signature of the message (hash mapped to curve)
+/// - H(m) * f(0) is a Master Signature (and also Combined Signature)
+/// 
+/// The Combined Signature and Master Public Key can be then used with
+/// regular BLS signature verification method without any additional
+/// adjustments.
+/// 
+/// NOTE: This implementation introduces single point of where keys are
+/// generated, which could be sufficient in some scenarios and tests.
+/// A better Distributed Key Generation (DKG) could be used to decentralise
+/// the key generation.
+/// 
 pub struct KeySet {
     pub master_secret: Scalar,
     pub participant_shares: Vec<(u64, Scalar)>, // (ID, PrivateKey)
@@ -96,9 +127,14 @@ pub fn recover_master_public_key(shares: &[(u64, PublicKey)]) -> Result<PublicKe
     Ok(acc.to_affine())
 }
 
-/// Combine multiple signatures into single signature
+/// Combine multiple partial signatures into a single threshold signature
 ///
-///
+/// Because BLS signatures are linear, a signature is effectively a public key
+/// derived using the message hash H(m) as the generator. Since each participant's
+/// signature share is a point on the "signature polynomial" (f(x) * H(m)), 
+/// we can use Lagrange interpolation of M shares to reconstruct the value 
+/// at x=0, which represents the signature of the Master Secret Key.
+/// 
 pub fn combine_signatures(shares: &[(u64, Signature)]) -> Result<Signature, Vec<u8>> {
     let mut combined = G2Projective::identity();
 
@@ -107,7 +143,7 @@ pub fn combine_signatures(shares: &[(u64, Signature)]) -> Result<Signature, Vec<
     for (i, (_, sig)) in shares.iter().enumerate() {
         // Calculate Lagrange Coefficient lambda_i (for this participant) at point x = 0:
         //
-        //      lambda_i = product(-x_i / (x_i - x_j)) for all j != i
+        //      lambda_i = product(x_i / (x_j - x_i)) for all j != i
         //
         let mut lambda = Scalar::one();
         let xi = xs[i];
@@ -117,8 +153,8 @@ pub fn combine_signatures(shares: &[(u64, Signature)]) -> Result<Signature, Vec<
                 continue;
             }
 
-            let numerator = -(*xj);
-            let denominator = xi - xj;
+            let numerator = *xj;
+            let denominator = (*xj) - xi;
 
             let inverse = denominator
                 .invert()
